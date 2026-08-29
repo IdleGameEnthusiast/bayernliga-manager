@@ -5,8 +5,8 @@ Datei hält die Entscheidungen fest, die im Gespräch gefallen sind und sonst
 nirgends stehen — der Code sagt, *was* passiert, hier steht, *warum* und *was
 als Nächstes*.
 
-Reihenfolge: Block 1 ist fertig, Block 2 und 3 sind unabhängig voneinander,
-Block 4 setzt auf beiden auf.
+Reihenfolge: Block 1 und Block 3 sind fertig, ebenso die Kick-Vorstufe aus 2c.
+Offen ist der Rest von Block 2; Block 4 setzt auf beiden auf.
 
 ---
 
@@ -40,13 +40,15 @@ Nachzulesen in [`engine/constants.js`](../engine/constants.js),
 
 **Was Block 1 bewusst offengelassen hat:**
 
-- Die Saison läuft weiter als **doppelte Runde über alle 12 Vereine = 22
-  Spieltage**. Block 3 macht daraus 10 + Playoffs.
-- **TE, K und P existieren in keinem Kader**, werden von `teamStaerken()` aber
-  noch abgefragt und mit `ERSATZ_STAERKE = 20` verrechnet. Das kostet jeden
-  Verein gleichmäßig rund 14 % der angezeigten Gesamtstärke. Block 2 räumt das
-  auf — bis dahin sind die Zahlen im Kaderscreen zu niedrig, aber nicht
-  verzerrt.
+- ~~Die Saison läuft weiter als doppelte Runde über alle 12 Vereine = 22
+  Spieltage.~~ **Erledigt in Block 3:** 10 Gruppenspieltage + Bracket.
+- ~~TE, K und P existieren in keinem Kader, werden von `teamStaerken()` aber
+  noch abgefragt und mit `ERSATZ_STAERKE = 20` verrechnet.~~ **Für K und P
+  erledigt** über die Kick-Vorstufe, siehe 2c. **TE steht noch offen** und ist
+  dabei nicht neutral: Zusatzspieler ziehen nur die *fremden* Vereine, der
+  eigene hat `TE: 0` in der Kaderform — er ist also der einzige Verein, der
+  garantiert mit TE = 20 rechnet. Kostet rund einen Ratingpunkt, einseitig
+  gegen den Spieler. Fällt mit dem Slot-Umbau in 2a.
 - **Veteranen sterben aus.** Sie entstehen nur bei der Generierung; wer
   zurücktritt, wird durch einen 18- bis 21-Jährigen ersetzt. Nach einigen
   Saisons hat kein Verein mehr einen. Nachschub gehört ins
@@ -113,10 +115,26 @@ Das eigentliche Ziel. Heute hat ein Spieler nur `staerke` und `talent`.
   Verletzungsrisiko), ist noch nicht entschieden — ohne Preis stellt der
   Manager überall seinen besten Athleten hin.
 
-**Kleinste sinnvolle Vorstufe**, falls 2c zu groß wird: nur `kick` und `punt`
-als zwei neue Werte einführen, bei den meisten niedrig, bei wenigen echt, und
-`teamStaerken()` den besten Kicker des Kaders nehmen lassen. Das erfüllt das
-K/P-Ziel sofort und wird vom vollen Attributmodell später nicht weggeworfen.
+**Vorstufe ✅ erledigt.** Statt `kick` und `punt` sind es zwei Werte geworden,
+die eine Stufe tiefer liegen und deshalb beide Jobs bedienen:
+`kickStaerke` (wie weit) und `kickGenauigkeit` (wie zuverlässig dorthin).
+Bis es echte Formeln gibt, gilt:
+
+| Job | Formel |
+| --- | --- |
+| Kicker | 50 % `kickStaerke` + 50 % `kickGenauigkeit` |
+| Punter | 70 % `kickStaerke` + 30 % `kickGenauigkeit` |
+
+Die beiden Werte werden **unabhängig voneinander** gezogen, nachdem eine Stufe
+ausgelost ist (die meisten können es nicht, `KICK_FUSS_ANTEIL` = 7 % können es
+wirklich, OL und DL nie). Genau diese Unabhängigkeit macht die zwei Formeln
+sinnvoll: ein starkes Bein ohne Zielwasser ist ein Punter, kein Kicker.
+`teamStaerken()` sucht beide Jobs im **ganzen Kader** — Doppeleinsatz ist hier
+ausdrücklich erlaubt. Ergebnis: Special Teams liegen je nach Verein zwischen
+etwa 28 (niemand da) und 69 (ein echter Kicker) statt bei konstant 20.
+
+Nachzulesen in [`engine/team.js`](../engine/team.js) und `ziehKickWerte()` in
+[`engine/spieler.js`](../engine/spieler.js).
 
 **Was Block 2 nebenbei aufräumt:** `ERSATZ_STAERKE` als Notnagel verschwindet.
 Statt „der Platz bleibt leer und zählt 20" gilt „der nächstbeste Spieler
@@ -124,9 +142,30 @@ springt mit Abschlag ein" — und der Abschlag kommt aus der Positions-Eignung.
 
 ---
 
-## Block 3 — Nord/Süd und Playoffs
+## Block 3 — Nord/Süd und Playoffs ✅ fertig
 
-Unabhängig von Block 2 und der zweitgrößte Brocken.
+Umgesetzt wie unten beschrieben. Was dabei entschieden wurde und im Text
+darunter noch nicht stand:
+
+- Der Spielplan behält **einen durchlaufenden `spieltag`-Zähler**: 1–10
+  Gruppenrunde, 11 Halbfinale, 12 Finale. Jede Partie trägt zusätzlich ihre
+  `runde` (`gruppe` | `halbfinale` | `finale`). Das Bracket wird von
+  `ergaenzePlayoffs()` angehängt, sobald die Runde davor vollständig gespielt
+  ist — der Zustand muss deshalb keine Phase kennen, und `saisonVorbei()`
+  bleibt „Spieltag größer als der letzte im Plan".
+- **Die Verlängerung hat kein Rundenlimit mehr.** Sie terminiert von selbst,
+  weil jeder Besitz je Seite mit mindestens 9 % einen Touchdown bringt. Die
+  `OT_NOTBREMSE_RUNDEN` = 50 existiert nur, damit ein kaputter Zufall das Spiel
+  nicht aufhängen kann — und sie *entscheidet* die Partie, sie gleicht sie
+  nicht aus.
+- **Speicherstände vor v3 werden abgelehnt.** Ein v2-Stand beschreibt eine Liga
+  ohne Gruppen und ohne `runde` an der Partie; daraus lässt sich kein gültiger
+  Spielplan bauen. Der `STORAGE_KEY` heißt jetzt `bayernliga.save.v3`, ein
+  alter Stand im Browser wird also schlicht nicht mehr gefunden.
+- **Es gibt keine Absteiger**, also auch keine Abstiegsmarkierung mehr in der
+  Tabelle. Markiert sind die zwei Plätze, die ins Halbfinale führen.
+
+Beschreibung des Umbaus, so wie er beschlossen wurde:
 
 ### Gruppen
 
@@ -178,13 +217,21 @@ Die Saison schrumpft von 22 auf **12 Spieltage**. Bei
 Saison — praktisch kein Gegenspieler. Wenn der dünne 30er-Kader spürbar sein
 soll, muss die Verletzungsrate mit.
 
+**Bewusst offen gelassen.** Beim Umbau wurde entschieden, die Verletzungsrate
+vorerst nicht anzufassen; sie bleibt bei 0,055. Das heißt: Verletzungen sind
+im Moment kein spürbarer Faktor mehr. Siehe offene Entscheidung 3.
+
 ---
 
 ## Block 4 — UI
 
 Setzt auf 2 und 3 auf:
 
-- **Zwei Gruppentabellen** statt einer, plus Playoff-Ansicht mit Bracket.
+- ~~**Zwei Gruppentabellen** statt einer, plus Playoff-Ansicht mit Bracket.~~
+  **Erledigt mit Block 3** — die Tabellenansicht zeigt beide Gruppen und
+  darunter eine Playoff-Karte, der Spielplan benennt Halbfinale und Finale
+  statt „Spieltag 11/12", und die Kopfzeile tut dasselbe. Was fehlt, ist eine
+  richtige Bracket-*Grafik*; im Moment sind es drei Zeilen.
 - **Formation im Kaderscreen** — welches Personnel der Verein spielt, wer auf
   welchem Slot steht, wer umgestellt wurde.
 - **Positionswerte anzeigen**, sobald 2c steht.
@@ -227,7 +274,8 @@ Nichts davon blockiert Block 2 oder 3, aber irgendwann muss es fallen:
 1. **Bleibt der eigene Verein dauerhaft bei 30 Mann?** Sinnvoll erst
    beantwortbar, wenn Rekrutierung existiert.
 2. **Kostet ein Doppeleinsatz etwas?** (Kondition, Verletzungsrisiko)
-3. **Verletzungsrate** nach der Verkürzung auf 12 Spieltage.
+3. **Verletzungsrate** nach der Verkürzung auf 12 Spieltage. Steht seit dem
+   Umbau ausdrücklich offen — die Rate wurde nicht mit verkürzt.
 4. **Altersverteilung.** Der Zug ist gleichverteilt 18–36, für jeden Verein
    gleich — es gibt also nie eine junge Aufsteigermannschaft oder einen
    überalterten Absteiger. Bewusst so entschieden, aber es bleibt ein Hebel.
@@ -263,6 +311,9 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Ligaformat | 12 Vereine, Nord/Süd zu je 6, 10 Spieltage Gruppenrunde |
 | Playoffs | HF 1. Süd–2. Nord und 1. Nord–2. Süd, Heimrecht Gruppensieger |
 | Finale | Heimrecht nach Win Percentage, dann Punktdifferenz |
-| Unentschieden | gibt es nirgends, Verlängerung ohne Limit |
+| Unentschieden | gibt es nirgends, Verlängerung ohne Limit (nur eine Notbremse, die entscheidet statt auszugleichen) |
+| Kickwerte | `kickStaerke` und `kickGenauigkeit` je Spieler; Kicker 50/50, Punter 70/30; unabhängig gezogen, OL und DL nie mit gutem Fuß |
+| Kicker-Auswahl | der beste Fuß des **ganzen** Kaders, Doppeleinsatz K/P erlaubt |
+| Speicherstände | vor v3 abgelehnt statt migriert — die alte Ligaform lässt sich nicht retten |
 | Vereinsfarben | drei je Verein, in `farben: { primaer, sekundaer, tertiaer }` |
 | Kürzel | zwei- oder dreistellig, gemischt ist in Ordnung |

@@ -13,7 +13,7 @@
 import {
   BASE_POINTS, RATING_TO_POINTS, HOME_ADVANTAGE, MATCH_NOISE,
   MIN_EXPECTED, MAX_EXPECTED, INJURY_CHANCE_PER_GAME,
-  INJURY_MIN_WEEKS, INJURY_MAX_WEEKS,
+  INJURY_MIN_WEEKS, INJURY_MAX_WEEKS, OT_NOTBREMSE_RUNDEN,
   clamp, randInt, randNormal, pick,
 } from './constants.js';
 import { teamStaerken } from './team.js';
@@ -233,22 +233,26 @@ export function simuliereSpiel(rng, heim, gast, spieltag) {
   let gastTds = g.touchdowns;
   let verlaengerung = false;
 
-  // Overtime: each side gets a possession until one of them is ahead.
-  // Bounded so a pathological RNG can never spin here forever.
+  // Overtime: each side gets a possession, and it repeats until one of them is
+  // ahead. There is no round limit — the league knows no draw, not in the
+  // group stage either. The loop ends on its own because each possession
+  // scores a touchdown with at least 9 % probability per side, so the two
+  // separate almost surely; OT_NOTBREMSE_RUNDEN is only there so a broken RNG
+  // cannot hang the game, and it decides the match rather than levelling it.
   let runden = 0;
-  while (heimPunkte === gastPunkte && runden < 8) {
+  while (heimPunkte === gastPunkte) {
     verlaengerung = true;
     runden++;
+    if (runden > OT_NOTBREMSE_RUNDEN) {
+      if (rng() < 0.5) heimPunkte += 3; else gastPunkte += 3;
+      break;
+    }
     const hOt = otBesitz(rng, heimStaerken.angriff - gastStaerken.verteidigung);
     const gOt = otBesitz(rng, gastStaerken.angriff - heimStaerken.verteidigung);
     heimPunkte += hOt.punkte;
     gastPunkte += gOt.punkte;
     heimTds += hOt.td;
     gastTds += gOt.td;
-  }
-  if (heimPunkte === gastPunkte) {
-    // Eight rounds and still level: give the home side the point.
-    heimPunkte += 3;
   }
 
   /** @type {Verletzung[]} */

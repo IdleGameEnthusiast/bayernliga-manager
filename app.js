@@ -10,8 +10,10 @@ import { el, leere, kontrastFarbe } from './ui/dom.js';
 import { T } from './i18n.js';
 import { teamById } from './engine/content.js';
 import {
-  neuesSpiel, spieleSpieltag, naechsteSaison, saisonVorbei, tabelle, anzahlSpieltage,
+  neuesSpiel, spieleSpieltag, naechsteSaison, saisonVorbei, anzahlSpieltage,
+  gruppenTabellen, meineTabelle,
 } from './engine/saison.js';
+import { partienDerRunde } from './engine/spielplan.js';
 import {
   speichere, lade, gibtEsSpeicherstand, exportiere, importiere, dateiName,
 } from './engine/save.js';
@@ -68,7 +70,7 @@ function zeichne() {
   wurzel.append(reiter());
 
   if (ansicht === 'tabelle') {
-    wurzel.append(zeigeTabelle(tabelle(stand), stand.meinTeam));
+    wurzel.append(zeigeTabelle(gruppenTabellen(stand), stand.meinTeam, playoffPartien(stand)));
   } else if (ansicht === 'kader') {
     wurzel.append(zeigeKader(stand.kader[stand.meinTeam], stand.spieltag));
   } else if (ansicht === 'spielplan') {
@@ -83,12 +85,21 @@ function zeichne() {
   wurzel.append(fussleiste());
 }
 
+/** Halbfinale und Finale, in Reihenfolge — leer, solange die Gruppe läuft.
+ * @param {import('./engine/saison.js').SpielStand} s */
+function playoffPartien(s) {
+  return [
+    ...partienDerRunde(s.spielplan, 'halbfinale'),
+    ...partienDerRunde(s.spielplan, 'finale'),
+  ];
+}
+
 function kopfzeile() {
   if (!stand) return el('div');
   const t = teamById(stand.meinTeam);
   const gesamt = anzahlSpieltage(stand.spielplan);
   const fertig = saisonVorbei(stand);
-  const platz = tabelle(stand).findIndex((z) => z.teamId === stand.meinTeam) + 1;
+  const platz = meineTabelle(stand).findIndex((z) => z.teamId === stand.meinTeam) + 1;
 
   return el('div', { class: 'kopf' },
     el('div', {
@@ -102,10 +113,20 @@ function kopfzeile() {
       el('div', { class: 'kopf-titel', text: `${platz}.` }),
       el('div', {
         class: 'kopf-unter',
-        text: fertig
-          ? T.meldung.saisonVorbei
-          : `${T.spielplan.spieltag} ${stand.spieltag}/${gesamt}`,
+        text: fertig ? T.meldung.saisonVorbei : naechsterTermin(stand, gesamt),
       })));
+}
+
+/**
+ * Was oben rechts steht: die Spieltagszahl in der Gruppenrunde, sonst der Name
+ * der Runde, die als Nächstes ansteht.
+ * @param {import('./engine/saison.js').SpielStand} s @param {number} gesamt
+ */
+function naechsterTermin(s, gesamt) {
+  const naechste = s.spielplan.find((p) => p.spieltag === s.spieltag);
+  return naechste && naechste.runde !== 'gruppe'
+    ? T.runde[naechste.runde]
+    : `${T.spielplan.spieltag} ${s.spieltag}/${gesamt}`;
 }
 
 function reiter() {

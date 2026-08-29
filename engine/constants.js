@@ -59,6 +59,24 @@ export const TALENT_STREUUNG = 6;      // standard deviation of talent around th
 /** What an empty slot in a unit is worth. A body, not a player. */
 export const ERSATZ_STAERKE = 20;
 
+/**
+ * Kicking. Every player carries two values instead of a K or P slot, because
+ * below the GFL almost nobody keeps a specialist — the club kicks with whoever
+ * has the foot for it, and that man plays a position the rest of the game.
+ *
+ * `kickStaerke` is how far the ball goes, `kickGenauigkeit` how reliably it
+ * goes where it should. Most men have neither. A few have a real foot, and the
+ * two values are drawn apart from each other on purpose: a cannon leg with no
+ * aim is a punter, not a kicker.
+ */
+export const KICK_BASIS = 22;            // mean for a man who does not kick
+export const KICK_STREUUNG = 6;
+export const KICK_FUSS_ANTEIL = 0.07;    // share of the squad who actually can
+export const KICK_FUSS_BASIS = 55;       // mean for those who can
+export const KICK_FUSS_STREUUNG = 9;
+/** Where a kicker never comes from: the men in the trenches. */
+export const KICK_FUSS_AUSSCHLUSS = /** @type {Position[]} */ (['OL', 'DL']);
+
 /** Age bounds for the normal draw, and where the curve peaks. */
 export const MIN_AGE = 18;
 export const MAX_AGE = 36;
@@ -88,9 +106,12 @@ export const MATCH_NOISE = 6.5;       // std-dev-ish spread on the expected scor
 export const MIN_EXPECTED = 3;
 export const MAX_EXPECTED = 56;
 
-/** Standings: German American football scores 2:0 for a win. */
+/**
+ * Standings: German American football scores 2:0 for a win. There is no third
+ * outcome — overtime runs until somebody is ahead, in the group stage as well
+ * as in the playoffs, so no draw ever reaches the table.
+ */
 export const POINTS_WIN = 2;
-export const POINTS_TIE = 1;
 export const POINTS_LOSS = 0;
 
 /** Injuries. */
@@ -98,8 +119,18 @@ export const INJURY_CHANCE_PER_GAME = 0.055; // per team, per match
 export const INJURY_MIN_WEEKS = 1;
 export const INJURY_MAX_WEEKS = 6;
 
-/** Season structure. */
+/**
+ * Overtime never ends level, so the loop has no round limit. It terminates on
+ * its own — each possession scores a touchdown with at least 9 % probability
+ * per side, so the two sides separate almost surely. The brake exists only so
+ * that a broken RNG can never hang the game, and it decides rather than ties.
+ */
+export const OT_NOTBREMSE_RUNDEN = 50;
+
+/** Season structure: two groups of six, then a bracket across them. */
 export const SEASON_START_YEAR = 2026;
+/** Playoff berths per group. Two of six, which is the bracket the league uses. */
+export const PLAYOFF_PLAETZE = 2;
 
 /** @param {number} v @param {number} lo @param {number} hi */
 export function clamp(v, lo, hi) {

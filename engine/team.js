@@ -5,7 +5,7 @@
  */
 
 import { ERSATZ_STAERKE } from './constants.js';
-import { verfuegbar } from './spieler.js';
+import { verfuegbar, istFit } from './spieler.js';
 
 /**
  * @typedef {object} Team
@@ -39,6 +39,45 @@ export function einheit(kader, position, n, spieltag) {
 }
 
 /**
+ * What a man is worth kicking off the tee: distance and aim in equal parts,
+ * because a field goal needs both.
+ * @param {import('./spieler.js').Spieler} s
+ */
+export function kickerWert(s) {
+  return s.kickStaerke * 0.5 + s.kickGenauigkeit * 0.5;
+}
+
+/**
+ * What he is worth punting: mostly leg. A punt that lands five yards off the
+ * sideline still did its job, a short one never does.
+ * @param {import('./spieler.js').Spieler} s
+ */
+export function punterWert(s) {
+  return s.kickStaerke * 0.7 + s.kickGenauigkeit * 0.3;
+}
+
+/**
+ * The best foot in the squad for one of the two jobs.
+ *
+ * Searched across the *whole* Kader, not a K or P slot: no Bayernliga club
+ * carries a specialist, so the kicker is whichever receiver or linebacker can
+ * do it. One man may well hold both jobs — that is the one double duty the
+ * rules allow without asking.
+ * @param {import('./spieler.js').Spieler[]} kader
+ * @param {number} spieltag
+ * @param {(s: import('./spieler.js').Spieler) => number} wert
+ */
+export function besterFuss(kader, spieltag, wert) {
+  let bester = ERSATZ_STAERKE;
+  for (const s of kader) {
+    if (!istFit(s, spieltag)) continue;
+    const w = wert(s);
+    if (w > bester) bester = w;
+  }
+  return bester;
+}
+
+/**
  * Unit ratings for one side, at one point in the season.
  * The weights are the model: the quarterback carries the offence, the line
  * decides the rest, and special teams only ever nudge.
@@ -57,8 +96,8 @@ export function teamStaerken(kader, spieltag) {
   const lb = einheit(kader, 'LB', 3, spieltag);
   const db = einheit(kader, 'DB', 4, spieltag);
 
-  const k = einheit(kader, 'K', 1, spieltag);
-  const p = einheit(kader, 'P', 1, spieltag);
+  const k = besterFuss(kader, spieltag, kickerWert);
+  const p = besterFuss(kader, spieltag, punterWert);
 
   return {
     angriff: qb * 0.40 + ol * 0.25 + wr * 0.18 + rb * 0.11 + te * 0.06,

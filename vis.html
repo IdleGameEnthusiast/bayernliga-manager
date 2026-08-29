@@ -6,11 +6,15 @@
 <script type="module">
   import { neuesSpiel, spieleSpieltag } from './engine/saison.js';
   import { speichere } from './engine/save.js';
+  const q = new URLSearchParams(location.search);
   const s = neuesSpiel('heg', 'vis-seed');
-  for (let i = 0; i < 7; i++) spieleSpieltag(s);
+  // Ohne ?ende steht die Saison mitten in der Gruppenrunde, mit ?ende hinter
+  // dem Finale — die einzige Stelle, an der das Bracket vollständig zu sehen ist.
+  const bis = q.has('ende') ? 12 : 7;
+  for (let i = 0; i < bis; i++) spieleSpieltag(s);
   speichere(s);
   await import('./app.js');
-  const v = new URLSearchParams(location.search).get('v');
+  const v = q.get('v');
   const tabs = document.querySelectorAll('.reiter button');
   if (v === 'kader') tabs[1].click();
   if (v === 'spielplan') tabs[2].click();

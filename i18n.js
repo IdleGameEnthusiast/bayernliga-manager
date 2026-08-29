@@ -49,8 +49,24 @@ export const DE = {
     erzielt: 'Erz',
     kassiert: 'Kas',
     differenz: 'Diff',
-    legendeMeister: 'Meister',
-    legendeAbstieg: 'Abstieg',
+    legendePlayoff: 'Playoffs',
+  },
+
+  gruppen: {
+    nord: 'Gruppe Nord',
+    sued: 'Gruppe Süd',
+  },
+
+  runde: {
+    gruppe: 'Gruppenrunde',
+    halbfinale: 'Halbfinale',
+    finale: 'Finale',
+  },
+
+  playoffs: {
+    ueberschrift: 'Playoffs',
+    offen: 'Wird nach der Gruppenrunde ausgelost.',
+    heimrecht: 'Heimrecht',
   },
 
   kader: {
@@ -103,6 +119,13 @@ export const DE = {
     importieren: 'Speicherstand importieren',
     neuesSpiel: 'Neue Karriere',
     zurueck: 'Zurück',
+  },
+
+  log: {
+    sieg: 'Sieg',
+    niederlage: 'Niederlage',
+    partie: (wo, ausgang, eigene, fremde) => `${wo}: ${ausgang} ${eigene}:${fremde}`,
+    saisonEnde: (jahr, verein) => `Saison ${jahr} beendet — Meister: ${verein}`,
   },
 
   meldung: {

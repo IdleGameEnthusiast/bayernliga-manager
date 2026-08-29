@@ -3,9 +3,12 @@
  * The Tabelle: standings derived from the played fixtures.
  * Derived state — never stored, always recomputed, so a save can never carry
  * a table that disagrees with its own results.
+ *
+ * One table per group. The two groups never meet before the playoffs, so a
+ * combined table of all twelve would compare clubs that share no opponent.
  */
 
-import { POINTS_WIN, POINTS_TIE, POINTS_LOSS } from './constants.js';
+import { POINTS_WIN, POINTS_LOSS } from './constants.js';
 
 /**
  * @typedef {object} TabellenZeile
@@ -14,7 +17,6 @@ import { POINTS_WIN, POINTS_TIE, POINTS_LOSS } from './constants.js';
  * @property {number} spiele
  * @property {number} siege
  * @property {number} niederlagen
- * @property {number} unentschieden
  * @property {number} punkte        League points (2:0 system)
  * @property {number} erzielt       Points scored
  * @property {number} kassiert      Points allowed
@@ -32,7 +34,7 @@ export function berechneTabelle(teamIds, plan) {
   for (const id of teamIds) {
     zeilen.set(id, {
       teamId: id, platz: 0, spiele: 0, siege: 0, niederlagen: 0,
-      unentschieden: 0, punkte: 0, erzielt: 0, kassiert: 0, differenz: 0,
+      punkte: 0, erzielt: 0, kassiert: 0, differenz: 0,
     });
   }
 
@@ -49,15 +51,13 @@ export function berechneTabelle(teamIds, plan) {
     heim.erzielt += hp; heim.kassiert += gp;
     gast.erzielt += gp; gast.kassiert += hp;
 
+    // A match always has a winner — overtime runs until it does.
     if (hp > gp) {
       heim.siege++; heim.punkte += POINTS_WIN;
       gast.niederlagen++; gast.punkte += POINTS_LOSS;
-    } else if (gp > hp) {
+    } else {
       gast.siege++; gast.punkte += POINTS_WIN;
       heim.niederlagen++; heim.punkte += POINTS_LOSS;
-    } else {
-      heim.unentschieden++; heim.punkte += POINTS_TIE;
-      gast.unentschieden++; gast.punkte += POINTS_TIE;
     }
   }
 
@@ -81,9 +81,34 @@ export function platzVon(tabelle, teamId) {
   return z ? z.platz : 0;
 }
 
-/** Bilanz as the UI writes it: "5-2" or "5-2-1". @param {TabellenZeile} z */
+/** Bilanz as the UI writes it: "5-2". There is no third number. @param {TabellenZeile} z */
 export function bilanz(z) {
-  return z.unentschieden > 0
-    ? `${z.siege}-${z.niederlagen}-${z.unentschieden}`
-    : `${z.siege}-${z.niederlagen}`;
+  return `${z.siege}-${z.niederlagen}`;
+}
+
+/**
+ * Win percentage. Draws are impossible, but the formula keeps its half-credit
+ * term: it is the form the league writes, and it stays correct if a future
+ * competition ever does end level.
+ * @param {TabellenZeile} z
+ */
+export function winProzent(z) {
+  if (z.spiele === 0) return 0;
+  const unentschieden = z.spiele - z.siege - z.niederlagen;
+  return (z.siege + 0.5 * unentschieden) / z.spiele;
+}
+
+/**
+ * Who hosts when two clubs from different groups meet: the better record by
+ * win percentage, then by point differential. The teamId only breaks a tie
+ * that is otherwise perfect, and only so the bracket stays reproducible.
+ * @param {TabellenZeile} a
+ * @param {TabellenZeile} b
+ * @returns {TabellenZeile} the side with home advantage
+ */
+export function heimrecht(a, b) {
+  const wp = winProzent(b) - winProzent(a);
+  if (wp !== 0) return wp > 0 ? b : a;
+  if (b.differenz !== a.differenz) return b.differenz > a.differenz ? b : a;
+  return a.teamId.localeCompare(b.teamId) <= 0 ? a : b;
 }

@@ -10,6 +10,8 @@ import {
   VETERAN_MIN, VETERAN_MAX, VETERAN_ANTEIL_JUNG, VETERAN_JUNG, VETERAN_ALT,
   VETERAN_RUECKTRITT_MAX, VETERAN_POSITIONEN,
   KADER_FORM, ZUSATZ_GEWICHTE, ZUSATZ_MAX_JE_POSITION,
+  KICK_BASIS, KICK_STREUUNG, KICK_FUSS_ANTEIL, KICK_FUSS_BASIS,
+  KICK_FUSS_STREUUNG, KICK_FUSS_AUSSCHLUSS,
   POSITIONS, clamp, randInt, pick, pickWeighted, randNormal, shuffle,
 } from './constants.js';
 import { VORNAMEN, NACHNAMEN } from './content.js';
@@ -26,6 +28,8 @@ import { VORNAMEN, NACHNAMEN } from './content.js';
  * @property {number} talent          Ceiling this player could reach; may sit above the league cap
  * @property {number} ruecktrittAlter The season after this age he stops
  * @property {number} verletztBis     Matchday index the player is fit again; 0 = fit
+ * @property {number} kickStaerke     How far he kicks it
+ * @property {number} kickGenauigkeit How reliably it goes where he aimed
  */
 
 /** A player who has not been handed a number yet. 0 is a real jersey. */
@@ -98,6 +102,30 @@ export function berechneStaerke(talent, alter) {
 }
 
 /**
+ * The two kicking values for one player.
+ *
+ * A tier is drawn first — most men cannot kick at all, a few really can — and
+ * the two values are then drawn *inside* that tier independently of each
+ * other. That independence is the point: it lets a man have the leg but not
+ * the aim, which is exactly the player a club uses as its punter and not as
+ * its kicker. Linemen are excluded from the good tier; nobody hands the ball
+ * to a 120-kilo guard on fourth down.
+ * @param {() => number} rng
+ * @param {import('./constants.js').Position} position
+ */
+export function ziehKickWerte(rng, position) {
+  const fuss = !KICK_FUSS_AUSSCHLUSS.includes(position) && rng() < KICK_FUSS_ANTEIL;
+  const basis = fuss ? KICK_FUSS_BASIS : KICK_BASIS;
+  const streuung = fuss ? KICK_FUSS_STREUUNG : KICK_STREUUNG;
+  /** @returns {number} */
+  const wert = () => clamp(
+    Math.round(basis + randNormal(rng) * streuung),
+    RATING_UNTERGRENZE, LIGA_MAX_STAERKE,
+  );
+  return { kickStaerke: wert(), kickGenauigkeit: wert() };
+}
+
+/**
  * Draw a full name, avoiding one already worn inside the same club. Two Hubers
  * in one league are right; two in one changing room are only confusing.
  * @param {() => number} rng
@@ -148,6 +176,7 @@ export function macheSpieler(rng, position, teamStaerke, optionen) {
     talent,
     ruecktrittAlter: RUECKTRITT_ALTER,
     verletztBis: 0,
+    ...ziehKickWerte(rng, position),
   };
 }
 

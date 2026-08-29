@@ -2,12 +2,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { TEAMS } from '../engine/content.js';
+import { TEAMS, GRUPPEN, teamsDerGruppe, teamById } from '../engine/content.js';
 import { KADER_GROESSE_EIGEN, KADER_GROESSE_FREMD, EIGENE_VEREINSBASIS } from '../engine/constants.js';
 import {
-  neuesSpiel, spieleSpieltag, saisonVorbei, naechsteSaison, tabelle, anzahlSpieltage,
-  vereinsBasen,
+  neuesSpiel, spieleSpieltag, saisonVorbei, naechsteSaison, anzahlSpieltage,
+  vereinsBasen, gruppenTabelle, gruppenTabellen, meineTabelle, meister,
+  gruppenSpieltage,
 } from '../engine/saison.js';
+import { partienDerRunde, sieger } from '../engine/spielplan.js';
 import { SAVE_VERSION } from '../engine/saison.js';
 import { migriere, exportiere, importiere } from '../engine/save.js';
 
@@ -50,42 +52,106 @@ test('ein neues Spiel ist vollständig aufgesetzt', () => {
     assert.equal(s.kader[t.id].length, soll, t.id);
   }
   assert.ok(!saisonVorbei(s));
+  assert.equal(anzahlSpieltage(s.spielplan), 10, 'die Gruppenrunde steht, das Bracket nicht');
+  assert.equal(partienDerRunde(s.spielplan, 'halbfinale').length, 0);
 });
 
 test('eine volle Saison lässt sich durchspielen', () => {
   const s = neuesSpiel('ers', 'seed-2');
-  const gesamt = anzahlSpieltage(s.spielplan);
 
   let gespielt = 0;
   while (!saisonVorbei(s)) {
     const bericht = spieleSpieltag(s);
     assert.ok(bericht, 'jeder Spieltag liefert einen Bericht');
     gespielt++;
-    assert.ok(gespielt <= gesamt + 1, 'die Saison terminiert');
+    assert.ok(gespielt <= 12, 'die Saison terminiert');
   }
-  assert.equal(gespielt, gesamt);
+  assert.equal(gespielt, 12, 'zehn Gruppenspieltage, Halbfinale, Finale');
+  assert.equal(anzahlSpieltage(s.spielplan), 12);
   assert.equal(s.spielplan.filter((p) => p.ergebnis === null).length, 0);
   assert.equal(spieleSpieltag(s), null, 'nach dem Ende passiert nichts mehr');
+});
+
+test('das Bracket entsteht erst, wenn es feststeht', () => {
+  const s = neuesSpiel('kba', 'seed-bracket');
+  const gruppenEnde = gruppenSpieltage(s.spielplan);
+  assert.equal(gruppenEnde, 10);
+
+  for (let i = 0; i < gruppenEnde - 1; i++) {
+    spieleSpieltag(s);
+    assert.equal(partienDerRunde(s.spielplan, 'halbfinale').length, 0,
+      `nach Spieltag ${i + 1} steht noch kein Halbfinale`);
+  }
+
+  spieleSpieltag(s); // letzter Gruppenspieltag
+  const hf = partienDerRunde(s.spielplan, 'halbfinale');
+  assert.equal(hf.length, 2);
+  assert.ok(hf.every((p) => p.spieltag === 11));
+  assert.equal(partienDerRunde(s.spielplan, 'finale').length, 0, 'das Finale noch nicht');
+
+  // Gesetzt ist über Kreuz, mit Heimrecht beim Gruppensieger.
+  const nord = gruppenTabelle(s, 'nord');
+  const sued = gruppenTabelle(s, 'sued');
+  assert.deepEqual(hf.map((p) => [p.heim, p.gast]), [
+    [sued[0].teamId, nord[1].teamId],
+    [nord[0].teamId, sued[1].teamId],
+  ]);
+
+  spieleSpieltag(s); // Halbfinale
+  const finale = partienDerRunde(s.spielplan, 'finale');
+  assert.equal(finale.length, 1);
+  assert.equal(finale[0].spieltag, 12);
+  const sieger1 = sieger(hf[0]);
+  const sieger2 = sieger(hf[1]);
+  assert.deepEqual([finale[0].heim, finale[0].gast].sort(), [sieger1, sieger2].sort());
+
+  assert.equal(meister(s), null, 'vor dem Finale gibt es keinen Meister');
+  spieleSpieltag(s);
+  assert.equal(meister(s), sieger(finale[0]));
+  assert.ok(saisonVorbei(s));
+});
+
+test('die Gruppentabellen zählen nur Gruppenspiele', () => {
+  const s = neuesSpiel('hr', 'seed-gruppen');
+  while (!saisonVorbei(s)) spieleSpieltag(s);
+
+  for (const { gruppe, zeilen } of gruppenTabellen(s)) {
+    assert.equal(zeilen.length, teamsDerGruppe(gruppe).length);
+    for (const z of zeilen) {
+      assert.equal(z.spiele, 10, `${z.teamId} hat zehn Gruppenspiele`);
+      assert.equal(teamById(z.teamId).gruppe, gruppe);
+    }
+  }
+  assert.deepEqual(GRUPPEN.slice(), gruppenTabellen(s).map((g) => g.gruppe));
+});
+
+test('kein Spiel einer ganzen Saison endet unentschieden', () => {
+  const s = neuesSpiel('fkk', 'seed-remis');
+  while (!saisonVorbei(s)) spieleSpieltag(s);
+  for (const p of s.spielplan) {
+    assert.ok(p.ergebnis, 'jede Partie ist gespielt');
+    assert.notEqual(p.ergebnis.heimPunkte, p.ergebnis.gastPunkte,
+      `${p.heim} gegen ${p.gast} hat einen Sieger`);
+  }
 });
 
 test('die Tabelle stimmt mit den gespielten Partien überein', () => {
   const s = neuesSpiel('gc', 'seed-3');
   while (!saisonVorbei(s)) spieleSpieltag(s);
 
-  const t = tabelle(s);
-  const gesamt = anzahlSpieltage(s.spielplan);
-  for (const z of t) {
-    assert.equal(z.spiele, gesamt, `${z.teamId} hat alle Spiele`);
+  for (const { zeilen } of gruppenTabellen(s)) {
+    // Jeder Sieg auf der einen Seite ist eine Niederlage auf der anderen.
+    const siege = zeilen.reduce((a, z) => a + z.siege, 0);
+    const niederlagen = zeilen.reduce((a, z) => a + z.niederlagen, 0);
+    assert.equal(siege, niederlagen);
+    // Erzielte und kassierte Punkte sind dieselbe Menge, von beiden Seiten gezählt.
+    assert.equal(
+      zeilen.reduce((a, z) => a + z.erzielt, 0),
+      zeilen.reduce((a, z) => a + z.kassiert, 0),
+    );
   }
-  // Jeder Sieg auf der einen Seite ist eine Niederlage auf der anderen.
-  const siege = t.reduce((a, z) => a + z.siege, 0);
-  const niederlagen = t.reduce((a, z) => a + z.niederlagen, 0);
-  assert.equal(siege, niederlagen);
-  // Erzielte und kassierte Punkte sind dieselbe Menge, von beiden Seiten gezählt.
-  assert.equal(
-    t.reduce((a, z) => a + z.erzielt, 0),
-    t.reduce((a, z) => a + z.kassiert, 0),
-  );
+  assert.deepEqual(meineTabelle(s), gruppenTabelle(s, teamById('gc').gruppe),
+    'meineTabelle liefert die Tabelle der eigenen Gruppe');
 });
 
 test('gleicher Seed, gleiche Saison', () => {
@@ -93,20 +159,25 @@ test('gleicher Seed, gleiche Saison', () => {
   const b = neuesSpiel('fel', 'gleich');
   while (!saisonVorbei(a)) spieleSpieltag(a);
   while (!saisonVorbei(b)) spieleSpieltag(b);
-  assert.deepEqual(tabelle(a), tabelle(b));
+  assert.deepEqual(gruppenTabellen(a), gruppenTabellen(b));
+  assert.equal(meister(a), meister(b));
 });
 
 test('der Saisonwechsel setzt zurück und schreibt Historie', () => {
   const s = neuesSpiel('mr', 'seed-4');
   while (!saisonVorbei(s)) spieleSpieltag(s);
 
-  const { meister } = naechsteSaison(s);
-  assert.ok(TEAMS.some((t) => t.id === meister));
+  const finale = partienDerRunde(s.spielplan, 'finale')[0];
+  const { meister: champion } = naechsteSaison(s);
+  assert.equal(champion, sieger(finale), 'Meister ist der Finalsieger');
   assert.equal(s.jahr, 2027);
   assert.equal(s.spieltag, 1);
   assert.equal(s.historie.length, 1);
   assert.equal(s.historie[0].jahr, 2026);
   assert.equal(s.spielplan.filter((p) => p.ergebnis !== null).length, 0, 'frischer Spielplan');
+  assert.equal(anzahlSpieltage(s.spielplan), 10, 'nur die Gruppenrunde ist gezogen');
+  assert.ok(s.historie[0].meinPlatz >= 1 && s.historie[0].meinPlatz <= 6,
+    'der eigene Platz zählt in der eigenen Gruppe');
   for (const t of TEAMS) {
     const soll = t.id === s.meinTeam ? KADER_GROESSE_EIGEN : KADER_GROESSE_FREMD;
     assert.equal(s.kader[t.id].length, soll, `${t.id} bleibt vollzählig`);
@@ -149,7 +220,9 @@ test('ein leerer Speicherstand wird abgelehnt', () => {
   assert.throws(() => migriere(null));
 });
 
-test('ein Stand aus der alten Achter-Liga wird abgelehnt', () => {
+test('Stände aus einer älteren Liga werden abgelehnt', () => {
   assert.throws(() => migriere({ version: 1, seed: 'x', meinTeam: 'ros', kader: {} }),
+    /älteren Liga/);
+  assert.throws(() => migriere({ version: 2, seed: 'x', meinTeam: 'heg', kader: {} }),
     /älteren Liga/);
 });

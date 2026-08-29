@@ -19,8 +19,12 @@ export function zeigeSpielplan(plan, meinTeam, aktuellerSpieltag, beiPartie) {
 
   for (let st = 1; st <= gesamt; st++) {
     const partien = plan.filter((p) => p.spieltag === st);
+    if (partien.length === 0) continue;
+    // Ein Playoff-Spieltag heißt nach seiner Runde, nicht nach seiner Nummer.
+    const runde = partien[0].runde;
+    const titel = runde === 'gruppe' ? `${T.spielplan.spieltag} ${st}` : T.runde[runde];
     karten.push(el('div', { class: 'karte' },
-      el('h2', { text: `${T.spielplan.spieltag} ${st}` + (st === aktuellerSpieltag ? ' ·' : '') }),
+      el('h2', { text: titel + (st === aktuellerSpieltag ? ' ·' : '') }),
       partien.map((p) => zeilePartie(p, meinTeam, beiPartie))));
   }
 

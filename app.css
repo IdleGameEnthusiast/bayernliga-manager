@@ -150,8 +150,8 @@ td {
 td:nth-child(1), td:nth-child(2) { text-align: left; }
 
 tr.mein-team td { background: rgba(214, 73, 51, .13); font-weight: 600; }
-tr.meister td:first-child { box-shadow: inset 3px 0 0 var(--gelb); }
-tr.abstieg td:first-child { box-shadow: inset 3px 0 0 var(--rot); }
+/* Die beiden Plätze, die ins Halbfinale führen. Absteiger gibt es keine. */
+tr.playoff td:first-child { box-shadow: inset 3px 0 0 var(--gruen); }
 
 .verein-zelle { display: flex; align-items: center; gap: 8px; }
 .farbtupfer {
