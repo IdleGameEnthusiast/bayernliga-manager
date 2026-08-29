@@ -14,9 +14,10 @@ import {
   BASE_POINTS, RATING_TO_POINTS, HOME_ADVANTAGE, MATCH_NOISE,
   MIN_EXPECTED, MAX_EXPECTED, INJURY_CHANCE_PER_GAME,
   INJURY_MIN_WEEKS, INJURY_MAX_WEEKS, OT_NOTBREMSE_RUNDEN,
-  clamp, randInt, randNormal, pick,
+  clamp, randInt, randNormal, pickWeighted,
 } from './constants.js';
 import { teamStaerken } from './team.js';
+import { doppelEinsaetze, doppelRisiko } from './aufstellung.js';
 import { verfuegbar, kurzName } from './spieler.js';
 
 /**
@@ -176,17 +177,27 @@ export function baueStats(rng, kader, spieltag, touchdowns, staerken) {
 
 /**
  * Roll for an injury on one side.
+ *
+ * Whom it hits is drawn from the fit players, but not evenly: a man who spent
+ * the afternoon in both units is two to four times as likely to be the one
+ * carried off, and how much of that he carries is his own Robustheit. That is
+ * the second half of the double-duty price — the first is the deduction on
+ * what he is worth out there.
  * @param {() => number} rng
  * @param {string} teamId
  * @param {import('./spieler.js').Spieler[]} kader
  * @param {number} spieltag
+ * @param {string[]} [doppelt] ids of the men who played both ways
  * @returns {Verletzung | null}
  */
-export function wuerfelVerletzung(rng, teamId, kader, spieltag) {
+export function wuerfelVerletzung(rng, teamId, kader, spieltag, doppelt = []) {
   if (rng() >= INJURY_CHANCE_PER_GAME) return null;
   const fit = kader.filter((s) => s.verletztBis <= spieltag);
   if (fit.length === 0) return null;
-  const opfer = pick(rng, fit);
+  const doppelSet = new Set(doppelt);
+  const opfer = pickWeighted(rng, fit.map((s) => /** @type {[typeof s, number]} */ ([
+    s, doppelSet.has(s.id) ? doppelRisiko(s.attribute.robustheit) : 1,
+  ])));
   return {
     teamId,
     spielerId: opfer.id,
@@ -257,9 +268,11 @@ export function simuliereSpiel(rng, heim, gast, spieltag) {
 
   /** @type {Verletzung[]} */
   const verletzungen = [];
-  const vH = wuerfelVerletzung(rng, heim.id, heim.kader, spieltag);
+  const vH = wuerfelVerletzung(rng, heim.id, heim.kader, spieltag,
+    doppelEinsaetze(heimStaerken.aufstellung));
   if (vH) verletzungen.push(vH);
-  const vG = wuerfelVerletzung(rng, gast.id, gast.kader, spieltag);
+  const vG = wuerfelVerletzung(rng, gast.id, gast.kader, spieltag,
+    doppelEinsaetze(gastStaerken.aufstellung));
   if (vG) verletzungen.push(vG);
 
   return {

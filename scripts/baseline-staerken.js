@@ -19,12 +19,17 @@ const stand = neuesSpiel(meinTeam, seed);
 
 const zeilen = TEAMS.map((t) => {
   const s = teamStaerken(stand.kader[t.id], 1);
+  /** @type {Record<string, number>} */
+  const werte = {};
+  for (const [feld, wert] of Object.entries(s)) {
+    if (typeof wert === 'number') werte[feld] = wert;
+  }
   return {
     kurz: t.kurz,
     name: teamById(t.id).name,
     kader: stand.kader[t.id].length,
     gesamt: gesamtStaerke(s),
-    werte: s,
+    werte,
   };
 }).sort((a, b) => b.gesamt - a.gesamt);
 

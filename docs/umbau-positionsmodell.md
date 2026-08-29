@@ -646,13 +646,33 @@ einer ausgebildet, und der Grundkader bildet abwechselnd links und rechts aus. D
 ein Verein keinen Right Tackle hat, soll aus Verletzungen kommen und nicht aus der
 Ziehung.
 
-### Inkrement 4 — Aufstellung
+### Inkrement 4 — Aufstellung ✅ fertig
 Neu: `engine/aufstellung.js`. `engine/team.js` wird umgebaut. Tests.
 
 Personnel-Katalog, Plätze, `stelleAuf()`, Doppeleinsatz, `ERSATZ_STAERKE` entfällt.
 `teamStaerken()` liefert ab hier `laufAngriff`, `passAngriff`, `laufVerteidigung`,
 `passVerteidigung`, `special`. Fertig, wenn kein Platz je leer ist und dieselben elf
 Leute in verschiedenen Systemen unterschiedliche, aber plausible Werte ergeben.
+
+`stelleAuf()` geht in drei Runden über beide Einheiten. Erst bekommt jeder Platz den
+stärksten fitten Mann seiner eigenen Position, dann rücken die Umsteller nach — und
+zwar auf dem teuersten freien Platz zuerst, damit ein knapper Spieler dort landet, wo
+er am meisten zählt. Der Doppeleinsatz kommt zuletzt, weil er teuer ist.
+
+Zwei Dinge, die beim Bauen entschieden wurden:
+
+- **`teamStaerken()` behält `angriff` und `verteidigung` als Mittel der beiden Werte**,
+  bis Inkrement 5 die Simulation umstellt. Ohne diese Brücke wäre das Spiel einen
+  Schritt lang nicht lauffähig, und genau das soll ein Inkrement nicht.
+- **Der Doppeleinsatz zahlt auch sein Risiko.** `wuerfelVerletzung()` zieht sein Opfer
+  ab hier gewichtet: wer in beiden Einheiten stand, ist nach seiner Robustheit zwei-
+  bis viermal so wahrscheinlich der Getroffene. Der Abzug allein wäre nur die halbe
+  Entscheidung gewesen.
+
+Gemessen am 30-Mann-Kader des eigenen Vereins: das System `11` verlangt eine
+Umstellung (den fehlenden Tight End), `32` deren drei, `20` keine. Bis zum **neunten**
+Ausfall kommt der Verein ohne Doppeleinsatz durch — danach steht der erste Mann in
+beiden Einheiten.
 
 ### Inkrement 5 — Lauf und Pass in der Simulation
 `engine/spiel.js`, Tests.
@@ -705,6 +725,11 @@ unbemerkt.
 3. **Passanteile je Gruppierung** (Abschnitt 6) sind ein Vorschlag, keine Entscheidung.
 4. **Verletzungsrate.** `INJURY_CHANCE_PER_GAME` = 0,055 steht seit der Verkürzung auf
    12 Spieltage offen. Der harte Doppeleinsatz-Multiplikator macht die Frage dringender.
+
+   *Nach Inkrement 4 gemessen:* bei 0,055 je Verein und Partie fallen über zwölf
+   Spieltage im Schnitt keine zwei Mann aus, und der Doppeleinsatz greift erst ab dem
+   neunten Ausfall. Die harte Bepreisung ist damit derzeit fast totes Recht — sie
+   wirkt erst, wenn die Rate steigt. Beides gehört zusammen entschieden.
 5. **Alterskurven je Attribut** — bewusst auf das Entwicklungskonzept verschoben.
    Bis dahin altern alle Werte gleichmäßig.
 6. **Berechnete `staerke`** statt gezogener — der zweite Schritt, ausdrücklich später.

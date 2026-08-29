@@ -50,7 +50,8 @@ in Millisekunden durchspielen können.
 | `engine/content.js` | Die Kataloge: Vereine, Vor- und Nachnamen |
 | `engine/positionen.js` | Körperkorridore, Positionsformeln, Plätze, die Eignung |
 | `engine/spieler.js` | Spieler erzeugen, Attribute, Alterskurve, Verletzungen, Saisonwechsel |
-| `engine/team.js` | Aus einem Kader werden Mannschaftsteile: Angriff, Verteidigung, Special |
+| `engine/aufstellung.js` | Personnel, die zweiundzwanzig Plätze, der Doppeleinsatz |
+| `engine/team.js` | Aus einer Aufstellung werden Lauf- und Passwerte je Einheit |
 | `engine/spielplan.js` | Gruppenrunde nach dem Kreisverfahren, dazu das Bracket |
 | `engine/spiel.js` | Die Spielsimulation: Endstand, Viertel, Box Score |
 | `engine/tabelle.js` | Die Gruppentabellen — immer neu berechnet, nie gespeichert |

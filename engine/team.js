@@ -1,71 +1,57 @@
 // @ts-check
 /**
- * Team strength: how a Kader turns into the numbers the match sim uses.
- * Docs: docs/spec/04-economy-formulas.md
+ * Teamstärke: wie aus einem Kader die Zahlen werden, mit denen die Simulation
+ * rechnet.
+ *
+ * Seit dem Positionsumbau steht dazwischen die Aufstellung. Es gibt nicht mehr
+ * eine Angriffs- und eine Verteidigungszahl, sondern je eine fürs Laufspiel
+ * und eine fürs Passspiel — dieselben elf Leute sind in verschiedenen Systemen
+ * verschieden viel wert.
+ *
+ * Docs: docs/umbau-positionsmodell.md, Abschnitt 6
  */
 
-import { ERSATZ_STAERKE, POSITION_GRUPPEN } from './constants.js';
+import { ERSATZ_STAERKE } from './constants.js';
 import { istFit } from './spieler.js';
+import {
+  PERSONNEL, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
+  BLOCK_GEWICHT, PLATZ_ANTEIL, stelleAuf, skillAnteile, blockWert,
+  kickerWert, punterWert,
+} from './aufstellung.js';
 
-/**
- * @typedef {object} Team
- * @property {string} id
- * @property {import('./spieler.js').Spieler[]} kader
- */
+export { kickerWert, punterWert };
 
 /**
  * @typedef {object} Staerken
- * @property {number} angriff
- * @property {number} verteidigung
+ * @property {number} passAngriff
+ * @property {number} laufAngriff
+ * @property {number} passVerteidigung
+ * @property {number} laufVerteidigung
  * @property {number} special
+ * @property {number} angriff        Übergang: das Mittel beider Angriffswerte
+ * @property {number} verteidigung   Übergang: das Mittel beider Verteidigungswerte
+ * @property {import('./aufstellung.js').Aufstellung} aufstellung
  */
 
 /**
- * Mean strength of the best `n` fit players from a set of positions.
- * A slot nobody can fill counts as ERSATZ_STAERKE, which is what makes a thin
- * Kader and a long injury list actually hurt.
- * @param {import('./spieler.js').Spieler[]} kader
- * @param {readonly import('./constants.js').Position[]} positionen
- * @param {number} n
- * @param {number} spieltag
+ * Die Plätze eines Blocks in der Reihenfolge ihrer Anteile.
+ * @param {import('./aufstellung.js').Platz[]} plaetze
+ * @param {readonly string[]} schluessel
  */
-export function einheit(kader, positionen, n, spieltag) {
-  const frei = kader
-    .filter((s) => positionen.includes(s.position) && istFit(s, spieltag))
-    .sort((a, b) => b.staerke - a.staerke)
-    .slice(0, n);
-  let summe = 0;
-  for (let i = 0; i < n; i++) {
-    summe += frei[i] ? frei[i].staerke : ERSATZ_STAERKE;
-  }
-  return summe / n;
+function block(plaetze, schluessel) {
+  return schluessel.map((k) => {
+    const treffer = plaetze.find((p) => p.platz === k);
+    if (!treffer) throw new Error(`Der Platz ${k} fehlt in der Aufstellung`);
+    return treffer;
+  });
 }
 
 /**
- * What a man is worth kicking off the tee: distance and aim in equal parts,
- * because a field goal needs both.
- * @param {import('./spieler.js').Spieler} s
- */
-export function kickerWert(s) {
-  return s.kickStaerke * 0.5 + s.kickGenauigkeit * 0.5;
-}
-
-/**
- * What he is worth punting: mostly leg. A punt that lands five yards off the
- * sideline still did its job, a short one never does.
- * @param {import('./spieler.js').Spieler} s
- */
-export function punterWert(s) {
-  return s.kickStaerke * 0.7 + s.kickGenauigkeit * 0.3;
-}
-
-/**
- * The best foot in the squad for one of the two jobs.
+ * Der beste Fuß im Kader für eine der beiden Aufgaben.
  *
- * Searched across the *whole* Kader, not a K or P slot: no Bayernliga club
- * carries a specialist, so the kicker is whichever receiver or linebacker can
- * do it. One man may well hold both jobs — that is the one double duty the
- * rules allow without asking.
+ * Gesucht wird im *ganzen* Kader, nicht auf einem K- oder P-Platz: kein
+ * Bayernligaverein hält einen Spezialisten. Ein Mann darf beide Aufgaben
+ * haben — das ist der eine Doppeleinsatz, den die Regeln ungefragt erlauben.
  * @param {import('./spieler.js').Spieler[]} kader
  * @param {number} spieltag
  * @param {(s: import('./spieler.js').Spieler) => number} wert
@@ -81,45 +67,70 @@ export function besterFuss(kader, spieltag, wert) {
 }
 
 /**
- * Unit ratings for one side, at one point in the season.
+ * Die Werte einer Mannschaft zu einem Zeitpunkt der Saison.
  *
- * Provisional: this still rolls the eighteen positions up into their groups
- * and mixes one attack and one defence number, the way it did when there were
- * eight positions. The five values the position model wants — running and
- * passing on both sides — arrive with the Aufstellung in Inkrement 4. Until
- * then the shape stays as it is so the simulation keeps running.
- *
- * The weights are the model: the quarterback carries the offence, the line
- * decides the rest, and special teams only ever nudge.
- * Docs: docs/umbau-positionsmodell.md, Abschnitt 11
+ * Die Blockgewichte sind das Modell: im Passspiel trägt der Quarterback, im
+ * Laufspiel die Linie und die fünf Skill-Plätze zu gleichen Teilen. In der
+ * Verteidigung ist es spiegelbildlich — gegen den Lauf stehen Line und
+ * Linebacker, gegen den Pass die Secondary.
  * @param {import('./spieler.js').Spieler[]} kader
  * @param {number} spieltag
+ * @param {string} [personnel]
+ * @param {number} [passAnteil]
  * @returns {Staerken}
  */
-export function teamStaerken(kader, spieltag) {
-  const qb = einheit(kader, POSITION_GRUPPEN.quarterback, 1, spieltag);
-  const ol = einheit(kader, POSITION_GRUPPEN.lineOffense, 5, spieltag);
-  // Die fünf Skill-Plätze in einem Topf: Backfield und Empfänger zusammen.
-  const skill = einheit(
-    kader, [...POSITION_GRUPPEN.backfield, ...POSITION_GRUPPEN.empfaenger], 5, spieltag,
-  );
+export function teamStaerken(kader, spieltag, personnel = STANDARD_PERSONNEL, passAnteil) {
+  const gruppierung = PERSONNEL[personnel] || PERSONNEL[STANDARD_PERSONNEL];
+  const aufstellung = stelleAuf(kader, spieltag, personnel, passAnteil);
 
-  const dl = einheit(kader, POSITION_GRUPPEN.lineDefense, 4, spieltag);
-  const lb = einheit(kader, POSITION_GRUPPEN.linebacker, 3, spieltag);
-  const db = einheit(kader, POSITION_GRUPPEN.secondary, 4, spieltag);
+  const qb = block(aufstellung.offense, [QB_PLATZ]);
+  const ol = block(aufstellung.offense, OL_PLAETZE);
+  const skill = aufstellung.offense.slice(1 + OL_PLAETZE.length);
+  const anteile = skillAnteile(gruppierung.skill);
 
-  const k = besterFuss(kader, spieltag, kickerWert);
-  const p = besterFuss(kader, spieltag, punterWert);
+  const dl = block(aufstellung.defense, ['LDE', 'RDE', 'DT', 'NT']);
+  const lb = block(aufstellung.defense, ['MLB', 'SAM', 'WILL']);
+  const db = block(aufstellung.defense, ['LCB', 'RCB', 'FS', 'SS']);
+
+  /** @param {'pass'|'lauf'} art */
+  const angriff = (art) => {
+    const g = BLOCK_GEWICHT.angriff[art];
+    return blockWert(qb, [1], art) * g.qb
+      + blockWert(ol, OL_PLAETZE.map((p) => PLATZ_ANTEIL.ol[art][p]), art) * g.ol
+      + blockWert(skill, anteile[art], art) * g.skill;
+  };
+  /** @param {'pass'|'lauf'} art */
+  const verteidigung = (art) => {
+    const g = BLOCK_GEWICHT.verteidigung[art];
+    return blockWert(dl, ['LDE', 'RDE', 'DT', 'NT'].map((p) => PLATZ_ANTEIL.dl[art][p]), art) * g.dl
+      + blockWert(lb, ['MLB', 'SAM', 'WILL'].map((p) => PLATZ_ANTEIL.lb[art][p]), art) * g.lb
+      + blockWert(db, ['LCB', 'RCB', 'FS', 'SS'].map((p) => PLATZ_ANTEIL.db[art][p]), art) * g.db;
+  };
+
+  const passAngriff = angriff('pass');
+  const laufAngriff = angriff('lauf');
+  const passVerteidigung = verteidigung('pass');
+  const laufVerteidigung = verteidigung('lauf');
+
+  const k = aufstellung.k ? kickerWert(aufstellung.k) : ERSATZ_STAERKE;
+  const p = aufstellung.p ? punterWert(aufstellung.p) : ERSATZ_STAERKE;
 
   return {
-    angriff: qb * 0.40 + ol * 0.25 + skill * 0.35,
-    verteidigung: dl * 0.36 + lb * 0.29 + db * 0.35,
+    passAngriff,
+    laufAngriff,
+    passVerteidigung,
+    laufVerteidigung,
     special: k * 0.7 + p * 0.3,
+    // Übergangsfelder, bis die Simulation in Inkrement 5 beide Duelle selbst
+    // ausspielt. Danach fallen sie weg.
+    angriff: (passAngriff + laufAngriff) / 2,
+    verteidigung: (passVerteidigung + laufVerteidigung) / 2,
+    aufstellung,
   };
 }
 
 /**
- * One number for the table and for scouting screens.
+ * Eine Zahl für die Tabelle und die Scoutingansicht.
  * @param {Staerken} s
  */
 export function gesamtStaerke(s) {
@@ -127,7 +138,7 @@ export function gesamtStaerke(s) {
 }
 
 /**
- * How many players are currently unavailable.
+ * Wie viele Spieler gerade nicht zur Verfügung stehen.
  * @param {import('./spieler.js').Spieler[]} kader
  * @param {number} spieltag
  */
