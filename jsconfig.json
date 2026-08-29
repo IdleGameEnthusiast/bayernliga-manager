@@ -1,0 +1,14 @@
+{
+  "//": "Nur für den Editor. Kein Build, kein npm — VS Code bringt TypeScript selbst mit und prüft damit die JSDoc-Typen.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "checkJs": true,
+    "strict": true,
+    "noEmit": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": ["engine/**/*.js", "ui/**/*.js", "tests/**/*.js", "app.js", "i18n.js", "scripts/**/*.js"],
+  "exclude": ["icons"]
+}

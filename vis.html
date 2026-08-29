@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>vis</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="app.css"></head>
+<body><div id="app" class="app"></div>
+<script type="module">
+  import { neuesSpiel, spieleSpieltag } from './engine/saison.js';
+  import { speichere } from './engine/save.js';
+  const s = neuesSpiel('ros', 'vis-seed');
+  for (let i = 0; i < 7; i++) spieleSpieltag(s);
+  speichere(s);
+  await import('./app.js');
+  const v = new URLSearchParams(location.search).get('v');
+  const tabs = document.querySelectorAll('.reiter button');
+  if (v === 'kader') tabs[1].click();
+  if (v === 'spielplan') tabs[2].click();
+  if (v === 'bericht') { tabs[2].click(); document.querySelector('.paarung[role=button]').click(); }
+</script></body></html>

@@ -1,0 +1,241 @@
+/* Bayernliga Football Manager
+   Tablet-first: every control is thumb-sized, nothing depends on hover. */
+
+:root {
+  --bg: #0f1720;
+  --bg-erhoben: #17222e;
+  --bg-zeile: #1c2836;
+  --rand: #2a3a4c;
+  --text: #e6edf3;
+  --text-leise: #8fa3b8;
+  --akzent: #d64933;
+  --akzent-hell: #ff6b52;
+  --gruen: #2ea36b;
+  --rot: #d1495b;
+  --gelb: #e9b44c;
+
+  --tap: 44px;          /* kleinste Trefferfläche */
+  --radius: 10px;
+  --sicher-oben: env(safe-area-inset-top, 0px);
+  --sicher-unten: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Kein Doppeltipp-Zoom, kein Gummiband-Scrollen am Rand. */
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: calc(var(--sicher-oben) + 12px) 12px calc(var(--sicher-unten) + 96px);
+}
+
+/* --- Kopfzeile ---------------------------------------------------------- */
+
+.kopf {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-erhoben);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+}
+
+.kopf-wappen {
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  flex: 0 0 auto;
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 13px;
+  color: #fff;
+}
+
+.kopf-titel { font-weight: 700; font-size: 17px; }
+.kopf-unter { color: var(--text-leise); font-size: 13px; }
+.kopf-rechts { margin-left: auto; text-align: right; }
+
+/* --- Reiter -------------------------------------------------------------- */
+
+.reiter {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.reiter::-webkit-scrollbar { display: none; }
+
+.reiter button {
+  flex: 1 0 auto;
+  min-height: var(--tap);
+  padding: 0 18px;
+  background: var(--bg-erhoben);
+  color: var(--text-leise);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  font: inherit; font-weight: 600;
+  cursor: pointer;
+}
+.reiter button[aria-selected='true'] {
+  background: var(--akzent);
+  border-color: var(--akzent);
+  color: #fff;
+}
+
+/* --- Karten und Tabellen ------------------------------------------------- */
+
+.karte {
+  background: var(--bg-erhoben);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.karte h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-leise);
+}
+
+/* Breite Tabellen scrollen in sich selbst, nie die Seite. */
+.tabelle-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -14px;
+  padding: 0 14px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+th {
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-leise);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--rand);
+}
+th:nth-child(1), th:nth-child(2) { text-align: left; }
+
+td {
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+  text-align: right;
+}
+td:nth-child(1), td:nth-child(2) { text-align: left; }
+
+tr.mein-team td { background: rgba(214, 73, 51, .13); font-weight: 600; }
+tr.meister td:first-child { box-shadow: inset 3px 0 0 var(--gelb); }
+tr.abstieg td:first-child { box-shadow: inset 3px 0 0 var(--rot); }
+
+.verein-zelle { display: flex; align-items: center; gap: 8px; }
+.farbtupfer { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
+
+/* --- Fußleiste mit der Hauptaktion --------------------------------------- */
+
+.fuss {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  padding: 10px 12px calc(10px + var(--sicher-unten));
+  background: linear-gradient(to top, var(--bg) 65%, transparent);
+  display: flex; gap: 8px;
+  justify-content: center;
+}
+
+button.haupt, button.neben {
+  min-height: var(--tap);
+  padding: 0 22px;
+  border-radius: var(--radius);
+  border: 1px solid var(--rand);
+  font: inherit; font-weight: 700;
+  cursor: pointer;
+  max-width: 380px;
+  flex: 1;
+}
+button.haupt { background: var(--akzent); border-color: var(--akzent); color: #fff; }
+button.haupt:active { background: var(--akzent-hell); }
+button.haupt:disabled { background: var(--rand); border-color: var(--rand); color: var(--text-leise); }
+button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto; }
+
+/* --- Startbildschirm ----------------------------------------------------- */
+
+.start-liste { display: grid; gap: 8px; }
+
+.start-team {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 56px; padding: 8px 12px;
+  background: var(--bg-zeile);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  color: inherit; font: inherit; text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+.start-team[aria-pressed='true'] { border-color: var(--akzent); background: rgba(214, 73, 51, .15); }
+.start-team .balken { margin-left: auto; width: 84px; height: 6px; background: var(--rand); border-radius: 3px; overflow: hidden; }
+.start-team .balken i { display: block; height: 100%; background: var(--akzent); }
+
+/* --- Spielbericht -------------------------------------------------------- */
+
+.bericht-kopf { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.bericht-punkte { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.bericht-sieger { color: var(--gruen); }
+
+.paarung {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+  cursor: pointer;
+}
+.paarung .namen { flex: 1; min-width: 0; }
+.paarung .stand { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.leise { color: var(--text-leise); }
+.klein { font-size: 13px; }
+.verletzt { color: var(--gelb); }
+.import-marke {
+  font-size: 10px; font-weight: 700; letter-spacing: .04em;
+  padding: 1px 5px; border-radius: 4px;
+  background: var(--rand); color: var(--text-leise);
+  margin-left: 6px;
+}
+
+.balkenreihe { display: grid; grid-template-columns: 120px 1fr 40px; gap: 10px; align-items: center; margin-bottom: 8px; }
+.balkenreihe .spur { height: 8px; background: var(--bg-zeile); border-radius: 4px; overflow: hidden; }
+.balkenreihe .spur i { display: block; height: 100%; background: var(--akzent); }
+
+.hinweis {
+  padding: 10px 12px; border-radius: var(--radius);
+  background: rgba(46, 163, 107, .15);
+  border: 1px solid var(--gruen);
+  margin-bottom: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
