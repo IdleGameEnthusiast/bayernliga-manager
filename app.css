@@ -203,6 +203,27 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
 .start-team .balken { margin-left: auto; width: 84px; height: 6px; background: var(--rand); border-radius: 3px; overflow: hidden; }
 .start-team .balken i { display: block; height: 100%; background: var(--akzent); }
 
+/* --- Die Ansprache nach der Vereinswahl ---------------------------------- */
+
+.intro { max-width: 620px; margin: 0 auto 12px; }
+
+.intro-verein {
+  display: flex; align-items: center; gap: 12px;
+  padding-bottom: 12px; margin-bottom: 4px;
+  border-bottom: 1px solid var(--rand);
+}
+
+.intro h2 {
+  font-size: 22px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+  margin: 10px 0 12px;
+}
+
+.intro p { margin: 0 0 12px; }
+.intro-frage { font-weight: 700; margin-bottom: 0 !important; }
+
 /* --- Spielbericht -------------------------------------------------------- */
 
 .bericht-kopf { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }

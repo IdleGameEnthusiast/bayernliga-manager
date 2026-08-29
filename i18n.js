@@ -26,6 +26,20 @@ export const DE = {
     staerke: 'Stärke',
   },
 
+  intro: {
+    anrede: 'Hallo Manager!',
+    absaetze: (verein) => [
+      `Du übernimmst die ${verein} und schützt sie damit vor der Auflösung.`,
+      'In der letzten Zeit gab es einige Verstimmungen, und am Ende ist der alte '
+        + 'Vorstand nach einem großen Streit aus dem Verein ausgetreten — sein Ego war '
+        + 'größer als der Verein. Alle beteiligten Spieler sind mit ihm gegangen.',
+      'Es ist also alles bereit für einen Neustart. Nur: Das Team muss komplett neu '
+        + 'aufgebaut werden.',
+    ],
+    frage: 'Bist du dafür bereit?',
+    weiter: 'Ja, ich bin bereit',
+  },
+
   tabelle: {
     platz: '#',
     verein: 'Verein',

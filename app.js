@@ -16,6 +16,7 @@ import {
   speichere, lade, gibtEsSpeicherstand, exportiere, importiere, dateiName,
 } from './engine/save.js';
 import { zeigeStart } from './ui/start.js';
+import { zeigeIntro } from './ui/intro.js';
 import { zeigeTabelle } from './ui/tabelle.js';
 import { zeigeKader } from './ui/kader.js';
 import { zeigeSpielplan } from './ui/spielplan.js';
@@ -24,7 +25,7 @@ import { zeigeSpielbericht } from './ui/spielbericht.js';
 /** @type {import('./engine/saison.js').SpielStand | null} */
 let stand = null;
 
-/** @type {'start'|'tabelle'|'kader'|'spielplan'|'verlauf'|'bericht'} */
+/** @type {'start'|'intro'|'tabelle'|'kader'|'spielplan'|'verlauf'|'bericht'} */
 let ansicht = 'start';
 
 /** @type {import('./engine/spielplan.js').Partie | null} */
@@ -42,6 +43,11 @@ function zeichne() {
 
   if (!stand || ansicht === 'start') {
     wurzel.append(zeigeStart(starteKarriere, gibtEsSpeicherstand(), setzeFort));
+    return;
+  }
+
+  if (ansicht === 'intro') {
+    wurzel.append(zeigeIntro(teamById(stand.meinTeam), uebernimm, beiNeu));
     return;
   }
 
@@ -160,7 +166,7 @@ function verlaufAnsicht() {
 
 // --- Aktionen --------------------------------------------------------------
 
-/** @param {'start'|'tabelle'|'kader'|'spielplan'|'verlauf'|'bericht'} neu */
+/** @param {'start'|'intro'|'tabelle'|'kader'|'spielplan'|'verlauf'|'bericht'} neu */
 function wechsle(neu) {
   ansicht = neu;
   hinweis = null;
@@ -172,6 +178,12 @@ function wechsle(neu) {
 function starteKarriere(teamId) {
   if (gibtEsSpeicherstand() && !confirm(T.start.neuWarnung)) return;
   stand = neuesSpiel(teamId);
+  wechsle('intro');
+}
+
+/** Die Zusage aus der Ansprache: ab hier liegt die Karriere im Speicher. */
+function uebernimm() {
+  if (!stand) return;
   speichere(stand);
   wechsle('tabelle');
 }
