@@ -58,6 +58,10 @@ Nachzulesen in [`engine/constants.js`](../engine/constants.js),
 
 ## Block 2 — Formationen und Positionswerte
 
+> **Der vollständige Bauplan steht in [`umbau-positionsmodell.md`](umbau-positionsmodell.md)**
+> — 18 Positionen, 15 Attribute, Lauf/Pass, alle Gewichte, in sieben Inkremente
+> geschnitten. Der Text unten ist der Stand davor und beschreibt nur die Absicht.
+
 Der größte inhaltliche Umbau. Er zerfällt in drei Stufen, die einzeln
 lauffähig sind.
 
