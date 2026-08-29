@@ -587,12 +587,27 @@ Positionsgruppen** (alle `T`/`G`/`C` als Line, alle `CB`/`FS`/`SS` als Secondary
 Simulation und Tests grün bleiben. Fertig, wenn ein Kader gezogen wird, jede Position
 besetzt ist und die Nummern kollisionsfrei sind.
 
-### Inkrement 2 — Attribute und Körper
+### Inkrement 2 — Attribute und Körper ✅ fertig
 `engine/constants.js`, `engine/spieler.js`, Tests.
 
 15 Attribute, Körperkorridore, das Fünftel daneben, die Ziehreihenfolge aus Abschnitt 2.
 Noch keine Wirkung auf die Simulation. Fertig, wenn jeder Spieler alle Werte trägt,
 reproduzierbar beim selben Seed, und ein Lineman nie schnell und leicht ist.
+
+Umgesetzt mit einer Abweichung: `engine/positionen.js` entsteht schon hier, weil das
+Generierungsprofil aus den beiden Formeln kommt und die Tabellen sonst zweimal im Repo
+stünden. Inkrement 3 füllt dieselbe Datei um `eignung()` auf.
+
+Zwei Dinge, die beim Bauen entschieden werden mussten:
+
+- **Skaliert wird nur, was das Profil verlangt.** Zöge der Skalierungsschritt die
+  übrigen Attribute mit, liefe der Faktor bei einem starken Lineman ins Leere — sein
+  Blocken steht am Deckel, und der Rest des Faktors landet in seiner Schnelligkeit.
+  Die Liga füllt sich dann mit 130-Kilo-Sprintern.
+- **Der Körper koppelt absolut, nicht je Korridor.** `kraft` steigt und `schnelligkeit`
+  fällt mit dem Abstand zum Ligamittel von 100 kg, nicht zur Korridormitte der Position.
+  Nur so ist der 95-Kilo-Tackle wirklich beweglich und schwach statt nur „leicht für
+  einen Tackle".
 
 ### Inkrement 3 — Positionsformeln
 Neu: `engine/positionen.js`. Tests.
@@ -644,8 +659,13 @@ unbemerkt.
    sein größtes Attribut im ganzen Profil — nach reinem Profil wäre er als Tackle sogar
    besser als als Tight End, nur Technik und Körper machen daraus Kosten. Wenn er ein
    echter Doppelspieler sein soll, müsste entweder sein Laufblock sinken oder sein
-   Passanteil im Generierungsprofil steigen. Nicht blockierend, aber vor Inkrement 2
-   anzusehen.
+   Passanteil im Generierungsprofil steigen.
+
+   *Nach Inkrement 2 gemessen und bestätigt:* das TE-Profil liest sich
+   `blocken 24 · kraft 18 · technik 18 · fangen 14 · beweglichkeit 12 · routeRunning 9`.
+   Bewusst so gelassen — was es kostet, ist erst zu sehen, wenn die Aufstellung in
+   Inkrement 4 einen umgestellten Receiver gegen einen echten Tight End stellt. Dann
+   fällt die Entscheidung, nicht vorher.
 2. **Der Umbau wird spürbar härter.** Der Körpermalus hebt die durchschnittlichen
    Umstellungskosten von 24 auf 30 %, innerhalb einer Gruppe von 9 auf 13 %. Zusammen
    mit dem harten Doppeleinsatz-Preis wird ein 30-Mann-Kader sehr spröde. Der Deckel von

@@ -12,8 +12,13 @@ import {
   KADER_FORM, ZUSATZ_GEWICHTE, ZUSATZ_MAX_JE_POSITION,
   KICK_BASIS, KICK_STREUUNG, KICK_FUSS_ANTEIL, KICK_FUSS_BASIS,
   KICK_FUSS_STREUUNG, KICK_FUSS_AUSSCHLUSS,
+  ATTRIBUTE, PROFIL_SPEZIALISIERUNG, ATTRIBUT_STREUUNG,
+  KOERPER_ANTEIL_DANEBEN, KOERPER_DANEBEN_MIN, KOERPER_DANEBEN_MAX,
+  KOERPER_MITTE, KOERPER_SPANNE, KOERPER_KOPPLUNG,
+  GROESSE_MIN, GROESSE_MAX, GEWICHT_MIN, GEWICHT_MAX,
   POSITIONS, POSITION_GRUPPEN, clamp, randInt, pick, pickWeighted, randNormal, shuffle,
 } from './constants.js';
+import { KOERPER_KORRIDOR, generierungsProfil, bewerte } from './positionen.js';
 import { VORNAMEN, NACHNAMEN } from './content.js';
 
 /**
@@ -28,6 +33,9 @@ import { VORNAMEN, NACHNAMEN } from './content.js';
  * @property {number} talent          Ceiling this player could reach; may sit above the league cap
  * @property {number} ruecktrittAlter The season after this age he stops
  * @property {number} verletztBis     Matchday index the player is fit again; 0 = fit
+ * @property {number} groesse         cm
+ * @property {number} gewicht         kg
+ * @property {Record<string, number>} attribute  The fifteen, on the strength scale
  * @property {number} kickStaerke     How far he kicks it
  * @property {number} kickGenauigkeit How reliably it goes where he aimed
  */
@@ -125,6 +133,139 @@ export function ziehKickWerte(rng, position) {
   return { kickStaerke: wert(), kickGenauigkeit: wert() };
 }
 
+// --- Körper und Attribute -------------------------------------------------
+// Docs: docs/umbau-positionsmodell.md, Abschnitt 2. Die Reihenfolge ist fest:
+// erst der Körper, dann die Attribute um ihn herum, dann wird das Ganze auf
+// die Stärke skaliert.
+
+/**
+ * A point inside a range, or clearly outside it.
+ * @param {() => number} rng
+ * @param {[number, number]} korridor
+ * @param {number} lage 0..1 along the corridor
+ * @param {0|1|-1} daneben 0 = inside, ±1 = below or above
+ */
+function ausKorridor(rng, korridor, lage, daneben) {
+  const [von, bis] = korridor;
+  const spanne = bis - von;
+  if (daneben === 0) return von + lage * spanne;
+  const abstand = spanne * (KOERPER_DANEBEN_MIN
+    + rng() * (KOERPER_DANEBEN_MAX - KOERPER_DANEBEN_MIN));
+  return daneben < 0 ? von - abstand : bis + abstand;
+}
+
+/**
+ * Height and weight for one player.
+ *
+ * Four out of five stand inside their position's corridor; the fifth stands
+ * clearly outside it — the 95-kilo tackle, the heavy receiver. Inside the
+ * corridor the two values move together, because the taller man is usually the
+ * heavier one, but not rigidly: the short, thick guard exists too.
+ * @param {() => number} rng
+ * @param {string} position
+ */
+export function ziehKoerper(rng, position) {
+  const korridor = KOERPER_KORRIDOR[position];
+  const daneben = rng() < KOERPER_ANTEIL_DANEBEN
+    ? /** @type {1|-1} */ (rng() < 0.5 ? -1 : 1)
+    : /** @type {0} */ (0);
+
+  const lage = rng();
+  const groesse = ausKorridor(rng, korridor.groesse, lage, daneben);
+  const gewicht = ausKorridor(rng, korridor.gewicht,
+    clamp(lage + randNormal(rng) * 0.22, 0, 1), daneben);
+
+  return {
+    groesse: Math.round(clamp(groesse, GROESSE_MIN, GROESSE_MAX)),
+    gewicht: Math.round(clamp(gewicht, GEWICHT_MIN, GEWICHT_MAX)),
+  };
+}
+
+/**
+ * Scale a set of attributes until the position formula reads `ziel` again.
+ *
+ * Multiplying is enough in principle — the formula is linear — but the cap at
+ * LIGA_MAX_STAERKE bends it, so the step repeats and lets the values that are
+ * not yet at the ceiling carry the rest. Near the top of the league the target
+ * stops being reachable; that is the ceiling doing its job, not a bug.
+ *
+ * Only what the profile actually asks for is scaled. Were the rest dragged
+ * along, a strong lineman whose Blocken sits at the ceiling would have the
+ * spare factor poured into his Schnelligkeit, and the league would fill up
+ * with 130-kilo sprinters.
+ * @param {Record<string, number>} werte
+ * @param {Record<string, number>} profil
+ * @param {number} ziel
+ */
+function skaliereAufStaerke(werte, profil, ziel) {
+  for (let runde = 0; runde < 6; runde++) {
+    const wert = bewerte(werte, profil);
+    if (wert <= 0 || Math.abs(wert - ziel) < 0.25) break;
+    const faktor = ziel / wert;
+    for (const attribut in profil) {
+      werte[attribut] = clamp(werte[attribut] * faktor, RATING_UNTERGRENZE, LIGA_MAX_STAERKE);
+    }
+  }
+  return werte;
+}
+
+/**
+ * The fifteen attributes for one player.
+ *
+ * The position's generation profile sets the emphases: what the profile asks
+ * for lands at his full level, what it never asks for at PROFIL_SPEZIALISIERUNG
+ * below it. The body then pulls Kraft up and Tempo down, or the other way
+ * round — a heavy man is strong and slow whatever his position says. Last, the
+ * whole set is scaled until the position formula reads his `staerke` again.
+ * @param {() => number} rng
+ * @param {string} position
+ * @param {number} staerke
+ * @param {number} gewicht kg
+ * @returns {Record<string, number>}
+ */
+export function ziehAttribute(rng, position, staerke, gewicht) {
+  const profil = generierungsProfil(position);
+  const hoechster = Math.max(...Object.values(profil));
+  const schwer = clamp((gewicht - KOERPER_MITTE) / KOERPER_SPANNE, -1.5, 1.5);
+
+  /** @type {Record<string, number>} */
+  const werte = {};
+  for (const attribut of ATTRIBUTE) {
+    const gewichtung = (profil[attribut] || 0) / hoechster;
+    let wert = staerke * (1 - PROFIL_SPEZIALISIERUNG * (1 - gewichtung))
+      + randNormal(rng) * ATTRIBUT_STREUUNG;
+
+    if (attribut === 'kraft') wert *= 1 + KOERPER_KOPPLUNG * schwer;
+    if (attribut === 'schnelligkeit') wert *= 1 - KOERPER_KOPPLUNG * schwer;
+    if (attribut === 'beweglichkeit') wert *= 1 - KOERPER_KOPPLUNG * 0.5 * schwer;
+
+    werte[attribut] = clamp(wert, RATING_UNTERGRENZE, LIGA_MAX_STAERKE);
+  }
+
+  skaliereAufStaerke(werte, profil, staerke);
+  for (const attribut of ATTRIBUTE) werte[attribut] = Math.round(werte[attribut]);
+  return werte;
+}
+
+/**
+ * A new strength for a player who already exists — the veteran whose age was
+ * redrawn, everybody at the turn of the year. The attributes move with it in
+ * one piece, because ageing curves per attribute belong to the development
+ * model and not here.
+ * @param {Spieler} s
+ * @param {number} staerke
+ */
+export function setzeStaerke(s, staerke) {
+  const faktor = staerke / Math.max(s.staerke, 1);
+  for (const attribut of ATTRIBUTE) {
+    s.attribute[attribut] = Math.round(
+      clamp(s.attribute[attribut] * faktor, RATING_UNTERGRENZE, LIGA_MAX_STAERKE),
+    );
+  }
+  s.staerke = staerke;
+  return s;
+}
+
 /**
  * Draw a full name, avoiding one already worn inside the same club. Two Hubers
  * in one league are right; two in one changing room are only confusing.
@@ -165,6 +306,9 @@ export function macheSpieler(rng, position, teamStaerke, optionen) {
     RATING_UNTERGRENZE, MAX_RATING,
   );
 
+  const staerke = berechneStaerke(talent, alter);
+  const koerper = ziehKoerper(rng, position);
+
   return {
     id: 'p' + (++idCounter),
     vorname,
@@ -172,10 +316,12 @@ export function macheSpieler(rng, position, teamStaerke, optionen) {
     position,
     nummer: OHNE_NUMMER,
     alter,
-    staerke: berechneStaerke(talent, alter),
+    staerke,
     talent,
     ruecktrittAlter: RUECKTRITT_ALTER,
     verletztBis: 0,
+    ...koerper,
+    attribute: ziehAttribute(rng, position, staerke, koerper.gewicht),
     ...ziehKickWerte(rng, position),
   };
 }
@@ -218,7 +364,7 @@ function macheVeteranen(rng, kader) {
   for (const s of kandidaten.slice(0, anzahl)) {
     const band = rng() < VETERAN_ANTEIL_JUNG ? VETERAN_JUNG : VETERAN_ALT;
     s.alter = randInt(rng, band[0], band[1]);
-    s.staerke = berechneStaerke(s.talent, s.alter);
+    setzeStaerke(s, berechneStaerke(s.talent, s.alter));
     s.ruecktrittAlter = randInt(rng, s.alter + 1, VETERAN_RUECKTRITT_MAX);
   }
   return kader;
@@ -379,13 +525,13 @@ export function saisonWechsel(rng, kader, teamStaerke) {
     const talent = alter <= PEAK_AGE
       ? clamp(s.talent + (rng() < 0.35 ? randInt(rng, 1, 3) : 0), RATING_UNTERGRENZE, MAX_RATING)
       : s.talent;
-    neu.push({
+    neu.push(setzeStaerke({
       ...s,
       alter,
       talent,
-      staerke: berechneStaerke(talent, alter),
+      attribute: { ...s.attribute },
       verletztBis: 0,
-    });
+    }, berechneStaerke(talent, alter)));
   }
 
   return { kader: vergebeNummern(rng, sortiereKader(neu)), ruecktritte };

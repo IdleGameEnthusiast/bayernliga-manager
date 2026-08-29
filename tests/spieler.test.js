@@ -5,11 +5,15 @@ import assert from 'node:assert/strict';
 import {
   makeRng, KADER_FORM, KADER_GROESSE_EIGEN, KADER_GROESSE_FREMD, ZUSATZ_SPIELER,
   ZUSATZ_MAX_JE_POSITION, MAX_RATING, LIGA_MAX_STAERKE, MAX_AGE, PEAK_AGE, POSITIONS,
-  POSITION_GRUPPEN, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE, ZUSATZ_GEWICHTE,
+  POSITION_GRUPPEN, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE, ZUSATZ_GEWICHTE, ATTRIBUTE,
 } from '../engine/constants.js';
 import {
-  macheKader, saisonWechsel, alterFaktor, berechneStaerke, verfuegbar, resetSpielerIds,
+  macheKader, macheSpieler, saisonWechsel, alterFaktor, berechneStaerke, verfuegbar,
+  ziehAttribute, resetSpielerIds,
 } from '../engine/spieler.js';
+import {
+  KOERPER_KORRIDOR, generierungsProfil, bewerte,
+} from '../engine/positionen.js';
 
 test('der Katalog kennt achtzehn Positionen, keinen Kicker und keinen Punter', () => {
   assert.equal(POSITIONS.length, 18);
@@ -252,5 +256,109 @@ test('Nummern bleiben über den Jahreswechsel am Spieler', () => {
       }
     }
     vorher = new Map(kader.map((s) => [s.id, s.nummer]));
+  }
+});
+
+// --- Attribute und Körper --------------------------------------------------
+
+test('jeder Spieler trägt alle fünfzehn Attribute und einen Körper', () => {
+  resetSpielerIds();
+  const kader = macheKader(makeRng('attr'), 58, ZUSATZ_SPIELER);
+  assert.equal(ATTRIBUTE.length, 15);
+
+  for (const s of kader) {
+    for (const attribut of ATTRIBUTE) {
+      const wert = s.attribute[attribut];
+      assert.equal(typeof wert, 'number', `${s.position} ohne ${attribut}`);
+      assert.ok(Number.isInteger(wert), `${attribut} ist ${wert}`);
+      assert.ok(wert >= 1 && wert <= LIGA_MAX_STAERKE, `${attribut} ist ${wert}`);
+    }
+    assert.equal(Object.keys(s.attribute).length, ATTRIBUTE.length);
+    assert.ok(s.groesse >= 165 && s.groesse <= 205, `Größe ${s.groesse}`);
+    assert.ok(s.gewicht >= 68 && s.gewicht <= 165, `Gewicht ${s.gewicht}`);
+  }
+});
+
+test('die Attribute treffen die Stärke des Spielers wieder', () => {
+  // Schritt vier der Ziehung: skalieren, bis die Positionsformel ungefähr die
+  // Stärke ergibt. Ohne ihn wäre die Führungsgröße von den Werten entkoppelt.
+  for (const basis of [45, 58, 70]) {
+    resetSpielerIds();
+    const kader = macheKader(makeRng('sk' + basis), basis, ZUSATZ_SPIELER);
+    for (const s of kader) {
+      const wert = bewerte(s.attribute, generierungsProfil(s.position));
+      assert.ok(Math.abs(wert - s.staerke) < 2,
+        `${s.position}: Positionswert ${wert.toFixed(1)} gegen Stärke ${s.staerke}`);
+    }
+  }
+});
+
+test('etwa ein Fünftel steht neben seinem Korridor', () => {
+  let drin = 0;
+  let daneben = 0;
+  for (const pos of POSITIONS) {
+    for (let i = 0; i < 60; i++) {
+      resetSpielerIds();
+      const s = macheSpieler(makeRng('k' + pos + i), pos, 58);
+      const [von, bis] = KOERPER_KORRIDOR[pos].gewicht;
+      if (s.gewicht < von || s.gewicht > bis) daneben++; else drin++;
+    }
+  }
+  const anteil = daneben / (drin + daneben);
+  assert.ok(anteil > 0.12 && anteil < 0.30, `${(anteil * 100).toFixed(0)} % stehen daneben`);
+});
+
+test('der schwere Mann ist stark und langsam, der leichte beweglich und schwach', () => {
+  // Gleiche Position, gleiche Stärke, gleicher Zufall — nur der Körper anders.
+  const leicht = ziehAttribute(makeRng('koerper'), 'T', 55, 95);
+  const schwer = ziehAttribute(makeRng('koerper'), 'T', 55, 140);
+
+  assert.ok(schwer.kraft > leicht.kraft, 'der Schwere ist stärker');
+  assert.ok(leicht.beweglichkeit > schwer.beweglichkeit, 'der Leichte ist beweglicher');
+  assert.ok(leicht.schnelligkeit > schwer.schnelligkeit, 'der Leichte ist schneller');
+});
+
+test('kein Lineman ist schnell', () => {
+  // Auch der leichte Tackle nicht: Tempo steht in keiner seiner beiden
+  // Formeln, also zieht das Profil ihn nie dorthin.
+  for (const pos of [...POSITION_GRUPPEN.lineOffense, ...POSITION_GRUPPEN.lineDefense]) {
+    for (let i = 0; i < 60; i++) {
+      resetSpielerIds();
+      const s = macheSpieler(makeRng('t' + pos + i), pos, 75);
+      assert.ok(s.attribute.schnelligkeit < s.staerke,
+        `${pos} läuft ${s.attribute.schnelligkeit} bei Stärke ${s.staerke}`);
+    }
+  }
+});
+
+test('Körper und Attribute sind beim selben Seed dieselben', () => {
+  resetSpielerIds();
+  const a = macheSpieler(makeRng('gleich'), 'MLB', 60);
+  resetSpielerIds();
+  const b = macheSpieler(makeRng('gleich'), 'MLB', 60);
+  assert.equal(a.groesse, b.groesse);
+  assert.equal(a.gewicht, b.gewicht);
+  assert.deepEqual(a.attribute, b.attribute);
+});
+
+test('die Attribute wandern mit der Stärke durch den Saisonwechsel', () => {
+  resetSpielerIds();
+  const rng = makeRng('alt');
+  let kader = macheKader(rng, 58, ZUSATZ_SPIELER);
+  const alt = kader.find((s) => s.alter >= 33 && s.alter < 45);
+  assert.ok(alt, 'es gibt einen Spieler im Abstieg');
+  const vorher = { ...alt.attribute };
+
+  kader = saisonWechsel(rng, kader, 58).kader;
+  const nachher = kader.find((s) => s.id === alt.id);
+  assert.ok(nachher, 'er ist noch da');
+  assert.ok(nachher.staerke < alt.staerke, 'er hat abgebaut');
+  // Alterskurven je Attribut kommen mit dem Entwicklungskonzept; bis dahin
+  // altern alle Werte gleichmäßig.
+  for (const attribut of ATTRIBUTE) {
+    if (vorher[attribut] > 4) {
+      assert.ok(nachher.attribute[attribut] < vorher[attribut],
+        `${attribut} steht still: ${vorher[attribut]} -> ${nachher.attribute[attribut]}`);
+    }
   }
 });

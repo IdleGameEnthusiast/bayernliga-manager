@@ -107,6 +107,67 @@ export const ZUSATZ_MAX_JE_POSITION = 2;
  */
 export const EIGENE_VEREINSBASIS = 45;
 
+/**
+ * The fifteen attributes every player carries, on the same scale as `staerke`.
+ * `kickStaerke` and `kickGenauigkeit` sit beside them and are drawn separately.
+ *
+ * `staerke` stays the leading figure for now: the attributes are pulled around
+ * it, the depth chart still sorts by it, the screens still show it. Deriving
+ * strength from the attributes instead is a later step of its own.
+ * Docs: docs/umbau-positionsmodell.md, Abschnitt 2
+ */
+export const ATTRIBUTE = /** @type {const} */ ([
+  'schnelligkeit',      // Tempo geradeaus
+  'beweglichkeit',      // Richtungswechsel, Explosivität
+  'kraft',              // Wucht, hängt an Größe und Gewicht
+  'ausdauer',           // wie lange er durchhält — trägt den Doppeleinsatz-Abzug
+  'robustheit',         // Verletzungsanfälligkeit — trägt das Doppeleinsatz-Risiko
+  'fangen',
+  'ballsicherheit',
+  'routeRunning',
+  'werfen',
+  'blocken',
+  'passrush',
+  'tacklen',
+  'coverage',
+  'spielverstaendnis',  // Lesen, Stellungsspiel
+  'technik',            // positionsgebundenes Handwerk
+]);
+
+/** @typedef {typeof ATTRIBUTE[number]} Attribut */
+
+/**
+ * How far a drawn player leans on his position's profile: an attribute the
+ * profile does not ask for sits at (1 - this) of his level, one at the very
+ * top of it at the full level. Everything in between is proportional.
+ *
+ * Turn it down and every player is a generalist, every conversion is free and
+ * the position model stops meaning anything.
+ */
+export const PROFIL_SPEZIALISIERUNG = 0.40;
+
+/** Spread on a single attribute before it is scaled onto `staerke`. */
+export const ATTRIBUT_STREUUNG = 6;
+
+/**
+ * The body. Height and weight are real data, not attributes — but `kraft` and
+ * `schnelligkeit` hang off them, which is what makes the 95-kilo tackle a real
+ * player rather than a mislabelled one: agile, and weak.
+ *
+ * KOERPER_MITTE is roughly the league's mean weight, KOERPER_SPANNE the
+ * distance at which the coupling reaches its full effect.
+ */
+export const KOERPER_ANTEIL_DANEBEN = 0.20;   // share of players outside their corridor
+export const KOERPER_DANEBEN_MIN = 0.20;      // how far outside, as a share of the corridor
+export const KOERPER_DANEBEN_MAX = 0.55;
+export const KOERPER_MITTE = 100;             // kg
+export const KOERPER_SPANNE = 45;             // kg
+export const KOERPER_KOPPLUNG = 0.35;         // how hard weight pulls Kraft up and Tempo down
+export const GROESSE_MIN = 165;               // cm — nobody outside these plays here
+export const GROESSE_MAX = 205;
+export const GEWICHT_MIN = 68;                // kg
+export const GEWICHT_MAX = 165;
+
 /** Rating bounds. */
 export const MAX_RATING = 99;          // the scale's ceiling, kept for higher leagues
 export const LIGA_MAX_STAERKE = 79;    // no Bayernliga strength is ever computed above this

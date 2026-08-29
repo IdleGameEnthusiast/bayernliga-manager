@@ -50,3 +50,31 @@ andere Kader, weil achtzehn Positionen anders aus dem RNG fallen als acht. Die
 Spanne bleibt in ihrem Rahmen (vorher 39–59, jetzt 38–61), der eigene Verein
 steht weiter unten, und die Reihenfolge dazwischen ist neu gewürfelt statt
 gekippt.
+
+## Nach Inkrement 2 — Attribute und Körper
+
+| Verein | Kader | Gesamt | angriff | verteidigung | special |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| ASS Aschaffenburg Stallions | 35 | 61 | 61.9 | 62.7 | 46.4 |
+| GC Gendorf Crusaders | 35 | 57 | 59.5 | 55.4 | 54.2 |
+| STA Starnberg Argonauts | 35 | 55 | 55.1 | 53.5 | 61.3 |
+| ERS Erlangen Sharks | 35 | 54 | 55.8 | 52.5 | 52.4 |
+| FEL Feldkirchen Lions | 35 | 53 | 53.8 | 52.8 | 53.2 |
+| KBA Königsbrunn Ants | 35 | 52 | 54.0 | 53.9 | 32.5 |
+| HR Herzo Rhinos | 35 | 50 | 49.7 | 53.5 | 33.0 |
+| MR München Rangers | 35 | 49 | 47.7 | 45.1 | 76.4 |
+| FKK Franken Knights | 35 | 47 | 44.4 | 46.7 | 62.0 |
+| PP Passau Pirates | 35 | 46 | 44.3 | 42.8 | 69.1 |
+| HEG Hemhofen Gechers | 30 | 45 | 45.5 | 43.5 | 51.5 |
+| BTC Bad Tölz Capricorns | 35 | 42 | 42.0 | 44.1 | 33.0 |
+
+Wieder eine andere Liga, aus demselben Grund: Körper und Attribute ziehen aus
+demselben Strom wie alles andere, also fällt hinter ihnen jede Zufallszahl an
+einer anderen Stelle. Auf die Simulation wirken die Attribute in diesem Stand
+noch nicht — `teamStaerken()` liest weiter nur `staerke`.
+
+Was zählt, ist die Form: die Spanne bleibt bei rund zwanzig Punkten, und kein
+Verein kippt aus dem Rahmen. Der eigene Verein steht diesmal im Mittelfeld
+statt am Ende — das ist der Zufall der Ziehung, nicht der Umbau: seine Basis
+ist unverändert die niedrigste, er hat nur fünf Mann weniger und diesmal
+brauchbare Ziehungen.

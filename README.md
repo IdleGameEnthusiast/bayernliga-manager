@@ -48,7 +48,8 @@ in Millisekunden durchspielen können.
 | --- | --- |
 | `engine/constants.js` | Balance-Zahlen, Positionen, gesäter Zufall, `clamp` |
 | `engine/content.js` | Die Kataloge: Vereine, Vor- und Nachnamen |
-| `engine/spieler.js` | Spieler erzeugen, Alterskurve, Verletzungen, Saisonwechsel |
+| `engine/positionen.js` | Körperkorridore, die Positionsformeln, das Generierungsprofil |
+| `engine/spieler.js` | Spieler erzeugen, Attribute, Alterskurve, Verletzungen, Saisonwechsel |
 | `engine/team.js` | Aus einem Kader werden Mannschaftsteile: Angriff, Verteidigung, Special |
 | `engine/spielplan.js` | Gruppenrunde nach dem Kreisverfahren, dazu das Bracket |
 | `engine/spiel.js` | Die Spielsimulation: Endstand, Viertel, Box Score |
