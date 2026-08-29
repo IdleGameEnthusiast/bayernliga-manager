@@ -5,8 +5,8 @@ Datei hält die Entscheidungen fest, die im Gespräch gefallen sind und sonst
 nirgends stehen — der Code sagt, *was* passiert, hier steht, *warum* und *was
 als Nächstes*.
 
-Reihenfolge: Block 1 und Block 3 sind fertig, ebenso die Kick-Vorstufe aus 2c.
-Offen ist der Rest von Block 2; Block 4 setzt auf beiden auf.
+Reihenfolge: Block 1, Block 2 und Block 3 sind fertig, ebenso die Kick-Vorstufe
+aus 2c. Block 4 setzt auf allen dreien auf.
 
 ---
 
@@ -56,11 +56,12 @@ Nachzulesen in [`engine/constants.js`](../engine/constants.js),
 
 ---
 
-## Block 2 — Formationen und Positionswerte
+## Block 2 — Formationen und Positionswerte ✅ fertig
 
-> **Der vollständige Bauplan steht in [`umbau-positionsmodell.md`](umbau-positionsmodell.md)**
-> — 18 Positionen, 15 Attribute, Lauf/Pass, alle Gewichte, in sieben Inkremente
-> geschnitten. Der Text unten ist der Stand davor und beschreibt nur die Absicht.
+> **Umgesetzt in sieben Inkrementen nach [`umbau-positionsmodell.md`](umbau-positionsmodell.md)**
+> — 18 Positionen, 15 Attribute, Lauf/Pass, alle Gewichte. Dort steht auch, was
+> beim Bauen entschieden wurde und was offen blieb. Der Text unten ist der Stand
+> davor und beschreibt nur die Absicht.
 
 Der größte inhaltliche Umbau. Er zerfällt in drei Stufen, die einzeln
 lauffähig sind.

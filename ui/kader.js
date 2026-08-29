@@ -5,7 +5,8 @@ import { el, leere, tabelle as machTabelle, balken } from './dom.js';
 import { T } from '../i18n.js';
 import { teamStaerken, gesamtStaerke, verletzte } from '../engine/team.js';
 import { istFit } from '../engine/spieler.js';
-import { LIGA_MAX_STAERKE, POSITIONS } from '../engine/constants.js';
+import { LIGA_MAX_STAERKE, POSITIONS, ATTRIBUTE } from '../engine/constants.js';
+import { aufstellungKarte } from './taktik.js';
 
 /**
  * Eine Spalte des Depth Charts: Beschriftung, Zellinhalt und der Wert, nach
@@ -24,6 +25,7 @@ const SPALTEN = [
   { id: 'nummer', kopf: T.kader.nummer, wert: (sp) => sp.nummer },
   { id: 'name', kopf: T.kader.name, wert: (sp) => sp.nachname + ' ' + sp.vorname },
   { id: 'position', kopf: T.kader.position, wert: (sp) => POSITIONS.length - POSITIONS.indexOf(sp.position) },
+  { id: 'koerper', kopf: T.kader.koerper, wert: (sp) => sp.gewicht },
   { id: 'alter', kopf: T.kader.alter, wert: (sp) => sp.alter },
   { id: 'staerke', kopf: T.kader.staerke, wert: (sp) => sp.staerke },
   { id: 'talent', kopf: T.kader.talent, wert: (sp) => sp.talent },
@@ -41,15 +43,19 @@ let sortierung = null;
 /**
  * @param {import('../engine/spieler.js').Spieler[]} kader
  * @param {number} spieltag
+ * @param {string} [personnel]
+ * @param {number} [passAnteil]
  */
-export function zeigeKader(kader, spieltag) {
-  const s = teamStaerken(kader, spieltag);
+export function zeigeKader(kader, spieltag, personnel, passAnteil) {
+  const s = teamStaerken(kader, spieltag, personnel, passAnteil);
   const verletzt = verletzte(kader, spieltag);
 
   const einheiten = el('div', { class: 'karte' },
     el('h2', { text: T.kader.einheiten }),
-    reihe(T.kader.angriff, s.angriff),
-    reihe(T.kader.verteidigung, s.verteidigung),
+    reihe(T.kader.angriffPass, s.passAngriff),
+    reihe(T.kader.angriffLauf, s.laufAngriff),
+    reihe(T.kader.verteidigungPass, s.passVerteidigung),
+    reihe(T.kader.verteidigungLauf, s.laufVerteidigung),
     reihe(T.kader.special, s.special),
     el('p', { class: 'klein', style: { margin: '10px 0 0' } },
       el('strong', { text: `${T.kader.gesamt}: ${gesamtStaerke(s)}` }),
@@ -62,12 +68,16 @@ export function zeigeKader(kader, spieltag) {
     leere(halter);
     halter.append(machTabelle(
       SPALTEN.map((sp) => kopfzelle(sp, male)),
-      sortiere(kader, spieltag).map((spieler) => zeile(spieler, spieltag))));
+      sortiere(kader, spieltag).flatMap((spieler) => [
+        zeile(spieler, spieltag, male),
+        offeneWerte.has(spieler.id) ? werteZeile(spieler) : null,
+      ].filter(Boolean))));
   };
   male();
 
   return el('div', {},
     einheiten,
+    aufstellungKarte(s.aufstellung),
     el('div', { class: 'karte' }, el('h2', { text: T.nav.kader }), halter));
 }
 
@@ -124,18 +134,63 @@ function sortiere(kader, spieltag) {
   });
 }
 
-/** @param {import('../engine/spieler.js').Spieler} sp @param {number} spieltag */
-function zeile(sp, spieltag) {
+/**
+ * Welche Spieler ihre Werte gerade offen zeigen. Beim eigenen Kader sind sie
+ * einsehbar — bei einem fremden Verein gäbe es nur die Gesamtstärke, und diese
+ * Ansicht zeigt nie einen fremden.
+ * @type {Set<string>}
+ */
+const offeneWerte = new Set();
+
+/**
+ * @param {import('../engine/spieler.js').Spieler} sp
+ * @param {number} spieltag
+ * @param {() => void} male
+ */
+function zeile(sp, spieltag, male) {
   const fit = istFit(sp, spieltag);
-  return el('tr', {},
+  const offen = offeneWerte.has(sp.id);
+  const umschalten = () => {
+    if (offen) offeneWerte.delete(sp.id); else offeneWerte.add(sp.id);
+    male();
+  };
+
+  return el('tr', {
+    class: offen ? 'spielerzeile offen' : 'spielerzeile',
+    role: 'button',
+    tabindex: '0',
+    'aria-expanded': String(offen),
+    title: offen ? T.kader.werteVerbergen : T.kader.werteZeigen,
+    onclick: umschalten,
+    onkeydown: (/** @type {KeyboardEvent} */ e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      umschalten();
+    },
+  },
     el('td', { class: 'leise', text: String(sp.nummer) }),
     el('td', { text: sp.vorname + ' ' + sp.nachname }),
-    el('td', { text: sp.position }),
+    el('td', { text: sp.position + (sp.seite || '') }),
+    el('td', { class: 'leise', text: T.kader.koerperWert(sp.groesse, sp.gewicht) }),
     el('td', { text: String(sp.alter) }),
     el('td', { style: { fontWeight: '600' }, text: String(sp.staerke) }),
     el('td', { class: 'leise', text: String(sp.talent) }),
     el('td', { class: fit ? 'leise' : 'verletzt' },
       fit ? T.kader.fit : T.kader.verletztBis(sp.verletztBis - spieltag)));
+}
+
+/**
+ * Die fünfzehn Werte eines Spielers, aufgeklappt unter seiner Zeile.
+ * @param {import('../engine/spieler.js').Spieler} sp
+ */
+function werteZeile(sp) {
+  return el('tr', { class: 'wertezeile' },
+    el('td', { colspan: String(SPALTEN.length) },
+      el('div', { class: 'werte' },
+        ATTRIBUTE.map((attribut) => el('div', { class: 'wert' },
+          el('span', { class: 'klein leise', text: T.attribute[attribut] }),
+          balken(sp.attribute[attribut], LIGA_MAX_STAERKE),
+          el('span', { class: 'klein', text: String(sp.attribute[attribut]) }))))));
 }
 
 /** @param {string} beschriftung @param {number} wert */

@@ -6,7 +6,7 @@ import { makeRng, ZUSATZ_SPIELER, ERSATZ_STAERKE } from '../engine/constants.js'
 import { macheKader, resetSpielerIds } from '../engine/spieler.js';
 import { PLAETZE } from '../engine/positionen.js';
 import {
-  PERSONNEL, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
+  PERSONNEL, PERSONNEL_REIHE, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
   BLOCK_GEWICHT, PLATZ_ANTEIL, SKILL_LEITER,
   stelleAuf, skillAnteile, doppelAbzug, doppelRisiko, doppelEinsaetze, umstellungen,
 } from '../engine/aufstellung.js';
@@ -30,6 +30,13 @@ test('acht Gruppierungen, jede mit fünf gültigen Skill-Plätzen', () => {
   // Von der luftigsten zur schwersten Gruppierung fällt der Passanteil.
   assert.ok(PERSONNEL['00'].passAnteil > PERSONNEL['11'].passAnteil);
   assert.ok(PERSONNEL['11'].passAnteil > PERSONNEL['32'].passAnteil);
+
+  // Die Lesereihenfolge deckt den Katalog vollständig ab. Object.keys() tut
+  // das nicht in dieser Reihenfolge: '10' ist für JavaScript ein
+  // Zahlenschlüssel, '00' nicht.
+  assert.deepEqual([...PERSONNEL_REIHE].sort(), Object.keys(PERSONNEL).sort());
+  assert.equal(PERSONNEL_REIHE[0], '00');
+  assert.equal(PERSONNEL_REIHE[PERSONNEL_REIHE.length - 1], '32');
 });
 
 test('jede Gewichtszeile summiert auf eins', () => {

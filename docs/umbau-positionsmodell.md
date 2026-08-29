@@ -709,11 +709,28 @@ Spieltag angepfiffen wird. Eine Änderung kann rückwirkend gar nichts anrichten
 zusammenkommen — die Simulation bekommt beide Vereine in derselben Form, und
 `personnelVon()` zieht dabei nach, was fehlt.
 
-### Inkrement 7 — UI
+### Inkrement 7 — UI ✅ fertig
 `ui/taktik.js` (neu), `ui/kader.js`, `app.js`, `i18n.js`, `app.css`, `vis.html`.
 
 Abschnitt 10. Fertig, wenn die Taktik-Ansicht schaltet und der Kaderscreen Aufstellung,
 Umstellungen und Körperdaten zeigt.
+
+Wie die Ansichten sich die Arbeit teilen: die **Taktik** zeigt die acht Gruppierungen
+mit ihren fünf Skill-Plätzen, den Regler und darunter die vier Werte, die er bewegt.
+Die **Aufstellung** steht im Kader und nicht dort — sie ist das Ergebnis, nicht die
+Entscheidung, und zweimal dieselbe Karte hilft niemandem.
+
+Die fünfzehn Attribute klappen unter der Kaderzeile auf, statt fünfzehn Spalten an
+eine Tabelle zu hängen, die schon acht hat. „Beim eigenen Kader offen, bei fremden nur
+die Gesamtstärke" ist dabei von selbst erfüllt: die Ansicht bekommt nie einen fremden
+Kader zu sehen.
+
+`PERSONNEL_REIHE` musste dazukommen. `Object.keys(PERSONNEL)` gibt die acht nicht in
+ihrer Reihenfolge heraus — `'10'` ist für JavaScript ein Zahlenschlüssel und `'00'`
+nicht, also stünde Empty am Ende statt am Anfang.
+
+Nicht getestet: `ui/` hat in diesem Projekt keinen Prüfstand, die Suite ist
+engine-only. Die drei Ansichten sind über `vis.html` im Browser abgenommen.
 
 ### Vor und nach dem Umbau
 

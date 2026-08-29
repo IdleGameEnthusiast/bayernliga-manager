@@ -11,7 +11,7 @@ import { T } from './i18n.js';
 import { teamById } from './engine/content.js';
 import {
   neuesSpiel, spieleSpieltag, naechsteSaison, saisonVorbei, anzahlSpieltage,
-  gruppenTabellen, meineTabelle,
+  gruppenTabellen, meineTabelle, setzeTaktik, personnelVon, passAnteilVon,
 } from './engine/saison.js';
 import { partienDerRunde } from './engine/spielplan.js';
 import {
@@ -21,13 +21,14 @@ import { zeigeStart } from './ui/start.js';
 import { zeigeIntro } from './ui/intro.js';
 import { zeigeTabelle } from './ui/tabelle.js';
 import { zeigeKader } from './ui/kader.js';
+import { zeigeTaktik } from './ui/taktik.js';
 import { zeigeSpielplan } from './ui/spielplan.js';
 import { zeigeSpielbericht } from './ui/spielbericht.js';
 
 /** @type {import('./engine/saison.js').SpielStand | null} */
 let stand = null;
 
-/** @type {'start'|'intro'|'tabelle'|'kader'|'spielplan'|'verlauf'|'bericht'} */
+/** @type {'start'|'intro'|'tabelle'|'kader'|'taktik'|'spielplan'|'verlauf'|'bericht'} */
 let ansicht = 'start';
 
 /** @type {import('./engine/spielplan.js').Partie | null} */
@@ -72,7 +73,11 @@ function zeichne() {
   if (ansicht === 'tabelle') {
     wurzel.append(zeigeTabelle(gruppenTabellen(stand), stand.meinTeam, playoffPartien(stand)));
   } else if (ansicht === 'kader') {
-    wurzel.append(zeigeKader(stand.kader[stand.meinTeam], stand.spieltag));
+    wurzel.append(zeigeKader(
+      stand.kader[stand.meinTeam], stand.spieltag,
+      personnelVon(stand, stand.meinTeam), passAnteilVon(stand, stand.meinTeam)));
+  } else if (ansicht === 'taktik') {
+    wurzel.append(zeigeTaktik(stand, beiTaktik));
   } else if (ansicht === 'spielplan') {
     wurzel.append(zeigeSpielplan(stand.spielplan, stand.meinTeam, stand.spieltag, (p) => {
       offenePartie = p;
@@ -134,6 +139,7 @@ function reiter() {
   const tabs = [
     ['tabelle', T.nav.tabelle],
     ['kader', T.nav.kader],
+    ['taktik', T.nav.taktik],
     ['spielplan', T.nav.spielplan],
     ['verlauf', T.nav.verlauf],
   ];
@@ -187,7 +193,7 @@ function verlaufAnsicht() {
 
 // --- Aktionen --------------------------------------------------------------
 
-/** @param {'start'|'intro'|'tabelle'|'kader'|'spielplan'|'verlauf'|'bericht'} neu */
+/** @param {'start'|'intro'|'tabelle'|'kader'|'taktik'|'spielplan'|'verlauf'|'bericht'} neu */
 function wechsle(neu) {
   ansicht = neu;
   hinweis = null;
@@ -234,6 +240,18 @@ function beiSpieltag() {
     }
   }
   wechsle('tabelle');
+}
+
+/**
+ * Die Taktik umstellen. Sie gilt ab dem nächsten Spieltag — was die Regel
+ * dazu sagt, sagt die Engine; hier wird nur gespeichert und neu gezeichnet.
+ * @param {{ personnel?: string, passAnteil?: number }} taktik
+ */
+function beiTaktik(taktik) {
+  if (!stand) return;
+  setzeTaktik(stand, taktik);
+  speichere(stand);
+  zeichne();
 }
 
 function beiNaechsterSaison() {

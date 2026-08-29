@@ -28,8 +28,6 @@ export { kickerWert, punterWert };
  * @property {number} passVerteidigung
  * @property {number} laufVerteidigung
  * @property {number} special
- * @property {number} angriff        Übergang: das Mittel beider Angriffswerte
- * @property {number} verteidigung   Übergang: das Mittel beider Verteidigungswerte
  * @property {import('./aufstellung.js').Aufstellung} aufstellung
  */
 
@@ -130,11 +128,14 @@ export function teamStaerken(kader, spieltag, personnel = STANDARD_PERSONNEL, pa
 }
 
 /**
- * Eine Zahl für die Tabelle und die Scoutingansicht.
+ * Eine Zahl für die Tabelle und die Scoutingansicht. Lauf und Pass zählen
+ * dafür gleich viel — sie steht für keine Partie, sondern für die Mannschaft.
  * @param {Staerken} s
  */
 export function gesamtStaerke(s) {
-  return Math.round(s.angriff * 0.46 + s.verteidigung * 0.46 + s.special * 0.08);
+  const angriff = (s.passAngriff + s.laufAngriff) / 2;
+  const verteidigung = (s.passVerteidigung + s.laufVerteidigung) / 2;
+  return Math.round(angriff * 0.46 + verteidigung * 0.46 + s.special * 0.08);
 }
 
 /**

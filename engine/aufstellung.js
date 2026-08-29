@@ -44,6 +44,16 @@ export const PERSONNEL = {
   '32': { name: 'Double Wing', skill: ['RB', 'FB', 'FB', 'TE', 'TE'], passAnteil: 0.20 },
 };
 
+/**
+ * Die Gruppierungen in der Reihenfolge, in der sie gelesen werden wollen: von
+ * der luftigsten zur schwersten. `Object.keys(PERSONNEL)` gibt sie nicht so
+ * heraus — `'10'` ist für JavaScript ein Zahlenschlüssel und `'00'` nicht,
+ * also stünde Empty am Ende statt am Anfang.
+ */
+export const PERSONNEL_REIHE = /** @type {const} */ ([
+  '00', '01', '10', '11', '12', '20', '21', '32',
+]);
+
 /** Was ein Verein spielt, wenn nichts anderes gesagt ist. */
 export const STANDARD_PERSONNEL = '11';
 

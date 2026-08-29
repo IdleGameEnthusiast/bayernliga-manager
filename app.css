@@ -260,6 +260,82 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
   margin-bottom: 12px;
 }
 
+/* --- Taktik ---------------------------------------------------------------
+   Die Systemwahl, der Regler und die zweiundzwanzig Plätze. */
+
+.systeme {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.system {
+  display: flex; flex-direction: column; gap: 2px;
+  min-height: var(--tap);
+  padding: 8px 10px;
+  text-align: left;
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  background: var(--bg-zeile);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.system:focus-visible { outline: 2px solid var(--akzent); outline-offset: 2px; }
+.system.aktiv { border-color: var(--akzent); background: rgba(214, 73, 51, .15); }
+.system-id { font-weight: 700; font-variant-numeric: tabular-nums; }
+.system-name { font-size: 13px; }
+.system-skill { font-size: 11px; letter-spacing: .02em; }
+
+.reglerzeile {
+  display: grid; grid-template-columns: 120px 1fr 56px;
+  gap: 10px; align-items: center; margin-bottom: 4px;
+}
+.reglerzeile input[type='range'] { width: 100%; height: var(--tap); accent-color: var(--akzent); }
+.reglerwert { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.elfen { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+
+.aufstellung { list-style: none; margin: 6px 0 0; padding: 0; }
+.aufstellung li {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+}
+.aufstellung .platz {
+  flex: 0 0 44px;
+  font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  color: var(--text-leise);
+}
+.aufstellung .platz-name { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
+.aufstellung .platz-pos { font-size: 12px; }
+
+.marke {
+  font-size: 11px; padding: 1px 6px; border-radius: 999px; white-space: nowrap;
+}
+.marke.um { background: rgba(233, 180, 76, .18); color: var(--gelb); }
+.marke.doppel { background: rgba(209, 73, 91, .2); color: var(--rot); }
+
+/* --- Werte eines Spielers -------------------------------------------------
+   Die fünfzehn Attribute klappen unter der Kaderzeile auf. Beim eigenen Kader
+   sind sie offen; ein fremder Verein zeigt nie mehr als seine Gesamtstärke. */
+
+tr.spielerzeile { cursor: pointer; }
+tr.spielerzeile:focus-visible { outline: 2px solid var(--akzent); outline-offset: -2px; }
+tr.spielerzeile.offen td { border-bottom-color: transparent; }
+tr.spielerzeile.offen td:nth-child(2) { font-weight: 600; }
+
+tr.wertezeile td { padding: 0 8px 12px; text-align: left; white-space: normal; }
+.werte {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 4px 18px;
+}
+.wert { display: grid; grid-template-columns: 118px 1fr 26px; gap: 8px; align-items: center; }
+.wert .spur { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+.wert .spur i { display: block; height: 100%; background: var(--akzent); }
+.wert span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }

@@ -21,7 +21,7 @@ Weil die App ES-Module benutzt, reicht ein Doppelklick auf `index.html` **nicht*
 | --- | --- |
 | Lokal spielen | `python3 -m http.server 8000`, dann `http://localhost:8000` |
 | Auf dem iPad | gleicher Befehl, dann `http://<IP-des-Macs>:8000` im selben WLAN |
-| Layout-Fixture | `vis.html` — Saison bis Spieltag 8 vorgespielt, `?ende` spielt sie bis hinter das Finale; dazu `?v=kader`, `?v=spielplan`, `?v=bericht` |
+| Layout-Fixture | `vis.html` — Saison bis Spieltag 8 vorgespielt, `?ende` spielt sie bis hinter das Finale; dazu `?v=kader`, `?v=taktik`, `?v=spielplan`, `?v=bericht` |
 | Tests | `node --test tests/*.test.js` |
 | Icons neu bauen | `node scripts/mach-icons.js` |
 | Ligastärken messen | `node scripts/baseline-staerken.js` — das Messband für den Umbau |
@@ -116,8 +116,10 @@ werden.
 Verlängerung läuft, bis einer vorn liegt. Absteiger gibt es ebenfalls keine.
 
 Ideen für später:
-- Formationen und Positionswerte (Block 2 im Fahrplan)
-- Aufstellung selbst bestimmen statt Depth Chart nach Stärke
+- Aufstellung selbst bestimmen statt automatisch nach Stärke und Eignung
+- Weitere Defense-Formationen: 4-4, 3-3, 3-4 über denselben Platz-Apparat
+- Berechnete Stärke aus den Attributen statt gezogener
+- Alterskurven je Attribut
 - Transfers und Verträge zwischen den Saisons
 - Auf- und Abstieg mit einer zweiten Liga darüber
 - Play-by-Play statt nur Endstand

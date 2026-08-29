@@ -133,7 +133,7 @@ test('das Scoring verteilt sich plausibel über die vier Viertel', () => {
 function werte(pa, la, pv, lv) {
   return /** @type {any} */ ({
     passAngriff: pa, laufAngriff: la, passVerteidigung: pv, laufVerteidigung: lv,
-    special: 40, angriff: (pa + la) / 2, verteidigung: (pv + lv) / 2,
+    special: 40,
   });
 }
 
