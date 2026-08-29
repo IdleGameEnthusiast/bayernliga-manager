@@ -142,6 +142,13 @@ th {
 }
 th:nth-child(1), th:nth-child(2) { text-align: left; }
 
+/* Sortierbare Spaltenköpfe: der Kader hängt an jedem einen Dreitakt-Klick. */
+th.sortierbar { cursor: pointer; user-select: none; -webkit-user-select: none; }
+th.sortierbar:hover { color: var(--text); }
+th.sortierbar:focus-visible { outline: 2px solid var(--akzent); outline-offset: -2px; }
+th.sortiert { color: var(--text); }
+.sortpfeil { margin-left: 3px; }
+
 td {
   padding: 10px 8px;
   border-bottom: 1px solid rgba(255, 255, 255, .05);

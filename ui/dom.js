@@ -33,14 +33,16 @@ export function leere(n) {
 }
 
 /**
- * A table from a header row and body rows.
- * @param {string[]} kopf
+ * A table from a header row and body rows. A header entry may be a ready-made
+ * `th` — that is how the Kader hangs its sort handlers on the column names.
+ * @param {(string|HTMLElement)[]} kopf
  * @param {HTMLElement[]} zeilen
  */
 export function tabelle(kopf, zeilen) {
   return el('div', { class: 'tabelle-scroll' },
     el('table', {},
-      el('thead', {}, el('tr', {}, kopf.map((h) => el('th', { text: h })))),
+      el('thead', {}, el('tr', {},
+        kopf.map((h) => (typeof h === 'string' ? el('th', { text: h }) : h)))),
       el('tbody', {}, zeilen)));
 }
 

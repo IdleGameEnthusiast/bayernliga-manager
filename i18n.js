@@ -86,6 +86,9 @@ export const DE = {
     verteidigung: 'Verteidigung',
     special: 'Special Teams',
     gesamt: 'Gesamt',
+    sortieren: (spalte) => `Nach ${spalte} sortieren`,
+    sortAb: '▾',
+    sortAuf: '▴',
   },
 
   spielplan: {

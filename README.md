@@ -89,9 +89,9 @@ Der Fahrplan mit allen gefallenen Entscheidungen steht in
 [`docs/naechste-schritte.md`](docs/naechste-schritte.md).
 
 Gespielt werden kann: Verein wählen, die Ansprache zum Amtsantritt, Spieltage
-simulieren, zwei Gruppentabellen, Kader mit Depth Chart und Verletzungen,
-Spielplan, Spielbericht mit Box Score, Halbfinale und Finale, Saisonwechsel mit
-Alterung und Rücktritten, Export und Import.
+simulieren, zwei Gruppentabellen, Kader mit Depth Chart, sortierbaren Spalten
+und Verletzungen, Spielplan, Spielbericht mit Box Score, Halbfinale und Finale,
+Saisonwechsel mit Alterung und Rücktritten, Export und Import.
 
 ## Wie eine Saison aussieht
 
