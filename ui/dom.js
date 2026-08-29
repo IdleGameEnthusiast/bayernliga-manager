@@ -49,3 +49,31 @@ export function balken(wert, max) {
   const anteil = Math.max(0, Math.min(1, wert / max));
   return el('div', { class: 'spur' }, el('i', { style: { width: (anteil * 100).toFixed(1) + '%' } }));
 }
+
+/**
+ * Der Vereinstupfer: Primärfarbe oben, Sekundärfarbe unten. Zweifarbig, weil
+ * zwei Vereine dieser Liga in Schwarz spielen und sonst nicht zu unterscheiden
+ * wären — und weil Schwarz auf dunklem Grund einen Umriss braucht.
+ * @param {import('../engine/content.js').TeamDef} team
+ * @param {Record<string, string>} [stil]
+ */
+export function farbtupfer(team, stil) {
+  const { primaer, sekundaer } = team.farben;
+  return el('span', {
+    class: 'farbtupfer',
+    style: {
+      background: `linear-gradient(to bottom, ${primaer} 0 58%, ${sekundaer} 58% 100%)`,
+      ...(stil || {}),
+    },
+  });
+}
+
+/**
+ * Schwarz oder Weiß — was auf der gegebenen Fläche lesbar ist.
+ * @param {string} hex
+ */
+export function kontrastFarbe(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#111' : '#fff';
+}

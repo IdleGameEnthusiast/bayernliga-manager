@@ -4,6 +4,7 @@
  * Docs: docs/spec/04-economy-formulas.md
  */
 
+import { ERSATZ_STAERKE } from './constants.js';
 import { verfuegbar } from './spieler.js';
 
 /**
@@ -21,8 +22,8 @@ import { verfuegbar } from './spieler.js';
 
 /**
  * Mean strength of the best `n` fit players at a position.
- * Falls back towards a replacement-level 45 when injuries thin the group out,
- * which is what makes a long injury list actually hurt.
+ * A slot nobody can fill counts as ERSATZ_STAERKE, which is what makes a thin
+ * Kader and a long injury list actually hurt.
  * @param {import('./spieler.js').Spieler[]} kader
  * @param {import('./constants.js').Position} position
  * @param {number} n
@@ -32,7 +33,7 @@ export function einheit(kader, position, n, spieltag) {
   const frei = verfuegbar(kader, position, spieltag).slice(0, n);
   let summe = 0;
   for (let i = 0; i < n; i++) {
-    summe += frei[i] ? frei[i].staerke : 45;
+    summe += frei[i] ? frei[i].staerke : ERSATZ_STAERKE;
   }
   return summe / n;
 }

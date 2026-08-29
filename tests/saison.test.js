@@ -3,26 +3,28 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { TEAMS } from '../engine/content.js';
-import { ROSTER_SIZE } from '../engine/constants.js';
+import { KADER_GROESSE_EIGEN, KADER_GROESSE_FREMD } from '../engine/constants.js';
 import {
   neuesSpiel, spieleSpieltag, saisonVorbei, naechsteSaison, tabelle, anzahlSpieltage,
 } from '../engine/saison.js';
+import { SAVE_VERSION } from '../engine/saison.js';
 import { migriere, exportiere, importiere } from '../engine/save.js';
 
 test('ein neues Spiel ist vollständig aufgesetzt', () => {
-  const s = neuesSpiel('ros', 'seed-1');
+  const s = neuesSpiel('heg', 'seed-1');
   assert.equal(s.jahr, 2026);
   assert.equal(s.spieltag, 1);
-  assert.equal(s.meinTeam, 'ros');
+  assert.equal(s.meinTeam, 'heg');
   assert.equal(Object.keys(s.kader).length, TEAMS.length);
   for (const t of TEAMS) {
-    assert.equal(s.kader[t.id].length, ROSTER_SIZE, t.id);
+    const soll = t.id === s.meinTeam ? KADER_GROESSE_EIGEN : KADER_GROESSE_FREMD;
+    assert.equal(s.kader[t.id].length, soll, t.id);
   }
   assert.ok(!saisonVorbei(s));
 });
 
 test('eine volle Saison lässt sich durchspielen', () => {
-  const s = neuesSpiel('ffb', 'seed-2');
+  const s = neuesSpiel('ers', 'seed-2');
   const gesamt = anzahlSpieltage(s.spielplan);
 
   let gespielt = 0;
@@ -38,7 +40,7 @@ test('eine volle Saison lässt sich durchspielen', () => {
 });
 
 test('die Tabelle stimmt mit den gespielten Partien überein', () => {
-  const s = neuesSpiel('stb', 'seed-3');
+  const s = neuesSpiel('gc', 'seed-3');
   while (!saisonVorbei(s)) spieleSpieltag(s);
 
   const t = tabelle(s);
@@ -58,15 +60,15 @@ test('die Tabelle stimmt mit den gespielten Partien überein', () => {
 });
 
 test('gleicher Seed, gleiche Saison', () => {
-  const a = neuesSpiel('erd', 'gleich');
-  const b = neuesSpiel('erd', 'gleich');
+  const a = neuesSpiel('fel', 'gleich');
+  const b = neuesSpiel('fel', 'gleich');
   while (!saisonVorbei(a)) spieleSpieltag(a);
   while (!saisonVorbei(b)) spieleSpieltag(b);
   assert.deepEqual(tabelle(a), tabelle(b));
 });
 
 test('der Saisonwechsel setzt zurück und schreibt Historie', () => {
-  const s = neuesSpiel('reg', 'seed-4');
+  const s = neuesSpiel('mr', 'seed-4');
   while (!saisonVorbei(s)) spieleSpieltag(s);
 
   const { meister } = naechsteSaison(s);
@@ -77,13 +79,14 @@ test('der Saisonwechsel setzt zurück und schreibt Historie', () => {
   assert.equal(s.historie[0].jahr, 2026);
   assert.equal(s.spielplan.filter((p) => p.ergebnis !== null).length, 0, 'frischer Spielplan');
   for (const t of TEAMS) {
-    assert.equal(s.kader[t.id].length, ROSTER_SIZE, `${t.id} bleibt vollzählig`);
+    const soll = t.id === s.meinTeam ? KADER_GROESSE_EIGEN : KADER_GROESSE_FREMD;
+    assert.equal(s.kader[t.id].length, soll, `${t.id} bleibt vollzählig`);
     assert.ok(s.kader[t.id].every((sp) => sp.verletztBis === 0), 'alle sind wieder fit');
   }
 });
 
 test('mehrere Saisons hintereinander bleiben stabil', () => {
-  const s = neuesSpiel('amb', 'seed-5');
+  const s = neuesSpiel('btc', 'seed-5');
   for (let i = 0; i < 5; i++) {
     while (!saisonVorbei(s)) spieleSpieltag(s);
     naechsteSaison(s);
@@ -91,12 +94,13 @@ test('mehrere Saisons hintereinander bleiben stabil', () => {
   assert.equal(s.jahr, 2031);
   assert.equal(s.historie.length, 5);
   for (const t of TEAMS) {
-    assert.equal(s.kader[t.id].length, ROSTER_SIZE);
+    const soll = t.id === s.meinTeam ? KADER_GROESSE_EIGEN : KADER_GROESSE_FREMD;
+    assert.equal(s.kader[t.id].length, soll);
   }
 });
 
 test('Export und Import ergeben denselben Stand', () => {
-  const s = neuesSpiel('wei', 'seed-6');
+  const s = neuesSpiel('pp', 'seed-6');
   spieleSpieltag(s);
   spieleSpieltag(s);
 
@@ -105,13 +109,18 @@ test('Export und Import ergeben denselben Stand', () => {
 });
 
 test('Migration füllt fehlende Felder auf', () => {
-  const roh = { seed: 'x', jahr: 2026, spieltag: 1, meinTeam: 'ros', kader: {}, spielplan: [] };
+  const roh = { seed: 'x', jahr: 2026, spieltag: 1, meinTeam: 'heg', kader: {}, spielplan: [] };
   const m = migriere(roh);
-  assert.equal(m.version, 1);
+  assert.equal(m.version, SAVE_VERSION);
   assert.deepEqual(m.verlauf, []);
   assert.deepEqual(m.historie, []);
 });
 
 test('ein leerer Speicherstand wird abgelehnt', () => {
   assert.throws(() => migriere(null));
+});
+
+test('ein Stand aus der alten Achter-Liga wird abgelehnt', () => {
+  assert.throws(() => migriere({ version: 1, seed: 'x', meinTeam: 'ros', kader: {} }),
+    /älteren Liga/);
 });

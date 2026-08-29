@@ -5,12 +5,14 @@
  */
 
 import {
-  MIN_RATING, MAX_RATING, MIN_AGE, MAX_AGE, PEAK_AGE,
-  ROSTER_SHAPE, POSITIONS, clamp, randInt, pick, randNormal,
+  MAX_RATING, LIGA_MAX_STAERKE, RATING_UNTERGRENZE, TALENT_STREUUNG,
+  MIN_AGE, MAX_AGE, PEAK_AGE, RUECKTRITT_ALTER,
+  VETERAN_MIN, VETERAN_MAX, VETERAN_ANTEIL_JUNG, VETERAN_JUNG, VETERAN_ALT,
+  VETERAN_RUECKTRITT_MAX, VETERAN_POSITIONEN,
+  KADER_FORM, ZUSATZ_GEWICHTE, ZUSATZ_MAX_JE_POSITION,
+  POSITIONS, clamp, randInt, pick, pickWeighted, randNormal, shuffle,
 } from './constants.js';
-import {
-  VORNAMEN, NACHNAMEN, IMPORT_VORNAMEN, IMPORT_NACHNAMEN, IMPORT_ANTEIL,
-} from './content.js';
+import { VORNAMEN, NACHNAMEN } from './content.js';
 
 /**
  * @typedef {object} Spieler
@@ -18,13 +20,16 @@ import {
  * @property {string} vorname
  * @property {string} nachname
  * @property {import('./constants.js').Position} position
- * @property {number} nummer      Trikotnummer
+ * @property {number} nummer          Trikotnummer; OHNE_NUMMER until one is handed out
  * @property {number} alter
- * @property {number} staerke     Current overall, 40..99
- * @property {number} talent      Ceiling this player can still grow towards
- * @property {boolean} importSpieler
- * @property {number} verletztBis Matchday index the player is fit again; 0 = fit
+ * @property {number} staerke         Current overall, never above LIGA_MAX_STAERKE
+ * @property {number} talent          Ceiling this player could reach; may sit above the league cap
+ * @property {number} ruecktrittAlter The season after this age he stops
+ * @property {number} verletztBis     Matchday index the player is fit again; 0 = fit
  */
+
+/** A player who has not been handed a number yet. 0 is a real jersey. */
+export const OHNE_NUMMER = -1;
 
 let idCounter = 0;
 
@@ -34,78 +39,186 @@ export function resetSpielerIds() {
 }
 
 /**
- * Jersey numbers are loosely position-banded, the way a real roster reads.
- * @type {Record<string, [number, number]>}
+ * Jersey number bands, each a list of inclusive ranges.
+ *
+ * 0-9 belongs to no band: those numbers are handed out separately, to the best
+ * players in the club. OL are the exception that has no exception — a lineman
+ * never wears anything outside 50-79.
+ * @type {Record<string, [number, number][]>}
  */
 const NUMMERN_BAND = {
-  QB: [1, 19], RB: [20, 49], WR: [80, 89], TE: [40, 49], OL: [50, 79],
-  DL: [90, 99], LB: [50, 59], DB: [20, 39], K: [1, 19], P: [1, 19],
+  QB: [[1, 19]],
+  RB: [[20, 49]],
+  WR: [[10, 19], [80, 89]],
+  TE: [[40, 49], [80, 89]],
+  OL: [[50, 79]],
+  DL: [[50, 79], [90, 99]],
+  LB: [[40, 59], [90, 99]],
+  DB: [[20, 49]],
+  K: [[1, 19]],
+  P: [[1, 19]],
 };
 
+const EINSTELLIGE = /** @type {[number, number][]} */ ([[0, 9]]);
+const EINSTELLIG_KANDIDATEN = 12;
+const EINSTELLIG_MIN = 5;
+const EINSTELLIG_MAX = 9;
+
+// --- Alterskurve -----------------------------------------------------------
+// Four pieces: the climb to the peak, a flat stretch either side of thirty, a
+// real decline through the thirties, and then decay with no floor under it —
+// a man of sixty on a Bayernliga roster is there for what he can still kick,
+// not for what he can still run.
+
+const F_18 = 0.68;
+const F_27 = 1.00;
+const F_33 = 0.90;
+const F_40 = 0.711;
+const ZERFALL = 0.94;
+
 /**
- * Age curve: a player is at their own ceiling around PEAK_AGE and falls away
- * on either side. Returns a multiplier on `talent`.
+ * Multiplier on `talent` for a given age.
  * @param {number} alter
  */
 export function alterFaktor(alter) {
-  if (alter >= PEAK_AGE) {
-    // Decline is gentler than the climb.
-    return clamp(1 - (alter - PEAK_AGE) * 0.022, 0.7, 1);
+  if (alter <= MIN_AGE) return F_18;
+  if (alter <= PEAK_AGE) return F_18 + (alter - MIN_AGE) * ((F_27 - F_18) / (PEAK_AGE - MIN_AGE));
+  if (alter <= 33) return F_27 + (alter - PEAK_AGE) * ((F_33 - F_27) / (33 - PEAK_AGE));
+  if (alter <= 40) return F_33 + (alter - 33) * ((F_40 - F_33) / (40 - 33));
+  return F_40 * Math.pow(ZERFALL, alter - 40);
+}
+
+/**
+ * Talent is the ceiling and may sit above what the league allows; strength is
+ * what he is worth on a Saturday, and that never leaves the Bayernliga.
+ * @param {number} talent @param {number} alter
+ */
+export function berechneStaerke(talent, alter) {
+  return clamp(Math.round(talent * alterFaktor(alter)), RATING_UNTERGRENZE, LIGA_MAX_STAERKE);
+}
+
+/**
+ * Draw a full name, avoiding one already worn inside the same club. Two Hubers
+ * in one league are right; two in one changing room are only confusing.
+ * @param {() => number} rng
+ * @param {Set<string>} [belegt]
+ */
+function ziehName(rng, belegt) {
+  for (let versuch = 0; versuch < 40; versuch++) {
+    const vorname = pickWeighted(rng, VORNAMEN);
+    const nachname = pickWeighted(rng, NACHNAMEN);
+    if (!belegt) return { vorname, nachname };
+    const voll = vorname + ' ' + nachname;
+    if (!belegt.has(voll)) {
+      belegt.add(voll);
+      return { vorname, nachname };
+    }
   }
-  return clamp(0.72 + (alter - MIN_AGE) * (0.28 / (PEAK_AGE - MIN_AGE)), 0.6, 1);
+  // Pool exhausted for this club — take the doubling rather than loop forever.
+  return { vorname: pickWeighted(rng, VORNAMEN), nachname: pickWeighted(rng, NACHNAMEN) };
 }
 
 /**
  * @param {() => number} rng
  * @param {import('./constants.js').Position} position
  * @param {number} teamStaerke 0..100 baseline of the club
+ * @param {{ alter?: number, belegteNamen?: Set<string> }} [optionen]
  * @returns {Spieler}
  */
-export function macheSpieler(rng, position, teamStaerke) {
-  const importSpieler = rng() < IMPORT_ANTEIL;
-  const vorname = importSpieler ? pick(rng, IMPORT_VORNAMEN) : pick(rng, VORNAMEN);
-  const nachname = importSpieler ? pick(rng, IMPORT_NACHNAMEN) : pick(rng, NACHNAMEN);
-  const alter = randInt(rng, MIN_AGE, MAX_AGE);
+export function macheSpieler(rng, position, teamStaerke, optionen) {
+  const { vorname, nachname } = ziehName(rng, optionen && optionen.belegteNamen);
+  const alter = optionen && optionen.alter != null
+    ? optionen.alter
+    : randInt(rng, MIN_AGE, MAX_AGE);
 
-  // Talent orbits the club's baseline; imports arrive a cut above.
-  const bonus = importSpieler ? 8 : 0;
+  // Talent orbits the club's baseline.
   const talent = clamp(
-    Math.round(teamStaerke + bonus + randNormal(rng) * 9),
-    MIN_RATING, MAX_RATING,
+    Math.round(teamStaerke + randNormal(rng) * TALENT_STREUUNG),
+    RATING_UNTERGRENZE, MAX_RATING,
   );
-  const staerke = clamp(Math.round(talent * alterFaktor(alter)), MIN_RATING, MAX_RATING);
 
-  const band = NUMMERN_BAND[position] || [1, 99];
   return {
     id: 'p' + (++idCounter),
     vorname,
     nachname,
     position,
-    nummer: randInt(rng, band[0], band[1]),
+    nummer: OHNE_NUMMER,
     alter,
-    staerke,
+    staerke: berechneStaerke(talent, alter),
     talent,
-    importSpieler,
+    ruecktrittAlter: RUECKTRITT_ALTER,
     verletztBis: 0,
   };
+}
+
+/**
+ * Which positions the extra players of an AI club land on. Weighted by where
+ * depth is actually wanted, and capped so nobody ends up with four QBs.
+ * @param {() => number} rng
+ * @param {number} anzahl
+ * @returns {import('./constants.js').Position[]}
+ */
+function zusatzPositionen(rng, anzahl) {
+  /** @type {import('./constants.js').Position[]} */
+  const gezogen = [];
+  /** @type {Record<string, number>} */
+  const zaehler = {};
+  const pool = /** @type {[import('./constants.js').Position, number][]} */ (
+    Object.entries(ZUSATZ_GEWICHTE).filter(([, g]) => g > 0)
+  );
+
+  while (gezogen.length < anzahl) {
+    const frei = pool.filter(([p]) => (zaehler[p] || 0) < ZUSATZ_MAX_JE_POSITION);
+    if (frei.length === 0) break;
+    const position = pickWeighted(rng, frei);
+    zaehler[position] = (zaehler[position] || 0) + 1;
+    gezogen.push(position);
+  }
+  return gezogen;
+}
+
+/**
+ * Turn one or two of the squad into the men who never stopped.
+ * @param {() => number} rng
+ * @param {Spieler[]} kader
+ */
+function macheVeteranen(rng, kader) {
+  const kandidaten = shuffle(rng, kader.filter((s) => VETERAN_POSITIONEN.includes(s.position)));
+  const anzahl = Math.min(randInt(rng, VETERAN_MIN, VETERAN_MAX), kandidaten.length);
+
+  for (const s of kandidaten.slice(0, anzahl)) {
+    const band = rng() < VETERAN_ANTEIL_JUNG ? VETERAN_JUNG : VETERAN_ALT;
+    s.alter = randInt(rng, band[0], band[1]);
+    s.staerke = berechneStaerke(s.talent, s.alter);
+    s.ruecktrittAlter = randInt(rng, s.alter + 1, VETERAN_RUECKTRITT_MAX);
+  }
+  return kader;
 }
 
 /**
  * A full Kader, sorted so the depth chart reads top-down per position.
  * @param {() => number} rng
  * @param {number} teamStaerke
+ * @param {number} [zusatz] extra players beyond KADER_FORM
  * @returns {Spieler[]}
  */
-export function macheKader(rng, teamStaerke) {
+export function macheKader(rng, teamStaerke, zusatz = 0) {
+  /** @type {Set<string>} */
+  const belegteNamen = new Set();
   /** @type {Spieler[]} */
   const kader = [];
+
   for (const position of POSITIONS) {
-    const anzahl = ROSTER_SHAPE[position];
-    for (let i = 0; i < anzahl; i++) {
-      kader.push(macheSpieler(rng, position, teamStaerke));
+    for (let i = 0; i < KADER_FORM[position]; i++) {
+      kader.push(macheSpieler(rng, position, teamStaerke, { belegteNamen }));
     }
   }
-  return vergebeNummern(rng, sortiereKader(kader));
+  for (const position of zusatzPositionen(rng, zusatz)) {
+    kader.push(macheSpieler(rng, position, teamStaerke, { belegteNamen }));
+  }
+
+  macheVeteranen(rng, kader);
+  return vergebeNummern(rng, sortiereKader(kader), true);
 }
 
 /**
@@ -121,29 +234,58 @@ export function sortiereKader(kader) {
 }
 
 /**
- * Trikotnummern innerhalb eines Kaders eindeutig vergeben — im Positionsband,
- * wo noch etwas frei ist, sonst irgendwo. Ohne das doppeln sich Nummern, weil
- * `macheSpieler` seine Nummer ohne Blick auf den Rest des Kaders zieht.
+ * The free numbers inside a set of ranges.
+ * @param {[number, number][]} band
+ * @param {Set<number>} belegt
+ */
+function zahlenIn(band, belegt) {
+  /** @type {number[]} */
+  const frei = [];
+  for (const [von, bis] of band) {
+    for (let n = von; n <= bis; n++) if (!belegt.has(n)) frei.push(n);
+  }
+  return frei;
+}
+
+/**
+ * Hand out jersey numbers, uniquely inside the Kader.
+ *
+ * With `neuVerteilen` the whole squad is redrawn and the single digits go out
+ * first: five to nine of the twelve best non-linemen get one. Without it only
+ * the players who have no number yet are served, so a man keeps his number for
+ * as long as he keeps his place.
  * @param {() => number} rng
  * @param {Spieler[]} kader
+ * @param {boolean} [neuVerteilen]
  */
-export function vergebeNummern(rng, kader) {
+export function vergebeNummern(rng, kader, neuVerteilen = false) {
+  if (neuVerteilen) for (const s of kader) s.nummer = OHNE_NUMMER;
+
   /** @type {Set<number>} */
-  const belegt = new Set();
+  const belegt = new Set(kader.filter((s) => s.nummer >= 0).map((s) => s.nummer));
+
+  if (neuVerteilen) {
+    const kandidaten = kader
+      .filter((s) => s.position !== 'OL')
+      .sort((a, b) => b.staerke - a.staerke)
+      .slice(0, EINSTELLIG_KANDIDATEN);
+    const anzahl = Math.min(randInt(rng, EINSTELLIG_MIN, EINSTELLIG_MAX), kandidaten.length);
+
+    for (const s of shuffle(rng, kandidaten).slice(0, anzahl)) {
+      const frei = zahlenIn(EINSTELLIGE, belegt);
+      if (frei.length === 0) break;
+      s.nummer = pick(rng, frei);
+      belegt.add(s.nummer);
+    }
+  }
 
   for (const s of kader) {
-    const band = NUMMERN_BAND[s.position] || [1, 99];
-    /** @type {number[]} */
-    const imBand = [];
-    for (let n = band[0]; n <= band[1]; n++) if (!belegt.has(n)) imBand.push(n);
-
-    let frei = imBand;
+    if (s.nummer >= 0) continue;
+    const frei = zahlenIn(NUMMERN_BAND[s.position] || [[1, 99]], belegt);
     if (frei.length === 0) {
-      frei = [];
-      for (let n = 1; n <= 99; n++) if (!belegt.has(n)) frei.push(n);
+      throw new Error(`Keine freie Trikotnummer für ${s.position} — die Kaderform passt nicht ins Nummernband`);
     }
-
-    s.nummer = frei.length > 0 ? pick(rng, frei) : 0;
+    s.nummer = pick(rng, frei);
     belegt.add(s.nummer);
   }
   return kader;
@@ -177,8 +319,9 @@ export function kurzName(s) {
 }
 
 /**
- * One year on: everyone ages, and strength re-derives from talent.
- * Players past MAX_AGE retire and are replaced by a rookie.
+ * One year on: everyone ages, and strength re-derives from talent. Whoever is
+ * past his own `ruecktrittAlter` stops and is replaced by a rookie at the same
+ * position. Numbers survive — only the newcomers draw.
  * @param {() => number} rng
  * @param {Spieler[]} kader
  * @param {number} teamStaerke
@@ -189,29 +332,29 @@ export function saisonWechsel(rng, kader, teamStaerke) {
   const neu = [];
   /** @type {Spieler[]} */
   const ruecktritte = [];
+  /** @type {Set<string>} */
+  const belegteNamen = new Set(kader.map((s) => s.vorname + ' ' + s.nachname));
 
   for (const s of kader) {
     const alter = s.alter + 1;
-    if (alter > MAX_AGE) {
+    if (alter > (s.ruecktrittAlter || RUECKTRITT_ALTER)) {
       ruecktritte.push(s);
-      const rookie = macheSpieler(rng, s.position, teamStaerke);
-      rookie.alter = randInt(rng, MIN_AGE, 21);
-      rookie.staerke = clamp(
-        Math.round(rookie.talent * alterFaktor(rookie.alter)),
-        MIN_RATING, MAX_RATING,
-      );
-      neu.push(rookie);
+      belegteNamen.delete(s.vorname + ' ' + s.nachname);
+      neu.push(macheSpieler(rng, s.position, teamStaerke, {
+        alter: randInt(rng, MIN_AGE, 21),
+        belegteNamen,
+      }));
       continue;
     }
     // Young players nudge their ceiling upwards; veterans do not.
     const talent = alter <= PEAK_AGE
-      ? clamp(s.talent + (rng() < 0.35 ? randInt(rng, 1, 3) : 0), MIN_RATING, MAX_RATING)
+      ? clamp(s.talent + (rng() < 0.35 ? randInt(rng, 1, 3) : 0), RATING_UNTERGRENZE, MAX_RATING)
       : s.talent;
     neu.push({
       ...s,
       alter,
       talent,
-      staerke: clamp(Math.round(talent * alterFaktor(alter)), MIN_RATING, MAX_RATING),
+      staerke: berechneStaerke(talent, alter),
       verletztBis: 0,
     });
   }

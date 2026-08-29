@@ -1,7 +1,7 @@
 // @ts-check
 /** Startbildschirm: Verein wählen. */
 
-import { el } from './dom.js';
+import { el, farbtupfer } from './dom.js';
 import { TEAMS } from '../engine/content.js';
 import { T } from '../i18n.js';
 
@@ -31,7 +31,7 @@ export function zeigeStart(beiStart, hatSpeicherstand, beiFortsetzen) {
           }
         },
       },
-        el('span', { class: 'farbtupfer', style: { background: t.farbe, width: '14px', height: '32px' } }),
+        farbtupfer(t, { width: '14px', height: '32px' }),
         el('span', {},
           el('div', { text: t.name, style: { fontWeight: '600' } }),
           el('div', { class: 'leise klein', text: t.stadt })),

@@ -6,7 +6,7 @@
  * Die Regeln liegen ausnahmslos in engine/. Diese Datei entscheidet keine.
  */
 
-import { el, leere } from './ui/dom.js';
+import { el, leere, kontrastFarbe } from './ui/dom.js';
 import { T } from './i18n.js';
 import { teamById } from './engine/content.js';
 import {
@@ -85,7 +85,10 @@ function kopfzeile() {
   const platz = tabelle(stand).findIndex((z) => z.teamId === stand.meinTeam) + 1;
 
   return el('div', { class: 'kopf' },
-    el('div', { class: 'kopf-wappen', style: { background: t.farbe } }, t.kurz),
+    el('div', {
+      class: 'kopf-wappen',
+      style: { background: t.farben.primaer, color: kontrastFarbe(t.farben.primaer) },
+    }, t.kurz),
     el('div', {},
       el('div', { class: 'kopf-titel', text: t.name }),
       el('div', { class: 'kopf-unter', text: `Saison ${stand.jahr}` })),

@@ -80,6 +80,9 @@ eine Karriere zwischen PC und iPad zu tragen.
 
 ## Stand und was als Nächstes käme
 
+Der Fahrplan mit allen gefallenen Entscheidungen steht in
+[`docs/naechste-schritte.md`](docs/naechste-schritte.md).
+
 Gespielt werden kann: Verein wählen, Spieltage simulieren, Tabelle, Kader mit
 Depth Chart und Verletzungen, Spielplan, Spielbericht mit Box Score, Saisonwechsel
 mit Alterung und Rücktritten, Export und Import.

@@ -2,7 +2,7 @@
 /** Spielplan, nach Spieltagen gruppiert. Ein Tipp auf eine gespielte Partie
  *  öffnet den Spielbericht. */
 
-import { el } from './dom.js';
+import { el, farbtupfer } from './dom.js';
 import { T } from '../i18n.js';
 import { teamById } from '../engine/content.js';
 import { anzahlSpieltage } from '../engine/spielplan.js';
@@ -47,11 +47,11 @@ function zeilePartie(p, meinTeam, beiPartie) {
     tabindex: p.ergebnis ? '0' : null,
     onclick: p.ergebnis ? () => beiPartie(p) : null,
   },
-    el('span', { class: 'farbtupfer', style: { background: heim.farbe } }),
+    farbtupfer(heim),
     el('span', { class: 'namen', style: { fontWeight: meins ? '700' : '400' } },
       el('div', { text: `${heim.name}` }),
       el('div', { class: 'leise klein', text: `${gast.name}` })),
-    el('span', { class: 'farbtupfer', style: { background: gast.farbe } }),
+    farbtupfer(gast),
     el('span', { class: p.ergebnis ? 'stand' : 'stand leise', text: stand }),
     p.ergebnis && p.ergebnis.verlaengerung
       ? el('span', { class: 'leise klein', text: T.spielplan.verlaengerung })

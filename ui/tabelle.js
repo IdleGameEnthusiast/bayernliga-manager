@@ -1,7 +1,7 @@
 // @ts-check
 /** Die Tabelle. */
 
-import { el, tabelle as machTabelle } from './dom.js';
+import { el, tabelle as machTabelle, farbtupfer } from './dom.js';
 import { T } from '../i18n.js';
 import { teamById } from '../engine/content.js';
 import { bilanz } from '../engine/tabelle.js';
@@ -24,7 +24,7 @@ export function zeigeTabelle(zeilen, meinTeam) {
     return el('tr', { class: klassen },
       el('td', { text: String(z.platz) }),
       el('td', {}, el('span', { class: 'verein-zelle' },
-        el('span', { class: 'farbtupfer', style: { background: t.farbe } }),
+        farbtupfer(t),
         el('span', { text: t.name }))),
       el('td', { text: String(z.spiele) }),
       el('td', { text: bilanz(z) }),

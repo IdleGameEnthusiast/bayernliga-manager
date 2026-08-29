@@ -49,7 +49,6 @@ export const DE = {
     status: 'Status',
     fit: 'fit',
     verletzt: 'verletzt',
-    importSpieler: 'Import',
     keineVerletzungen: 'Keine Verletzungen',
     verletztBis: (wochen) => `noch ${wochen} ${wochen === 1 ? 'Spieltag' : 'Spieltage'}`,
     einheiten: 'Mannschaftsteile',

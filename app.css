@@ -154,7 +154,10 @@ tr.meister td:first-child { box-shadow: inset 3px 0 0 var(--gelb); }
 tr.abstieg td:first-child { box-shadow: inset 3px 0 0 var(--rot); }
 
 .verein-zelle { display: flex; align-items: center; gap: 8px; }
-.farbtupfer { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
+.farbtupfer {
+  width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto;
+  outline: 1px solid rgba(255, 255, 255, .22); outline-offset: -1px;
+}
 
 /* --- Fußleiste mit der Hauptaktion --------------------------------------- */
 
@@ -218,13 +221,6 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
 .leise { color: var(--text-leise); }
 .klein { font-size: 13px; }
 .verletzt { color: var(--gelb); }
-.import-marke {
-  font-size: 10px; font-weight: 700; letter-spacing: .04em;
-  padding: 1px 5px; border-radius: 4px;
-  background: var(--rand); color: var(--text-leise);
-  margin-left: 6px;
-}
-
 .balkenreihe { display: grid; grid-template-columns: 120px 1fr 40px; gap: 10px; align-items: center; margin-bottom: 8px; }
 .balkenreihe .spur { height: 8px; background: var(--bg-zeile); border-radius: 4px; overflow: hidden; }
 .balkenreihe .spur i { display: block; height: 100%; background: var(--akzent); }

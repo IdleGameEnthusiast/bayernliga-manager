@@ -10,7 +10,7 @@
 
 import { SAVE_VERSION } from './saison.js';
 
-export const STORAGE_KEY = 'bayernliga.save.v1';
+export const STORAGE_KEY = 'bayernliga.save.v2';
 
 /**
  * Bring an older save up to the current shape. Every migration is additive so
@@ -22,12 +22,16 @@ export function migriere(roh) {
   if (!roh || typeof roh !== 'object') throw new Error('Speicherstand ist leer');
   const stand = { ...roh };
 
-  if (typeof stand.version !== 'number') stand.version = 1;
+  // v1 kannte acht andere Vereine — ein solcher Stand lässt sich nicht retten.
+  if (typeof stand.version === 'number' && stand.version < 2) {
+    throw new Error('Dieser Speicherstand stammt aus einer älteren Liga');
+  }
+  if (typeof stand.version !== 'number') stand.version = SAVE_VERSION;
   if (!Array.isArray(stand.verlauf)) stand.verlauf = [];
   if (!Array.isArray(stand.historie)) stand.historie = [];
   if (typeof stand.seed !== 'string') stand.seed = String(stand.seed || Date.now());
 
-  // Fields that arrived after v1 would be defaulted here.
+  // Fields that arrive after v2 get their default here.
 
   stand.version = SAVE_VERSION;
   return stand;

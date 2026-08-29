@@ -6,7 +6,7 @@
 <script type="module">
   import { neuesSpiel, spieleSpieltag } from './engine/saison.js';
   import { speichere } from './engine/save.js';
-  const s = neuesSpiel('ros', 'vis-seed');
+  const s = neuesSpiel('heg', 'vis-seed');
   for (let i = 0; i < 7; i++) spieleSpieltag(s);
   speichere(s);
   await import('./app.js');

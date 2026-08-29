@@ -1,7 +1,7 @@
 // @ts-check
 /** Der Spielbericht: Endstand, Viertel, Box Score. */
 
-import { el, tabelle as machTabelle } from './dom.js';
+import { el, tabelle as machTabelle, farbtupfer } from './dom.js';
 import { T } from '../i18n.js';
 import { teamById } from '../engine/content.js';
 
@@ -19,13 +19,13 @@ export function zeigeSpielbericht(p, beiZurueck) {
 
   const kopf = el('div', { class: 'karte' },
     el('div', { class: 'bericht-kopf' },
-      el('span', { class: 'farbtupfer', style: { background: heim.farbe, width: '14px', height: '34px' } }),
+      farbtupfer(heim, { width: '14px', height: '34px' }),
       el('div', { style: { flex: '1' } },
         el('div', { style: { fontWeight: heimGewinnt ? '700' : '400' }, text: heim.name }),
         el('div', { class: 'leise klein', text: `${T.spielplan.heim} · ${heim.stadt}` })),
       el('div', { class: 'bericht-punkte ' + (heimGewinnt ? 'bericht-sieger' : ''), text: String(e.heimPunkte) })),
     el('div', { class: 'bericht-kopf' },
-      el('span', { class: 'farbtupfer', style: { background: gast.farbe, width: '14px', height: '34px' } }),
+      farbtupfer(gast, { width: '14px', height: '34px' }),
       el('div', { style: { flex: '1' } },
         el('div', { style: { fontWeight: !heimGewinnt ? '700' : '400' }, text: gast.name }),
         el('div', { class: 'leise klein', text: `${T.spielplan.gast} · ${gast.stadt}` })),

@@ -1,7 +1,6 @@
 // @ts-check
 /**
  * Balance numbers and the injectable RNG.
- * Docs: docs/spec/04-economy-formulas.md
  * This module touches no DOM and imports nothing from ui/.
  */
 
@@ -12,21 +11,66 @@ export const POSITIONS = /** @type {const} */ ([
 
 /** @typedef {typeof POSITIONS[number]} Position */
 
-/** How many players of each position a full Kader carries. */
-export const ROSTER_SHAPE = /** @type {Record<Position, number>} */ ({
-  QB: 3, RB: 4, WR: 6, TE: 3, OL: 8, DL: 7, LB: 6, DB: 8, K: 1, P: 1,
+/**
+ * The Kader every club starts from: eleven for the offence (5 OL + QB + five
+ * skill players) and eleven for a 4-3 defence, plus a handful of bodies behind
+ * them. Nothing more — a Bayernliga club does not carry a bench.
+ *
+ * K and P are absent on purpose. Below the GFL almost nobody keeps a
+ * specialist; the kicking is done by whoever has the foot for it. That is a
+ * job for the position-value model, not for two roster slots.
+ */
+export const KADER_FORM = /** @type {Record<Position, number>} */ ({
+  QB: 1, RB: 2, WR: 5, TE: 0, OL: 6, DL: 6, LB: 4, DB: 6, K: 0, P: 0,
 });
 
-export const ROSTER_SIZE = Object.values(ROSTER_SHAPE).reduce((a, b) => a + b, 0);
+/** The club the player manages starts thin. */
+export const KADER_GROESSE_EIGEN = Object.values(KADER_FORM).reduce((a, b) => a + b, 0);
 
-/** Rating bounds. Everything player-facing lives on this scale. */
-export const MIN_RATING = 40;
-export const MAX_RATING = 99;
+/** Every other club draws this many extra players on top of KADER_FORM. */
+export const ZUSATZ_SPIELER = 5;
+export const KADER_GROESSE_FREMD = KADER_GROESSE_EIGEN + ZUSATZ_SPIELER;
 
-/** Age bounds for generated players, and where decline starts. */
+/**
+ * How the extra players are drawn. Weighted by where a club actually wants
+ * depth — an even draw would hand somebody a fourth quarterback.
+ */
+export const ZUSATZ_GEWICHTE = /** @type {Record<Position, number>} */ ({
+  QB: 1, RB: 3, WR: 5, TE: 3, OL: 5, DL: 5, LB: 4, DB: 5, K: 0, P: 0,
+});
+
+/** No club may stack more than this many extras on one position. */
+export const ZUSATZ_MAX_JE_POSITION = 2;
+
+/** Rating bounds. */
+export const MAX_RATING = 99;          // the scale's ceiling, kept for higher leagues
+export const LIGA_MAX_STAERKE = 79;    // no Bayernliga strength is ever computed above this
+export const RATING_UNTERGRENZE = 1;   // not a skill floor — only keeps a rating positive
+export const TALENT_STREUUNG = 6;      // standard deviation of talent around the club baseline
+
+/** What an empty slot in a unit is worth. A body, not a player. */
+export const ERSATZ_STAERKE = 20;
+
+/** Age bounds for the normal draw, and where the curve peaks. */
 export const MIN_AGE = 18;
 export const MAX_AGE = 36;
 export const PEAK_AGE = 27;
+
+/** Placeholder until the development model lands: when an ordinary player stops. */
+export const RUECKTRITT_ALTER = 37;
+
+/**
+ * The Bayernliga special: every club carries one or two men who should have
+ * stopped a decade ago and did not.
+ */
+export const VETERAN_MIN = 1;
+export const VETERAN_MAX = 2;
+export const VETERAN_ANTEIL_JUNG = 0.75;
+export const VETERAN_JUNG = /** @type {[number, number]} */ ([45, 55]);
+export const VETERAN_ALT = /** @type {[number, number]} */ ([56, 65]);
+export const VETERAN_RUECKTRITT_MAX = 66;
+/** Where a fifty-year-old still plausibly lines up. */
+export const VETERAN_POSITIONEN = /** @type {Position[]} */ (['OL', 'DL']);
 
 /** Match simulation. */
 export const BASE_POINTS = 20;        // what an evenly matched offence scores
@@ -94,9 +138,33 @@ export function pick(rng, arr) {
   return arr[Math.floor(rng() * arr.length)];
 }
 
-/** Roughly normal, via the mean of four uniforms. @param {() => number} rng */
+/**
+ * Draw from a pool of [value, weight] pairs. Weights are plain integers so a
+ * single name can be nudged by hand without recomputing a distribution.
+ * @template T @param {() => number} rng @param {readonly (readonly [T, number])[]} pool
+ * @returns {T}
+ */
+export function pickWeighted(rng, pool) {
+  let summe = 0;
+  for (const eintrag of pool) summe += eintrag[1];
+  let wurf = rng() * summe;
+  for (const eintrag of pool) {
+    wurf -= eintrag[1];
+    if (wurf < 0) return eintrag[0];
+  }
+  return pool[pool.length - 1][0];
+}
+
+/**
+ * Four uniforms averaged have a standard deviation of 1/sqrt(48), so this is
+ * the factor that makes the result a unit normal. Getting it wrong halves
+ * every spread that goes through here, silently.
+ */
+const NORMAL_SKALIERUNG = Math.sqrt(48);
+
+/** Roughly normal, mean 0, standard deviation 1. @param {() => number} rng */
 export function randNormal(rng) {
-  return ((rng() + rng() + rng() + rng()) / 4 - 0.5) * 3.4641;
+  return ((rng() + rng() + rng() + rng()) / 4 - 0.5) * NORMAL_SKALIERUNG;
 }
 
 /** Fisher-Yates, in place. @template T @param {() => number} rng @param {T[]} arr */

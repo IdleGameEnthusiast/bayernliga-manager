@@ -5,7 +5,7 @@ import { el, tabelle as machTabelle, balken } from './dom.js';
 import { T } from '../i18n.js';
 import { teamStaerken, gesamtStaerke, verletzte } from '../engine/team.js';
 import { istFit } from '../engine/spieler.js';
-import { MAX_RATING } from '../engine/constants.js';
+import { LIGA_MAX_STAERKE } from '../engine/constants.js';
 
 /**
  * @param {import('../engine/spieler.js').Spieler[]} kader
@@ -30,9 +30,7 @@ export function zeigeKader(kader, spieltag) {
     const fit = istFit(sp, spieltag);
     return el('tr', {},
       el('td', { class: 'leise', text: String(sp.nummer) }),
-      el('td', {},
-        sp.vorname + ' ' + sp.nachname,
-        sp.importSpieler ? el('span', { class: 'import-marke', text: T.kader.importSpieler }) : null),
+      el('td', { text: sp.vorname + ' ' + sp.nachname }),
       el('td', { text: sp.position }),
       el('td', { text: String(sp.alter) }),
       el('td', { style: { fontWeight: '600' }, text: String(sp.staerke) }),
@@ -55,6 +53,6 @@ export function zeigeKader(kader, spieltag) {
 function reihe(beschriftung, wert) {
   return el('div', { class: 'balkenreihe' },
     el('span', { class: 'klein', text: beschriftung }),
-    balken(wert, MAX_RATING),
+    balken(wert, LIGA_MAX_STAERKE),
     el('span', { class: 'klein', style: { textAlign: 'right' }, text: String(Math.round(wert)) }));
 }

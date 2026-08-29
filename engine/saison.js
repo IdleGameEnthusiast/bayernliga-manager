@@ -4,14 +4,14 @@
  * Docs: docs/spec/02-core-loop.md, docs/spec/03-state-contract.md
  */
 
-import { SEASON_START_YEAR, makeRng } from './constants.js';
+import { SEASON_START_YEAR, ZUSATZ_SPIELER, makeRng } from './constants.js';
 import { TEAMS } from './content.js';
 import { macheKader, saisonWechsel, resetSpielerIds } from './spieler.js';
 import { macheSpielplan, anzahlSpieltage, partienAmSpieltag } from './spielplan.js';
 import { simuliereSpiel } from './spiel.js';
 import { berechneTabelle } from './tabelle.js';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 /**
  * @typedef {object} SpielStand
@@ -39,8 +39,9 @@ export function neuesSpiel(meinTeam, seed) {
 
   /** @type {Record<string, import('./spieler.js').Spieler[]>} */
   const kader = {};
+  // Der eigene Verein startet mit dem nackten Kader, alle anderen mit Reserve.
   for (const t of TEAMS) {
-    kader[t.id] = macheKader(rng, t.staerke);
+    kader[t.id] = macheKader(rng, t.staerke, t.id === meinTeam ? 0 : ZUSATZ_SPIELER);
   }
 
   return {
