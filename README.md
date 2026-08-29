@@ -24,6 +24,7 @@ Weil die App ES-Module benutzt, reicht ein Doppelklick auf `index.html` **nicht*
 | Layout-Fixture | `vis.html` — Saison bis Spieltag 8 vorgespielt, `?ende` spielt sie bis hinter das Finale; dazu `?v=kader`, `?v=spielplan`, `?v=bericht` |
 | Tests | `node --test tests/*.test.js` |
 | Icons neu bauen | `node scripts/mach-icons.js` |
+| Ligastärken messen | `node scripts/baseline-staerken.js` — das Messband für den Umbau |
 
 Die IP des Macs findest du mit `ipconfig getifaddr en0`.
 
