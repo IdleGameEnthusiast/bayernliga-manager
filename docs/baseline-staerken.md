@@ -129,3 +129,28 @@ die neue wertet jeden Mann auf dem Platz, auf dem er wirklich steht, und zieht
 ab, was ihm dort fehlt. Was zählt, ist der Abstand: 43 bis 57 statt 38 bis 61,
 also eine engere Liga. Der eigene Verein steht mit fünf Mann weniger auf 44 und
 damit dort, wo er stehen soll — im unteren Drittel, aber nicht chancenlos.
+
+## Nach Inkrement 5 — Lauf und Pass in der Simulation
+
+| Verein | Kader | Gesamt | passAngriff | laufAngriff | passVerteidigung | laufVerteidigung | special | angriff | verteidigung |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ASS Aschaffenburg Stallions | 35 | 57 | 63.7 | 58.7 | 55.0 | 55.2 | 46.4 | 61.2 | 55.1 |
+| GC Gendorf Crusaders | 35 | 54 | 51.9 | 51.5 | 54.9 | 55.5 | 61.2 | 51.7 | 55.2 |
+| KBA Königsbrunn Ants | 35 | 54 | 58.2 | 53.0 | 55.6 | 56.2 | 32.9 | 55.6 | 55.9 |
+| ERS Erlangen Sharks | 35 | 53 | 59.3 | 54.8 | 53.5 | 54.6 | 28.8 | 57.0 | 54.1 |
+| STA Starnberg Argonauts | 35 | 53 | 55.4 | 55.5 | 50.4 | 51.8 | 55.5 | 55.5 | 51.1 |
+| HR Herzo Rhinos | 35 | 51 | 50.5 | 48.5 | 52.7 | 49.2 | 58.7 | 49.5 | 51.0 |
+| FEL Feldkirchen Lions | 35 | 48 | 49.6 | 46.8 | 53.6 | 49.7 | 31.4 | 48.2 | 51.6 |
+| BTC Bad Tölz Capricorns | 35 | 46 | 48.9 | 46.2 | 41.6 | 42.7 | 63.7 | 47.5 | 42.1 |
+| MR München Rangers | 35 | 45 | 46.1 | 44.3 | 41.5 | 42.5 | 63.2 | 45.2 | 42.0 |
+| HEG Hemhofen Gechers | 30 | 44 | 44.7 | 44.0 | 42.1 | 43.4 | 51.5 | 44.4 | 42.7 |
+| FKK Franken Knights | 35 | 44 | 43.5 | 45.9 | 41.7 | 40.5 | 52.4 | 44.7 | 41.1 |
+| PP Passau Pirates | 35 | 43 | 45.8 | 42.2 | 40.5 | 39.9 | 58.7 | 44.0 | 40.2 |
+
+Unverändert gegenüber Inkrement 4, und das ist der Punkt: `teamStaerken()` hat
+sich nicht angefasst, nur die Simulation liest jetzt beide Duelle statt eines
+gemittelten. Wer läuft, trifft auf die Laufverteidigung des Gegners.
+
+Was die Tabelle nicht zeigt: die Vereine spielen hier alle noch das
+Standardsystem. Wie viel die Ausrichtung wirklich ausmacht, steht erst mit
+Inkrement 6 im Speicherstand.

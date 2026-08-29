@@ -4,8 +4,11 @@ import assert from 'node:assert/strict';
 
 import { makeRng } from '../engine/constants.js';
 import { macheKader, resetSpielerIds } from '../engine/spieler.js';
-import { simuliereSpiel, baueScore } from '../engine/spiel.js';
+import {
+  simuliereSpiel, baueScore, vorteil, angriffGemischt, passAnteilVon,
+} from '../engine/spiel.js';
 import { teamStaerken, gesamtStaerke } from '../engine/team.js';
+import { PERSONNEL } from '../engine/aufstellung.js';
 
 /** @param {string} id @param {number} staerke */
 function team(id, staerke) {
@@ -122,4 +125,113 @@ test('das Scoring verteilt sich plausibel über die vier Viertel', () => {
   // Zweites und viertes Viertel liegen vorn, aber nicht dramatisch.
   assert.ok(summe[1] > summe[0], 'Q2 liegt über Q1');
   assert.ok(summe[3] > summe[2], 'Q4 liegt über Q3');
+});
+
+// --- Lauf und Pass ---------------------------------------------------------
+
+/** @param {number} pa @param {number} la @param {number} pv @param {number} lv */
+function werte(pa, la, pv, lv) {
+  return /** @type {any} */ ({
+    passAngriff: pa, laufAngriff: la, passVerteidigung: pv, laufVerteidigung: lv,
+    special: 40, angriff: (pa + la) / 2, verteidigung: (pv + lv) / 2,
+  });
+}
+
+test('der Vorteil mischt die beiden Duelle nach dem Passanteil', () => {
+  const angriff = werte(60, 40, 0, 0);
+  const gegner = werte(0, 0, 50, 30);
+
+  assert.equal(vorteil(angriff, gegner, 1), 10, 'reines Passspiel');
+  assert.equal(vorteil(angriff, gegner, 0), 10, 'reines Laufspiel');
+  assert.equal(vorteil(angriff, gegner, 0.5), 10);
+
+  // Und wenn die beiden Duelle auseinanderlaufen, entscheidet die Ausrichtung.
+  const einseitig = werte(70, 40, 0, 0);
+  assert.equal(vorteil(einseitig, gegner, 1), 20);
+  assert.equal(vorteil(einseitig, gegner, 0), 10);
+  assert.equal(vorteil(einseitig, gegner, 0.25), 12.5);
+});
+
+test('ein Laufteam nutzt eine schwache Laufverteidigung', () => {
+  // Das Kernversprechen von Inkrement 5: die beiden Duelle werden getrennt
+  // ausgespielt. Dieselbe Mannschaft, zwei Gegner, die sich nur in der
+  // Laufverteidigung unterscheiden.
+  const angriff = werte(50, 50, 0, 0);
+  const loechrig = werte(0, 0, 55, 35);
+  const dicht = werte(0, 0, 55, 55);
+
+  const laufend = 0.15;
+  assert.ok(vorteil(angriff, loechrig, laufend) > vorteil(angriff, dicht, laufend));
+  // Wer wirft, merkt den Unterschied kaum.
+  const werfend = 0.95;
+  const differenz = vorteil(angriff, loechrig, werfend) - vorteil(angriff, dicht, werfend);
+  assert.ok(differenz < 2, `werfend macht es ${differenz} Punkte aus`);
+});
+
+test('die Ausrichtung entscheidet im echten Spiel mit', () => {
+  resetSpielerIds();
+  const heim = { id: 'h', kader: macheKader(makeRng('lp-h'), 58, 5) };
+  const gast = { id: 'g', kader: macheKader(makeRng('lp-g'), 58, 5) };
+
+  const h = teamStaerken(heim.kader, 1);
+  const g = teamStaerken(gast.kader, 1);
+
+  /** @param {number} anteil */
+  const punkte = (anteil) => {
+    let summe = 0;
+    for (let i = 0; i < 400; i++) {
+      summe += simuliereSpiel(makeRng('lp' + i),
+        { ...heim, passAnteil: anteil }, gast, 1).heimPunkte;
+    }
+    return summe / 400;
+  };
+
+  const laufend = punkte(0.15);
+  const werfend = punkte(0.85);
+  assert.notEqual(laufend, werfend, 'die Ausrichtung wirkt überhaupt');
+
+  // Und sie wirkt in der Richtung, die der Vorteil vorgibt.
+  const erwartet = vorteil(h, g, 0.15) - vorteil(h, g, 0.85);
+  assert.equal(Math.sign(laufend - werfend), Math.sign(erwartet),
+    `Punkte ${laufend.toFixed(2)} gegen ${werfend.toFixed(2)}, Vorteil ${erwartet.toFixed(2)}`);
+});
+
+test('der Passanteil kommt aus der Gruppierung, wenn niemand ihn verschiebt', () => {
+  assert.equal(passAnteilVon({ personnel: '32' }), PERSONNEL['32'].passAnteil);
+  assert.equal(passAnteilVon({ personnel: '00' }), PERSONNEL['00'].passAnteil);
+  assert.equal(passAnteilVon({}), PERSONNEL['11'].passAnteil, 'ohne Angabe das Standardsystem');
+  assert.equal(passAnteilVon({ personnel: '32', passAnteil: 0.4 }), 0.4, 'der Manager sticht');
+  assert.equal(passAnteilVon({ passAnteil: 5 }), 1, 'und bleibt im Rahmen');
+});
+
+test('der gemischte Angriffswert liegt zwischen seinen Hälften', () => {
+  const s = werte(60, 40, 0, 0);
+  assert.equal(angriffGemischt(s, 1), 60);
+  assert.equal(angriffGemischt(s, 0), 40);
+  assert.equal(angriffGemischt(s, 0.5), 50);
+});
+
+test('der Box Score folgt der Ausrichtung des Vereins', () => {
+  resetSpielerIds();
+  const heim = { id: 'h', kader: macheKader(makeRng('bx-h'), 60, 5) };
+  const gast = { id: 'g', kader: macheKader(makeRng('bx-g'), 60, 5) };
+
+  /** @param {number} anteil */
+  const laufAnteil = (anteil) => {
+    let lauf = 0;
+    let gesamt = 0;
+    for (let i = 0; i < 200; i++) {
+      const e = simuliereSpiel(makeRng('bx' + i),
+        { ...heim, passAnteil: anteil }, gast, 1);
+      if (!e.heimStats.rushing || !e.heimStats.passing) continue;
+      lauf += e.heimStats.rushing.yards;
+      gesamt += e.heimStats.yardsGesamt;
+    }
+    return lauf / gesamt;
+  };
+
+  const doubleWing = laufAnteil(0.20);
+  const empty = laufAnteil(0.85);
+  assert.ok(doubleWing > empty,
+    `laufend ${(doubleWing * 100).toFixed(0)} %, werfend ${(empty * 100).toFixed(0)} %`);
 });

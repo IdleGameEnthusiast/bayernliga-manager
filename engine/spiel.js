@@ -17,7 +17,7 @@ import {
   clamp, randInt, randNormal, pickWeighted,
 } from './constants.js';
 import { teamStaerken } from './team.js';
-import { doppelEinsaetze, doppelRisiko } from './aufstellung.js';
+import { doppelEinsaetze, doppelRisiko, PERSONNEL, STANDARD_PERSONNEL } from './aufstellung.js';
 import { verfuegbar, kurzName } from './spieler.js';
 
 /**
@@ -118,24 +118,65 @@ function waehleViertel(rng) {
 }
 
 /**
+ * Der Passanteil eines Vereins: der Vorschlag seiner Gruppierung, sofern der
+ * Manager ihn nicht verschoben hat.
+ * @param {{ personnel?: string, passAnteil?: number }} verein
+ */
+export function passAnteilVon(verein) {
+  if (typeof verein.passAnteil === 'number') return clamp(verein.passAnteil, 0, 1);
+  const gruppierung = PERSONNEL[verein.personnel || ''] || PERSONNEL[STANDARD_PERSONNEL];
+  return gruppierung.passAnteil;
+}
+
+/**
+ * Der Vorteil einer Mannschaft über die andere.
+ *
+ * Aus einem Angriffswert sind zwei geworden und aus einem Verteidigungswert
+ * auch. Ausgespielt werden beide Duelle und nach dem Passanteil des
+ * angreifenden Vereins gemischt: wer läuft, trifft auf die Laufverteidigung
+ * des Gegners, und ein Laufteam gegen eine löchrige Front punktet, auch wenn
+ * dieselbe Front den Pass gut verteidigt.
+ * @param {import('./team.js').Staerken} angriff
+ * @param {import('./team.js').Staerken} verteidigung des Gegners
+ * @param {number} passAnteil des angreifenden Vereins
+ */
+export function vorteil(angriff, verteidigung, passAnteil) {
+  return passAnteil * (angriff.passAngriff - verteidigung.passVerteidigung)
+    + (1 - passAnteil) * (angriff.laufAngriff - verteidigung.laufVerteidigung);
+}
+
+/**
+ * Der Angriffswert einer Mannschaft als eine Zahl, nach ihrem eigenen
+ * Passanteil gemischt. Nur der Box Score liest ihn — die Punkte kommen aus
+ * den beiden Duellen.
+ * @param {import('./team.js').Staerken} s
+ * @param {number} passAnteil
+ */
+export function angriffGemischt(s, passAnteil) {
+  return s.passAngriff * passAnteil + s.laufAngriff * (1 - passAnteil);
+}
+
+/**
  * Build the box score for one side from the players who were actually fit.
  * @param {() => number} rng
  * @param {import('./spieler.js').Spieler[]} kader
  * @param {number} spieltag
  * @param {number} touchdowns
  * @param {import('./team.js').Staerken} staerken
+ * @param {number} [passAnteil] Ausrichtung des Vereins; teilt die Touchdowns auf
  * @returns {TeamStats}
  */
-export function baueStats(rng, kader, spieltag, touchdowns, staerken) {
+export function baueStats(rng, kader, spieltag, touchdowns, staerken, passAnteil = 0.6) {
   const qb = verfuegbar(kader, 'QB', spieltag)[0] || null;
   const rb = verfuegbar(kader, 'RB', spieltag)[0] || null;
   const wr = verfuegbar(kader, 'WR', spieltag)[0] || null;
 
-  const off = staerken.angriff;
+  const off = angriffGemischt(staerken, passAnteil);
 
-  // Split the touchdowns between the pass and the run.
-  const passAnteil = 0.45 + rng() * 0.3;
-  const passTd = Math.round(touchdowns * passAnteil);
+  // Die Touchdowns teilen sich nach der Ausrichtung des Vereins auf, nicht
+  // nach einem Wurf: ein Double Wing läuft sie ins Feld, ein Empty wirft sie.
+  const anteilHeute = clamp(passAnteil + randNormal(rng) * 0.08, 0.1, 0.92);
+  const passTd = Math.round(touchdowns * anteilHeute);
   const laufTd = Math.max(0, touchdowns - passTd);
 
   const versuche = randInt(rng, 21, 39);
@@ -147,7 +188,9 @@ export function baueStats(rng, kader, spieltag, touchdowns, staerken) {
   ));
   const interceptions = Math.max(0, Math.round(randNormal(rng) * 0.9 + 0.9));
 
-  const laufVersuche = randInt(rng, 14, 32);
+  // Wer läuft, läuft öfter: von zwanzig Versuchen im Empty bis über dreißig
+  // im Double Wing.
+  const laufVersuche = randInt(rng, 14, 32) + Math.round((0.6 - anteilHeute) * 16);
   const laufYards = Math.round(clamp(
     laufVersuche * (3.6 + (off - 50) * 0.045) + randNormal(rng) * 22,
     -10, 320,
@@ -165,7 +208,7 @@ export function baueStats(rng, kader, spieltag, touchdowns, staerken) {
     } : null,
     rushing: rb ? {
       spielerId: rb.id, name: kurzName(rb),
-      att: laufVersuche, yards: laufYards, td: laufTd,
+      att: Math.max(6, laufVersuche), yards: laufYards, td: laufTd,
     } : null,
     receiving: wr ? {
       spielerId: wr.id, name: kurzName(wr),
@@ -210,18 +253,20 @@ export function wuerfelVerletzung(rng, teamId, kader, spieltag, doppelt = []) {
 /**
  * Play one match.
  * @param {() => number} rng
- * @param {{ id: string, kader: import('./spieler.js').Spieler[] }} heim
- * @param {{ id: string, kader: import('./spieler.js').Spieler[] }} gast
+ * @param {{ id: string, kader: import('./spieler.js').Spieler[], personnel?: string, passAnteil?: number }} heim
+ * @param {{ id: string, kader: import('./spieler.js').Spieler[], personnel?: string, passAnteil?: number }} gast
  * @param {number} spieltag
  * @returns {Ergebnis}
  */
 export function simuliereSpiel(rng, heim, gast, spieltag) {
-  const heimStaerken = teamStaerken(heim.kader, spieltag);
-  const gastStaerken = teamStaerken(gast.kader, spieltag);
+  const heimAnteil = passAnteilVon(heim);
+  const gastAnteil = passAnteilVon(gast);
+  const heimStaerken = teamStaerken(heim.kader, spieltag, heim.personnel, heim.passAnteil);
+  const gastStaerken = teamStaerken(gast.kader, spieltag, gast.personnel, gast.passAnteil);
 
   const heimErwartet = clamp(
     BASE_POINTS
-      + (heimStaerken.angriff - gastStaerken.verteidigung) * RATING_TO_POINTS
+      + vorteil(heimStaerken, gastStaerken, heimAnteil) * RATING_TO_POINTS
       + heimStaerken.special * 0.02
       + HOME_ADVANTAGE
       + randNormal(rng) * MATCH_NOISE,
@@ -229,7 +274,7 @@ export function simuliereSpiel(rng, heim, gast, spieltag) {
   );
   const gastErwartet = clamp(
     BASE_POINTS
-      + (gastStaerken.angriff - heimStaerken.verteidigung) * RATING_TO_POINTS
+      + vorteil(gastStaerken, heimStaerken, gastAnteil) * RATING_TO_POINTS
       + gastStaerken.special * 0.02
       + randNormal(rng) * MATCH_NOISE,
     MIN_EXPECTED, MAX_EXPECTED,
@@ -258,8 +303,8 @@ export function simuliereSpiel(rng, heim, gast, spieltag) {
       if (rng() < 0.5) heimPunkte += 3; else gastPunkte += 3;
       break;
     }
-    const hOt = otBesitz(rng, heimStaerken.angriff - gastStaerken.verteidigung);
-    const gOt = otBesitz(rng, gastStaerken.angriff - heimStaerken.verteidigung);
+    const hOt = otBesitz(rng, vorteil(heimStaerken, gastStaerken, heimAnteil));
+    const gOt = otBesitz(rng, vorteil(gastStaerken, heimStaerken, gastAnteil));
     heimPunkte += hOt.punkte;
     gastPunkte += gOt.punkte;
     heimTds += hOt.td;
@@ -281,8 +326,8 @@ export function simuliereSpiel(rng, heim, gast, spieltag) {
     heimViertel: h.viertel,
     gastViertel: g.viertel,
     verlaengerung,
-    heimStats: baueStats(rng, heim.kader, spieltag, heimTds, heimStaerken),
-    gastStats: baueStats(rng, gast.kader, spieltag, gastTds, gastStaerken),
+    heimStats: baueStats(rng, heim.kader, spieltag, heimTds, heimStaerken, heimAnteil),
+    gastStats: baueStats(rng, gast.kader, spieltag, gastTds, gastStaerken, gastAnteil),
     verletzungen,
   };
 }

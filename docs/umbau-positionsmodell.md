@@ -674,11 +674,25 @@ Umstellung (den fehlenden Tight End), `32` deren drei, `20` keine. Bis zum **neu
 Ausfall kommt der Verein ohne Doppeleinsatz durch — danach steht der erste Mann in
 beiden Einheiten.
 
-### Inkrement 5 — Lauf und Pass in der Simulation
+### Inkrement 5 — Lauf und Pass in der Simulation ✅ fertig
 `engine/spiel.js`, Tests.
 
 Die Formel aus Abschnitt 6. Fertig, wenn ein Laufteam gegen eine schwache
 Laufverteidigung messbar mehr punktet als gegen eine starke.
+
+Zwei Stellen sind dabei mitgewandert, die der Bauplan nicht nennt:
+
+- **Die Verlängerung** rechnet mit demselben Vorteil wie die reguläre Zeit. Sie stand
+  vorher auf `angriff - verteidigung`, und das gibt es nicht mehr.
+- **Der Box Score folgt der Ausrichtung.** Die Touchdowns teilten sich bisher nach
+  einem Wurf zwischen 45 und 75 % auf; jetzt nach dem Passanteil des Vereins, und die
+  Laufversuche wandern mit. Ein Double Wing läuft die Punkte ins Feld, ein Empty wirft
+  sie. Ohne das stünde in der Taktikansicht eine Entscheidung, die im Spielbericht
+  nicht vorkommt.
+
+`teamStaerken()` liefert `angriff` und `verteidigung` weiter als Mittel der beiden
+Hälften. Die Simulation liest sie nicht mehr — nur noch `gesamtStaerke()` und die
+Kaderansicht, und beide stellen erst in Inkrement 7 um.
 
 ### Inkrement 6 — Zustand und Taktik
 `engine/saison.js`, `engine/save.js`, Tests.
