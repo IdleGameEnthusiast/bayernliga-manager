@@ -5,10 +5,67 @@ import assert from 'node:assert/strict';
 import {
   makeRng, KADER_FORM, KADER_GROESSE_EIGEN, KADER_GROESSE_FREMD, ZUSATZ_SPIELER,
   ZUSATZ_MAX_JE_POSITION, MAX_RATING, LIGA_MAX_STAERKE, MAX_AGE, PEAK_AGE, POSITIONS,
+  POSITION_GRUPPEN, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE, ZUSATZ_GEWICHTE,
 } from '../engine/constants.js';
 import {
   macheKader, saisonWechsel, alterFaktor, berechneStaerke, verfuegbar, resetSpielerIds,
 } from '../engine/spieler.js';
+
+test('der Katalog kennt achtzehn Positionen, keinen Kicker und keinen Punter', () => {
+  assert.equal(POSITIONS.length, 18);
+  assert.equal(new Set(POSITIONS).size, 18, 'keine Position doppelt');
+  for (const weg of ['K', 'P', 'OL', 'DL', 'LB', 'DB']) {
+    assert.ok(!POSITIONS.includes(/** @type {any} */ (weg)), `${weg} ist aus dem Katalog`);
+  }
+  // Jede Position hängt in genau einer Gruppe, und jede Gruppe in einer Einheit.
+  for (const pos of POSITIONS) {
+    const gruppe = GRUPPE_JE_POSITION[pos];
+    assert.ok(gruppe, `${pos} hat keine Gruppe`);
+    assert.ok(POSITION_GRUPPEN[gruppe].includes(pos));
+    assert.ok(EINHEIT_JE_GRUPPE[gruppe], `${gruppe} hat keine Einheit`);
+  }
+  assert.equal(Object.values(POSITION_GRUPPEN).flat().length, 18);
+});
+
+test('die Kaderform sind dreißig Mann, sechzehn Angriff und vierzehn Verteidigung', () => {
+  assert.equal(KADER_GROESSE_EIGEN, 30);
+
+  let offense = 0;
+  let defense = 0;
+  for (const pos of POSITIONS) {
+    assert.equal(typeof KADER_FORM[pos], 'number', `${pos} fehlt in der Kaderform`);
+    assert.equal(typeof ZUSATZ_GEWICHTE[pos], 'number', `${pos} fehlt in den Zusatzgewichten`);
+    if (EINHEIT_JE_GRUPPE[GRUPPE_JE_POSITION[pos]] === 'offense') offense += KADER_FORM[pos];
+    else defense += KADER_FORM[pos];
+  }
+  assert.equal(offense, 16);
+  assert.equal(defense, 14);
+
+  // Der eigene Verein hat keinen ausgebildeten Tight End — das ist die
+  // Ausgangslage, nicht ein Versehen.
+  assert.equal(KADER_FORM.TE, 0);
+});
+
+test('die fremden Vereine haben regelmäßig einen Tight End', () => {
+  let mitTe = 0;
+  for (let i = 0; i < 40; i++) {
+    resetSpielerIds();
+    const kader = macheKader(makeRng('te' + i), 58, ZUSATZ_SPIELER);
+    if (kader.some((s) => s.position === 'TE')) mitTe++;
+  }
+  assert.ok(mitTe > 8, `nur ${mitTe} von 40 Vereinen haben einen TE`);
+  assert.ok(mitTe < 40, 'aber nicht jeder');
+});
+
+test('die Nummernvergabe hält auch über viele Kader durch', () => {
+  // Achtzehn Positionen teilen sich dieselben Bänder wie vorher acht. Der
+  // Fehlerfall wirft, also fängt ihn ein Durchlauf über viele Ziehungen.
+  for (let i = 0; i < 120; i++) {
+    resetSpielerIds();
+    const kader = macheKader(makeRng('nb' + i), 45 + (i % 30), ZUSATZ_SPIELER);
+    assert.equal(new Set(kader.map((s) => s.nummer)).size, kader.length, `Kader ${i}`);
+  }
+});
 
 test('der eigene Kader hat genau die vorgesehene Positionsverteilung', () => {
   resetSpielerIds();
@@ -121,20 +178,26 @@ test('ein Veteran überlebt den Saisonwechsel', () => {
 test('Verletzte fallen aus der Verfügbarkeit', () => {
   resetSpielerIds();
   const kader = macheKader(makeRng('v'), 58, ZUSATZ_SPIELER);
-  const dbs = kader.filter((s) => s.position === 'DB');
-  dbs[0].verletztBis = 5;
+  const cbs = kader.filter((s) => s.position === 'CB');
+  cbs[0].verletztBis = 5;
 
-  const frei = verfuegbar(kader, 'DB', 3);
-  assert.equal(frei.length, dbs.length - 1);
-  assert.ok(!frei.some((s) => s.id === dbs[0].id));
-  assert.equal(verfuegbar(kader, 'DB', 5).length, dbs.length);
+  const frei = verfuegbar(kader, 'CB', 3);
+  assert.equal(frei.length, cbs.length - 1);
+  assert.ok(!frei.some((s) => s.id === cbs[0].id));
+  assert.equal(verfuegbar(kader, 'CB', 5).length, cbs.length);
 });
 
 test('Trikotnummern sind eindeutig und halten sich an ihr Band', () => {
   /** @type {Record<string, [number, number][]>} */
   const band = {
-    QB: [[1, 19]], RB: [[20, 49]], WR: [[10, 19], [80, 89]], TE: [[40, 49], [80, 89]],
-    OL: [[50, 79]], DL: [[50, 79], [90, 99]], LB: [[40, 59], [90, 99]], DB: [[20, 49]],
+    QB: [[1, 19]],
+    RB: [[20, 49]], FB: [[20, 49]],
+    WR: [[10, 19], [80, 89]], SL: [[10, 19], [80, 89]],
+    TE: [[40, 49], [80, 89]],
+    T: [[50, 79]], G: [[50, 79]], C: [[50, 79]],
+    DE: [[50, 79], [90, 99]], DT: [[50, 79], [90, 99]], NT: [[50, 79], [90, 99]],
+    MLB: [[40, 59], [90, 99]], SAM: [[40, 59], [90, 99]], WILL: [[40, 59], [90, 99]],
+    CB: [[20, 49]], FS: [[20, 49]], SS: [[20, 49]],
   };
 
   for (const basis of [45, 58, 65]) {
@@ -146,7 +209,8 @@ test('Trikotnummern sind eindeutig und halten sich an ihr Band', () => {
     for (const s of kader) {
       assert.ok(s.nummer >= 0 && s.nummer <= 99, `Nummer ${s.nummer}`);
       if (s.nummer <= 9) {
-        assert.notEqual(s.position, 'OL', 'ein OL trägt nie eine einstellige Nummer');
+        assert.ok(!POSITION_GRUPPEN.lineOffense.includes(s.position),
+          `ein ${s.position} trägt nie eine einstellige Nummer`);
         continue;
       }
       const passt = band[s.position].some(([v, b]) => s.nummer >= v && s.nummer <= b);
@@ -165,7 +229,7 @@ test('fünf bis neun einstellige Nummern gehen an die Besten', () => {
 
     // Alle stammen aus den zwölf stärksten Nicht-Linemen.
     const zwoelf = new Set(kader
-      .filter((s) => s.position !== 'OL')
+      .filter((s) => !POSITION_GRUPPEN.lineOffense.includes(s.position))
       .sort((a, b) => b.staerke - a.staerke)
       .slice(0, 12)
       .map((s) => s.id));

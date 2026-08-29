@@ -12,7 +12,7 @@ import {
   KADER_FORM, ZUSATZ_GEWICHTE, ZUSATZ_MAX_JE_POSITION,
   KICK_BASIS, KICK_STREUUNG, KICK_FUSS_ANTEIL, KICK_FUSS_BASIS,
   KICK_FUSS_STREUUNG, KICK_FUSS_AUSSCHLUSS,
-  POSITIONS, clamp, randInt, pick, pickWeighted, randNormal, shuffle,
+  POSITIONS, POSITION_GRUPPEN, clamp, randInt, pick, pickWeighted, randNormal, shuffle,
 } from './constants.js';
 import { VORNAMEN, NACHNAMEN } from './content.js';
 
@@ -43,24 +43,24 @@ export function resetSpielerIds() {
 }
 
 /**
- * Jersey number bands, each a list of inclusive ranges.
+ * Jersey number bands, each a list of inclusive ranges. Roughly by group, the
+ * way a club actually numbers a squad — not one band per position.
  *
  * 0-9 belongs to no band: those numbers are handed out separately, to the best
- * players in the club. OL are the exception that has no exception — a lineman
- * never wears anything outside 50-79.
+ * players in the club. The offensive line is the exception that has no
+ * exception — a tackle, guard or centre never wears anything outside 50-79.
+ * Docs: docs/umbau-positionsmodell.md, Abschnitt 8
  * @type {Record<string, [number, number][]>}
  */
 const NUMMERN_BAND = {
   QB: [[1, 19]],
-  RB: [[20, 49]],
-  WR: [[10, 19], [80, 89]],
+  RB: [[20, 49]], FB: [[20, 49]],
+  WR: [[10, 19], [80, 89]], SL: [[10, 19], [80, 89]],
   TE: [[40, 49], [80, 89]],
-  OL: [[50, 79]],
-  DL: [[50, 79], [90, 99]],
-  LB: [[40, 59], [90, 99]],
-  DB: [[20, 49]],
-  K: [[1, 19]],
-  P: [[1, 19]],
+  T: [[50, 79]], G: [[50, 79]], C: [[50, 79]],
+  DE: [[50, 79], [90, 99]], DT: [[50, 79], [90, 99]], NT: [[50, 79], [90, 99]],
+  MLB: [[40, 59], [90, 99]], SAM: [[40, 59], [90, 99]], WILL: [[40, 59], [90, 99]],
+  CB: [[20, 49]], FS: [[20, 49]], SS: [[20, 49]],
 };
 
 const EINSTELLIGE = /** @type {[number, number][]} */ ([[0, 9]]);
@@ -295,7 +295,7 @@ export function vergebeNummern(rng, kader, neuVerteilen = false) {
 
   if (neuVerteilen) {
     const kandidaten = kader
-      .filter((s) => s.position !== 'OL')
+      .filter((s) => !POSITION_GRUPPEN.lineOffense.includes(s.position))
       .sort((a, b) => b.staerke - a.staerke)
       .slice(0, EINSTELLIG_KANDIDATEN);
     const anzahl = Math.min(randInt(rng, EINSTELLIG_MIN, EINSTELLIG_MAX), kandidaten.length);

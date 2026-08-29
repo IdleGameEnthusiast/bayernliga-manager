@@ -574,9 +574,11 @@ passAnteil: Record<teamId, number>     // 0..1, Vorschlag aus personnel, vom Man
 
 ## 11 — Die Inkremente
 
-Jedes Inkrement ist eine Sitzung wert und lässt das Spiel lauffähig.
+Jedes Inkrement ist eine Sitzung wert und lässt das Spiel lauffähig. Erledigte
+sind hier abgehakt; die Ligastärken nach jedem Schritt stehen in
+[`baseline-staerken.md`](baseline-staerken.md).
 
-### Inkrement 1 — Positionskatalog und Kader
+### Inkrement 1 — Positionskatalog und Kader ✅ fertig
 `engine/constants.js`, `engine/spieler.js`, `engine/save.js`, `engine/team.js`, Tests.
 
 18 Positionen, neue Kaderform, neue Zusatzgewichte, neue Nummernbänder, Generierung,

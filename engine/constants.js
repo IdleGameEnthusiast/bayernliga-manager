@@ -4,24 +4,76 @@
  * This module touches no DOM and imports nothing from ui/.
  */
 
-/** Roster positions, in depth-chart order. */
+/**
+ * Roster positions, in depth-chart order: offence first, then defence.
+ *
+ * Eighteen, not the five and three the game started with. The split has to
+ * happen before the position values do, because prising it back out of every
+ * formula and every table later costs more than doing it now.
+ *
+ * Left and right do NOT double the catalogue. A `T` is a tackle; `LT` and `RT`
+ * are places in a formation, and what a man loses by moving between them is a
+ * matter for the position model, not for two more entries here.
+ *
+ * K and P are absent, as they have been since the kick values landed: the club
+ * kicks with whoever has the foot for it.
+ * Docs: docs/umbau-positionsmodell.md, Abschnitt 1
+ */
 export const POSITIONS = /** @type {const} */ ([
-  'QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'DB', 'K', 'P',
+  'QB', 'RB', 'FB', 'WR', 'SL', 'TE', 'T', 'G', 'C',
+  'DE', 'DT', 'NT', 'MLB', 'SAM', 'WILL', 'CB', 'FS', 'SS',
 ]);
 
 /** @typedef {typeof POSITIONS[number]} Position */
 
 /**
- * The Kader every club starts from: eleven for the offence (5 OL + QB + five
- * skill players) and eleven for a 4-3 defence, plus a handful of bodies behind
- * them. Nothing more — a Bayernliga club does not carry a bench.
+ * The seven groups a position belongs to. A move inside a group is cheap, a
+ * move across one is not — that is what the group is for. Numbers bands,
+ * veterans and the provisional unit ratings read it too, so it lives here with
+ * the catalogue rather than in the position model.
+ * Docs: docs/umbau-positionsmodell.md, Abschnitt 4
+ */
+export const POSITION_GRUPPEN = /** @type {Record<string, Position[]>} */ ({
+  quarterback: ['QB'],
+  backfield: ['RB', 'FB'],
+  empfaenger: ['WR', 'SL', 'TE'],
+  lineOffense: ['T', 'G', 'C'],
+  lineDefense: ['DE', 'DT', 'NT'],
+  linebacker: ['MLB', 'SAM', 'WILL'],
+  secondary: ['CB', 'FS', 'SS'],
+});
+
+/** Which unit a group plays in. */
+export const EINHEIT_JE_GRUPPE = /** @type {Record<string, 'offense'|'defense'>} */ ({
+  quarterback: 'offense', backfield: 'offense', empfaenger: 'offense', lineOffense: 'offense',
+  lineDefense: 'defense', linebacker: 'defense', secondary: 'defense',
+});
+
+/** Position -> group name, derived so the two never drift apart. */
+export const GRUPPE_JE_POSITION = /** @type {Record<string, string>} */ (
+  Object.fromEntries(
+    Object.entries(POSITION_GRUPPEN).flatMap(([gruppe, pos]) => pos.map((p) => [p, gruppe])),
+  )
+);
+
+/** The men in the trenches, both sides. They neither kick nor wear a single digit. */
+export const LINEMEN = /** @type {Position[]} */ ([
+  ...POSITION_GRUPPEN.lineOffense, ...POSITION_GRUPPEN.lineDefense,
+]);
+
+/**
+ * The Kader every club starts from: thirty men, sixteen for the offence and
+ * fourteen for a 4-3 defence. Nothing more — a Bayernliga club does not carry
+ * a bench.
  *
- * K and P are absent on purpose. Below the GFL almost nobody keeps a
- * specialist; the kicking is done by whoever has the foot for it. That is a
- * job for the position-value model, not for two roster slots.
+ * `TE: 0` is deliberate. The club the player takes over has no trained tight
+ * end and has to convert somebody the moment its system wants one. That is
+ * part of starting at the bottom.
+ * Docs: docs/umbau-positionsmodell.md, Abschnitt 8
  */
 export const KADER_FORM = /** @type {Record<Position, number>} */ ({
-  QB: 1, RB: 2, WR: 5, TE: 0, OL: 6, DL: 6, LB: 4, DB: 6, K: 0, P: 0,
+  QB: 2, RB: 2, FB: 1, WR: 4, SL: 2, TE: 0, T: 2, G: 2, C: 1,
+  DE: 2, DT: 2, NT: 1, MLB: 2, SAM: 1, WILL: 1, CB: 3, FS: 1, SS: 1,
 });
 
 /** The club the player manages starts thin. */
@@ -32,11 +84,16 @@ export const ZUSATZ_SPIELER = 5;
 export const KADER_GROESSE_FREMD = KADER_GROESSE_EIGEN + ZUSATZ_SPIELER;
 
 /**
- * How the extra players are drawn. Weighted by where a club actually wants
- * depth — an even draw would hand somebody a fourth quarterback.
+ * How the extra players are drawn. Weighted towards where the snaps and the
+ * injuries pile up — line, receivers, secondary. An even draw would hand
+ * somebody a third quarterback.
+ *
+ * `TE: 4` against the club's own zero is the point: the other clubs regularly
+ * have a tight end and the player's club does not.
  */
 export const ZUSATZ_GEWICHTE = /** @type {Record<Position, number>} */ ({
-  QB: 1, RB: 3, WR: 5, TE: 3, OL: 5, DL: 5, LB: 4, DB: 5, K: 0, P: 0,
+  QB: 1, RB: 3, FB: 2, WR: 5, SL: 3, TE: 4, T: 5, G: 4, C: 2,
+  DE: 5, DT: 4, NT: 2, MLB: 3, SAM: 3, WILL: 3, CB: 5, FS: 2, SS: 2,
 });
 
 /** No club may stack more than this many extras on one position. */
@@ -75,7 +132,7 @@ export const KICK_FUSS_ANTEIL = 0.07;    // share of the squad who actually can
 export const KICK_FUSS_BASIS = 55;       // mean for those who can
 export const KICK_FUSS_STREUUNG = 9;
 /** Where a kicker never comes from: the men in the trenches. */
-export const KICK_FUSS_AUSSCHLUSS = /** @type {Position[]} */ (['OL', 'DL']);
+export const KICK_FUSS_AUSSCHLUSS = LINEMEN;
 
 /** Age bounds for the normal draw, and where the curve peaks. */
 export const MIN_AGE = 18;
@@ -96,7 +153,7 @@ export const VETERAN_JUNG = /** @type {[number, number]} */ ([45, 55]);
 export const VETERAN_ALT = /** @type {[number, number]} */ ([56, 65]);
 export const VETERAN_RUECKTRITT_MAX = 66;
 /** Where a fifty-year-old still plausibly lines up. */
-export const VETERAN_POSITIONEN = /** @type {Position[]} */ (['OL', 'DL']);
+export const VETERAN_POSITIONEN = LINEMEN;
 
 /** Match simulation. */
 export const BASE_POINTS = 20;        // what an evenly matched offence scores

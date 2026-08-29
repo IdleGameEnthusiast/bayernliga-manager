@@ -66,13 +66,15 @@ test('ein leerer Kader fällt auf die Ersatzstärke zurück', () => {
 
 test('aus der Line kommt kein Kicker', () => {
   // Über viele Ziehungen bleibt ein Lineman im unteren Band.
-  let hoechster = 0;
-  for (let i = 0; i < 400; i++) {
-    const w = ziehKickWerte(makeRng('ol' + i), 'OL');
-    hoechster = Math.max(hoechster, w.kickStaerke, w.kickGenauigkeit);
+  for (const position of /** @type {const} */ (['T', 'G', 'C', 'DE', 'DT', 'NT'])) {
+    let hoechster = 0;
+    for (let i = 0; i < 200; i++) {
+      const w = ziehKickWerte(makeRng(position + i), position);
+      hoechster = Math.max(hoechster, w.kickStaerke, w.kickGenauigkeit);
+    }
+    assert.ok(hoechster < 60, `bester ${position}-Kickwert war ${hoechster}`);
+    assert.ok(KICK_FUSS_AUSSCHLUSS.includes(position), `${position} steht im Ausschluss`);
   }
-  assert.ok(hoechster < 60, `bester OL-Kickwert war ${hoechster}`);
-  assert.ok(KICK_FUSS_AUSSCHLUSS.includes('OL') && KICK_FUSS_AUSSCHLUSS.includes('DL'));
 });
 
 test('ein paar Vereine haben einen echten Fuß, nicht alle', () => {

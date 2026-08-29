@@ -10,7 +10,7 @@
 
 import { SAVE_VERSION } from './saison.js';
 
-export const STORAGE_KEY = 'bayernliga.save.v3';
+export const STORAGE_KEY = 'bayernliga.save.v4';
 
 /**
  * Bring an older save up to the current shape. Every migration is additive so
@@ -22,11 +22,12 @@ export function migriere(roh) {
   if (!roh || typeof roh !== 'object') throw new Error('Speicherstand ist leer');
   const stand = { ...roh };
 
-  // v1 kannte acht andere Vereine, v2 eine einzige Tabelle über 22 Spieltage.
-  // Beide beschreiben eine Liga, die es nicht mehr gibt: ohne Gruppen und ohne
-  // Runde an der Partie lässt sich daraus kein gültiger Spielplan bauen. Ein
-  // solcher Stand wird abgelehnt statt halb migriert.
-  if (typeof stand.version === 'number' && stand.version < 3) {
+  // v1 kannte acht andere Vereine, v2 eine einzige Tabelle über 22 Spieltage,
+  // v3 fünf Offense-Positionen und keine Attribute. Alle drei beschreiben eine
+  // Liga, die es nicht mehr gibt: aus einem v3-Kader ließe sich ein gültiger
+  // v4-Kader nur durch Erfinden gewinnen. Ein solcher Stand wird abgelehnt
+  // statt halb migriert.
+  if (typeof stand.version === 'number' && stand.version < 4) {
     throw new Error('Dieser Speicherstand stammt aus einer älteren Liga');
   }
   if (typeof stand.version !== 'number') stand.version = SAVE_VERSION;
@@ -34,7 +35,7 @@ export function migriere(roh) {
   if (!Array.isArray(stand.historie)) stand.historie = [];
   if (typeof stand.seed !== 'string') stand.seed = String(stand.seed || Date.now());
 
-  // Fields that arrive after v3 get their default here.
+  // Fields that arrive after v4 get their default here.
 
   stand.version = SAVE_VERSION;
   return stand;

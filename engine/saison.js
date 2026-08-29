@@ -21,7 +21,7 @@ import {
 import { simuliereSpiel } from './spiel.js';
 import { berechneTabelle } from './tabelle.js';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 /**
  * @typedef {object} SpielStand

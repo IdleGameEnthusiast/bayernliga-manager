@@ -225,4 +225,8 @@ test('Stände aus einer älteren Liga werden abgelehnt', () => {
     /älteren Liga/);
   assert.throws(() => migriere({ version: 2, seed: 'x', meinTeam: 'heg', kader: {} }),
     /älteren Liga/);
+  // v3 kannte fünf Offense-Positionen; ein gültiger Kader ließe sich daraus
+  // nur durch Erfinden gewinnen.
+  assert.throws(() => migriere({ version: 3, seed: 'x', meinTeam: 'heg', kader: {} }),
+    /älteren Liga/);
 });
