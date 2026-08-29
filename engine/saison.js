@@ -10,7 +10,9 @@
  * Docs: docs/spec/02-core-loop.md, docs/spec/03-state-contract.md
  */
 
-import { SEASON_START_YEAR, ZUSATZ_SPIELER, EIGENE_VEREINSBASIS, makeRng } from './constants.js';
+import {
+  SEASON_START_YEAR, ZUSATZ_SPIELER, EIGENE_VEREINSBASIS, makeRng, pick, clamp,
+} from './constants.js';
 import { TEAMS, GRUPPEN, teamById, teamsDerGruppe } from './content.js';
 import { T } from '../i18n.js';
 import { macheKader, saisonWechsel, resetSpielerIds } from './spieler.js';
@@ -19,6 +21,7 @@ import {
   anzahlSpieltage, partienAmSpieltag, partienDerRunde,
 } from './spielplan.js';
 import { simuliereSpiel } from './spiel.js';
+import { PERSONNEL, STANDARD_PERSONNEL, PASSANTEIL_SPIELRAUM } from './aufstellung.js';
 import { berechneTabelle } from './tabelle.js';
 
 export const SAVE_VERSION = 4;
@@ -32,6 +35,8 @@ export const SAVE_VERSION = 4;
  * @property {string} meinTeam
  * @property {Record<string, import('./spieler.js').Spieler[]>} kader  by team id
  * @property {import('./spielplan.js').Partie[]} spielplan
+ * @property {Record<string, string>} personnel   Personnel-Gruppierung je Verein
+ * @property {Record<string, number>} passAnteil  Ausrichtung je Verein, 0..1
  * @property {string[]} verlauf       Log lines, newest last
  * @property {{ jahr: number, meister: string, meinPlatz: number }[]} historie
  */
@@ -54,6 +59,103 @@ export function vereinsBasen(meinTeam) {
   andere.forEach((t, i) => { basen[t.id] = leiter[i]; });
   basen[meinTeam] = EIGENE_VEREINSBASIS;
   return basen;
+}
+
+/**
+ * Welches System ein Verein spielt.
+ *
+ * Ausgelost, aus einem eigenen Strom neben dem Saatgut des Spielstands: damit
+ * lässt sich ein fehlendes Feld jederzeit deterministisch nachziehen, ohne den
+ * Speicherstand hochzuzählen. Das System bleibt über die Saisons hinweg — ein
+ * Verein hat eine Spielphilosophie, keine Tagesform.
+ * Docs: docs/umbau-positionsmodell.md, Abschnitt 5
+ * @param {string} seed
+ * @returns {Record<string, string>}
+ */
+export function losePersonnel(seed) {
+  const rng = makeRng(seed + '|personnel');
+  const gruppierungen = Object.keys(PERSONNEL);
+  /** @type {Record<string, string>} */
+  const gelost = {};
+  for (const t of TEAMS) gelost[t.id] = pick(rng, gruppierungen);
+  return gelost;
+}
+
+/**
+ * Das System eines Vereins, notfalls nachgezogen.
+ * @param {SpielStand} stand
+ * @param {string} teamId
+ */
+export function personnelVon(stand, teamId) {
+  const gesetzt = stand.personnel && stand.personnel[teamId];
+  if (gesetzt && PERSONNEL[gesetzt]) return gesetzt;
+  return losePersonnel(stand.seed)[teamId] || STANDARD_PERSONNEL;
+}
+
+/**
+ * Die Ausrichtung eines Vereins: der Vorschlag seiner Gruppierung, sofern der
+ * Manager ihn nicht verschoben hat.
+ * @param {SpielStand} stand
+ * @param {string} teamId
+ */
+export function passAnteilVon(stand, teamId) {
+  const gesetzt = stand.passAnteil && stand.passAnteil[teamId];
+  if (typeof gesetzt === 'number') return gesetzt;
+  return PERSONNEL[personnelVon(stand, teamId)].passAnteil;
+}
+
+/**
+ * Was der Manager einstellen darf: der Vorschlag der Gruppierung, verschoben
+ * um höchstens PASSANTEIL_SPIELRAUM.
+ * @param {string} personnel
+ * @param {number} wunsch
+ */
+export function erlaubterPassAnteil(personnel, wunsch) {
+  const vorschlag = (PERSONNEL[personnel] || PERSONNEL[STANDARD_PERSONNEL]).passAnteil;
+  return clamp(
+    clamp(wunsch, vorschlag - PASSANTEIL_SPIELRAUM, vorschlag + PASSANTEIL_SPIELRAUM),
+    0, 1,
+  );
+}
+
+/**
+ * Die Taktik des eigenen Vereins ändern.
+ *
+ * Sie gilt ab dem nächsten Spieltag — gespielte Partien stehen im Spielplan
+ * und werden nicht neu gerechnet. Es braucht dafür keine Sperre: die
+ * Simulation liest den Zustand erst, wenn ein Spieltag angepfiffen wird.
+ * @param {SpielStand} stand
+ * @param {{ personnel?: string, passAnteil?: number }} taktik
+ */
+export function setzeTaktik(stand, taktik) {
+  const id = stand.meinTeam;
+  if (!stand.personnel) stand.personnel = {};
+  if (!stand.passAnteil) stand.passAnteil = {};
+
+  const personnel = taktik.personnel && PERSONNEL[taktik.personnel]
+    ? taktik.personnel
+    : personnelVon(stand, id);
+  stand.personnel[id] = personnel;
+
+  const wunsch = typeof taktik.passAnteil === 'number'
+    ? taktik.passAnteil
+    : PERSONNEL[personnel].passAnteil;
+  stand.passAnteil[id] = erlaubterPassAnteil(personnel, wunsch);
+  return stand;
+}
+
+/**
+ * Ein Verein, wie ihn die Simulation sehen will: Kader plus Ausrichtung.
+ * @param {SpielStand} stand
+ * @param {string} teamId
+ */
+export function alsGegner(stand, teamId) {
+  return {
+    id: teamId,
+    kader: stand.kader[teamId],
+    personnel: personnelVon(stand, teamId),
+    passAnteil: passAnteilVon(stand, teamId),
+  };
 }
 
 /** The group stage, as the Spielplan is drawn at the start of a season. */
@@ -80,6 +182,11 @@ export function neuesSpiel(meinTeam, seed) {
     kader[t.id] = macheKader(rng, basen[t.id], t.id === meinTeam ? 0 : ZUSATZ_SPIELER);
   }
 
+  const personnel = losePersonnel(wirklicherSeed);
+  /** @type {Record<string, number>} */
+  const passAnteil = {};
+  for (const t of TEAMS) passAnteil[t.id] = PERSONNEL[personnel[t.id]].passAnteil;
+
   return {
     version: SAVE_VERSION,
     seed: wirklicherSeed,
@@ -87,6 +194,8 @@ export function neuesSpiel(meinTeam, seed) {
     spieltag: 1,
     meinTeam,
     kader,
+    personnel,
+    passAnteil,
     spielplan: frischerGruppenplan(rng),
     verlauf: [],
     historie: [],
@@ -193,10 +302,7 @@ export function spieleSpieltag(stand) {
 
   for (const p of partien) {
     const ergebnis = simuliereSpiel(
-      rng,
-      { id: p.heim, kader: stand.kader[p.heim] },
-      { id: p.gast, kader: stand.kader[p.gast] },
-      spieltag,
+      rng, alsGegner(stand, p.heim), alsGegner(stand, p.gast), spieltag,
     );
     p.ergebnis = ergebnis;
 

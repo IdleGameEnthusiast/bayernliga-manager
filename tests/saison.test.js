@@ -7,8 +7,10 @@ import { KADER_GROESSE_EIGEN, KADER_GROESSE_FREMD, EIGENE_VEREINSBASIS } from '.
 import {
   neuesSpiel, spieleSpieltag, saisonVorbei, naechsteSaison, anzahlSpieltage,
   vereinsBasen, gruppenTabelle, gruppenTabellen, meineTabelle, meister,
-  gruppenSpieltage,
+  gruppenSpieltage, losePersonnel, personnelVon, passAnteilVon, setzeTaktik,
+  erlaubterPassAnteil, alsGegner,
 } from '../engine/saison.js';
+import { PERSONNEL, PASSANTEIL_SPIELRAUM } from '../engine/aufstellung.js';
 import { partienDerRunde, sieger } from '../engine/spielplan.js';
 import { SAVE_VERSION } from '../engine/saison.js';
 import { migriere, exportiere, importiere } from '../engine/save.js';
@@ -229,4 +231,116 @@ test('Stände aus einer älteren Liga werden abgelehnt', () => {
   // nur durch Erfinden gewinnen.
   assert.throws(() => migriere({ version: 3, seed: 'x', meinTeam: 'heg', kader: {} }),
     /älteren Liga/);
+});
+
+// --- Taktik ----------------------------------------------------------------
+
+test('jeder Verein bekommt ein System und eine Ausrichtung', () => {
+  const stand = neuesSpiel('heg', 'taktik');
+  for (const t of TEAMS) {
+    const personnel = stand.personnel[t.id];
+    assert.ok(PERSONNEL[personnel], `${t.kurz} spielt ${personnel}`);
+    assert.equal(stand.passAnteil[t.id], PERSONNEL[personnel].passAnteil);
+  }
+  // Und nicht alle dasselbe.
+  assert.ok(new Set(Object.values(stand.personnel)).size > 1, 'die Liga ist nicht uniform');
+});
+
+test('die Auslosung hängt nur am Saatgut', () => {
+  assert.deepEqual(losePersonnel('gleich'), losePersonnel('gleich'));
+  assert.notDeepEqual(losePersonnel('gleich'), losePersonnel('anders'));
+  // Sie hängt nicht daran, wen man trainiert.
+  assert.deepEqual(neuesSpiel('heg', 'x').personnel, neuesSpiel('pp', 'x').personnel);
+});
+
+test('das System überlebt den Saisonwechsel', () => {
+  const stand = neuesSpiel('heg', 'philosophie');
+  const vorher = { ...stand.personnel };
+  while (!saisonVorbei(stand)) spieleSpieltag(stand);
+  naechsteSaison(stand);
+  assert.deepEqual(stand.personnel, vorher, 'ein Verein hat eine Spielphilosophie');
+});
+
+test('eine fehlende Taktik wird nachgezogen, nicht geraten', () => {
+  const stand = neuesSpiel('heg', 'nachzieh');
+  const erwartet = { ...stand.personnel };
+
+  // Ein Stand aus der Zeit davor: die Felder fehlen ganz.
+  const alt = { ...stand };
+  delete alt.personnel;
+  delete alt.passAnteil;
+
+  const m = migriere(alt);
+  assert.deepEqual(m.personnel, erwartet, 'derselbe Stand ergibt dieselben Systeme');
+  assert.equal(m.version, SAVE_VERSION, 'und das kostet keine neue Version');
+  for (const t of TEAMS) {
+    assert.equal(m.passAnteil[t.id], PERSONNEL[m.personnel[t.id]].passAnteil);
+  }
+
+  // Auch einzeln: der Zugriff zieht nach, ohne den Zustand zu brauchen.
+  const leer = /** @type {any} */ ({ seed: 'nachzieh', meinTeam: 'heg' });
+  assert.equal(personnelVon(leer, 'heg'), erwartet.heg);
+  assert.equal(passAnteilVon(leer, 'heg'), PERSONNEL[erwartet.heg].passAnteil);
+});
+
+test('der Manager verschiebt die Ausrichtung, aber nur um zwanzig Punkte', () => {
+  const stand = neuesSpiel('heg', 'schieben');
+  setzeTaktik(stand, { personnel: '11' });
+  assert.equal(stand.personnel.heg, '11');
+  assert.equal(stand.passAnteil.heg, PERSONNEL['11'].passAnteil);
+
+  setzeTaktik(stand, { personnel: '11', passAnteil: 0.95 });
+  assert.equal(stand.passAnteil.heg, PERSONNEL['11'].passAnteil + PASSANTEIL_SPIELRAUM);
+  setzeTaktik(stand, { personnel: '11', passAnteil: 0.05 });
+  assert.equal(stand.passAnteil.heg, PERSONNEL['11'].passAnteil - PASSANTEIL_SPIELRAUM);
+
+  // Und nur beim eigenen Verein.
+  const fremd = TEAMS.find((t) => t.id !== 'heg');
+  const vorher = stand.personnel[fremd.id];
+  setzeTaktik(stand, { personnel: '32' });
+  assert.equal(stand.personnel[fremd.id], vorher);
+
+  assert.equal(erlaubterPassAnteil('32', 0.9), PERSONNEL['32'].passAnteil + PASSANTEIL_SPIELRAUM);
+  assert.equal(erlaubterPassAnteil('00', 1.5), 1, 'über eins geht nichts');
+});
+
+test('die Taktik gilt ab dem nächsten Spieltag', () => {
+  const gleich = () => neuesSpiel('heg', 'wirkung');
+  const a = gleich();
+  const b = gleich();
+
+  spieleSpieltag(a);
+  spieleSpieltag(b);
+  const nachEins = JSON.stringify(a.spielplan.filter((p) => p.spieltag === 1));
+
+  setzeTaktik(b, { personnel: '32', passAnteil: 0.2 });
+  // Der gespielte Spieltag rührt sich nicht.
+  assert.equal(JSON.stringify(b.spielplan.filter((p) => p.spieltag === 1)), nachEins);
+
+  spieleSpieltag(a);
+  spieleSpieltag(b);
+  const zweiA = a.spielplan.filter((p) => p.spieltag === 2);
+  const zweiB = b.spielplan.filter((p) => p.spieltag === 2);
+  assert.notDeepEqual(zweiB, zweiA, 'der nächste Spieltag sieht die Änderung');
+});
+
+test('alsGegner reicht die Ausrichtung an die Simulation weiter', () => {
+  const stand = neuesSpiel('heg', 'gegner');
+  setzeTaktik(stand, { personnel: '00', passAnteil: 0.8 });
+  const heg = alsGegner(stand, 'heg');
+  assert.equal(heg.personnel, '00');
+  assert.equal(heg.passAnteil, 0.8);
+  assert.equal(heg.kader, stand.kader.heg);
+});
+
+test('Export und Import nehmen die Taktik mit', () => {
+  const stand = neuesSpiel('heg', 'export');
+  setzeTaktik(stand, { personnel: '21', passAnteil: 0.35 });
+  spieleSpieltag(stand);
+
+  const zurueck = importiere(exportiere(stand));
+  assert.deepEqual(zurueck.personnel, stand.personnel);
+  assert.deepEqual(zurueck.passAnteil, stand.passAnteil);
+  assert.equal(zurueck.personnel.heg, '21');
+  assert.equal(zurueck.passAnteil.heg, 0.35);
 });

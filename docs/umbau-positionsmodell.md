@@ -694,12 +694,20 @@ Zwei Stellen sind dabei mitgewandert, die der Bauplan nicht nennt:
 Hälften. Die Simulation liest sie nicht mehr — nur noch `gesamtStaerke()` und die
 Kaderansicht, und beide stellen erst in Inkrement 7 um.
 
-### Inkrement 6 — Zustand und Taktik
+### Inkrement 6 — Zustand und Taktik ✅ fertig
 `engine/saison.js`, `engine/save.js`, Tests.
 
 `personnel` und `passAnteil` im Zustand, Auslosung, deterministisches Nachziehen,
 Wechsel gilt ab dem nächsten Spieltag. Fertig, wenn ein Export/Import die Taktik
 mitnimmt.
+
+„Gilt ab dem nächsten Spieltag" brauchte keine Sperre: gespielte Partien stehen mit
+ihrem Ergebnis im Spielplan, und die Simulation liest den Zustand erst, wenn ein
+Spieltag angepfiffen wird. Eine Änderung kann rückwirkend gar nichts anrichten.
+
+`alsGegner(stand, teamId)` ist die eine Stelle, an der Kader und Ausrichtung
+zusammenkommen — die Simulation bekommt beide Vereine in derselben Form, und
+`personnelVon()` zieht dabei nach, was fehlt.
 
 ### Inkrement 7 — UI
 `ui/taktik.js` (neu), `ui/kader.js`, `app.js`, `i18n.js`, `app.css`, `vis.html`.

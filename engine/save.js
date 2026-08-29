@@ -8,7 +8,8 @@
  * installed web app but never sacred — the export is the real backup.
  */
 
-import { SAVE_VERSION } from './saison.js';
+import { SAVE_VERSION, losePersonnel } from './saison.js';
+import { PERSONNEL } from './aufstellung.js';
 
 export const STORAGE_KEY = 'bayernliga.save.v4';
 
@@ -36,6 +37,20 @@ export function migriere(roh) {
   if (typeof stand.seed !== 'string') stand.seed = String(stand.seed || Date.now());
 
   // Fields that arrive after v4 get their default here.
+
+  // Taktik: fehlt sie, wird sie aus dem Saatgut nachgezogen statt geraten.
+  // Derselbe Stand ergibt dieselben Systeme, also braucht das keine neue
+  // Version — nur eine Regel, die zweimal dasselbe tut.
+  if (!stand.personnel || typeof stand.personnel !== 'object') {
+    stand.personnel = losePersonnel(stand.seed);
+  }
+  if (!stand.passAnteil || typeof stand.passAnteil !== 'object') stand.passAnteil = {};
+  for (const [id, personnel] of Object.entries(stand.personnel)) {
+    if (typeof stand.passAnteil[id] !== 'number') {
+      stand.passAnteil[id] = (PERSONNEL[/** @type {string} */ (personnel)]
+        || PERSONNEL['11']).passAnteil;
+    }
+  }
 
   stand.version = SAVE_VERSION;
   return stand;
