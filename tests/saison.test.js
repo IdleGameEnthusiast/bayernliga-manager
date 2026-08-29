@@ -3,12 +3,41 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { TEAMS } from '../engine/content.js';
-import { KADER_GROESSE_EIGEN, KADER_GROESSE_FREMD } from '../engine/constants.js';
+import { KADER_GROESSE_EIGEN, KADER_GROESSE_FREMD, EIGENE_VEREINSBASIS } from '../engine/constants.js';
 import {
   neuesSpiel, spieleSpieltag, saisonVorbei, naechsteSaison, tabelle, anzahlSpieltage,
+  vereinsBasen,
 } from '../engine/saison.js';
 import { SAVE_VERSION } from '../engine/saison.js';
 import { migriere, exportiere, importiere } from '../engine/save.js';
+
+test('der eigene Verein fällt ans Tabellenende, die anderen rücken auf', () => {
+  const basen = vereinsBasen('sta');
+  assert.equal(basen.sta, EIGENE_VEREINSBASIS);
+  assert.deepEqual(
+    TEAMS.map((t) => `${t.kurz} ${basen[t.id]}`),
+    ['HEG 65', 'ASS 62', 'GC 60', 'ERS 58', 'KBA 58', 'FEL 57',
+     'STA 45', 'HR 56', 'MR 50', 'FKK 49', 'BTC 47', 'PP 46'],
+  );
+});
+
+test('die Werteleiter der Liga bleibt dieselbe, egal wer gewählt wird', () => {
+  const leiter = TEAMS.map((t) => t.staerke).sort((a, b) => b - a);
+  for (const gewaehlt of TEAMS) {
+    const basen = vereinsBasen(gewaehlt.id);
+    assert.equal(Object.keys(basen).length, TEAMS.length, gewaehlt.id);
+    assert.equal(basen[gewaehlt.id], EIGENE_VEREINSBASIS, gewaehlt.id);
+    assert.deepEqual(
+      Object.values(basen).sort((a, b) => b - a),
+      leiter,
+      `${gewaehlt.kurz} verschiebt die Leiter`,
+    );
+    // Niemand über dem Gewählten ändert sich.
+    for (const t of TEAMS) {
+      if (t.staerke > gewaehlt.staerke) assert.equal(basen[t.id], t.staerke, t.id);
+    }
+  }
+});
 
 test('ein neues Spiel ist vollständig aufgesetzt', () => {
   const s = neuesSpiel('heg', 'seed-1');

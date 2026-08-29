@@ -42,6 +42,14 @@ export const ZUSATZ_GEWICHTE = /** @type {Record<Position, number>} */ ({
 /** No club may stack more than this many extras on one position. */
 export const ZUSATZ_MAX_JE_POSITION = 2;
 
+/**
+ * The club the player picks starts at the bottom: its Kader baseline drops to
+ * this value, however strong the club stands in the catalogue. The league's
+ * ladder of strengths is untouched — every weaker club moves up one rung. The
+ * promotion is meant to be played for, not chosen.
+ */
+export const EIGENE_VEREINSBASIS = 45;
+
 /** Rating bounds. */
 export const MAX_RATING = 99;          // the scale's ceiling, kept for higher leagues
 export const LIGA_MAX_STAERKE = 79;    // no Bayernliga strength is ever computed above this

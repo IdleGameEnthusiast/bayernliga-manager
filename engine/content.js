@@ -35,7 +35,7 @@ export const TEAMS = /** @type {TeamDef[]} */ ([
   { id: 'heg', name: 'Hemhofen Gechers',      kurz: 'HEG', stadt: 'Hemhofen',              gruppe: 'nord', staerke: 65, farben: { primaer: '#ee1c27', sekundaer: SCHWARZ,   tertiaer: WEISS } },
   { id: 'ass', name: 'Aschaffenburg Stallions', kurz: 'ASS', stadt: 'Aschaffenburg',       gruppe: 'nord', staerke: 62, farben: { primaer: '#ea0000', sekundaer: WEISS,     tertiaer: SCHWARZ } },
   { id: 'gc',  name: 'Gendorf Crusaders',     kurz: 'GC',  stadt: 'Burgkirchen a. d. Alz', gruppe: 'sued', staerke: 60, farben: { primaer: '#030405', sekundaer: WEISS,     tertiaer: '#e2192c' } },
-  { id: 'ers', name: 'Erlangen Sharks',       kurz: 'ERS', stadt: 'Erlangen',              gruppe: 'nord', staerke: 58, farben: { primaer: '#f64536', sekundaer: '#0d2e5e', tertiaer: WEISS } },
+  { id: 'ers', name: 'Erlangen Sharks',       kurz: 'ERS', stadt: 'Erlangen',              gruppe: 'nord', staerke: 58, farben: { primaer: '#0d2e5e', sekundaer: '#f64536', tertiaer: WEISS } },
   { id: 'kba', name: 'Königsbrunn Ants',      kurz: 'KBA', stadt: 'Königsbrunn',           gruppe: 'sued', staerke: 58, farben: { primaer: SCHWARZ,   sekundaer: '#f20c06', tertiaer: WEISS } },
   { id: 'fel', name: 'Feldkirchen Lions',     kurz: 'FEL', stadt: 'Feldkirchen',           gruppe: 'sued', staerke: 57, farben: { primaer: '#d2b982', sekundaer: SCHWARZ,   tertiaer: WEISS } },
   { id: 'sta', name: 'Starnberg Argonauts',   kurz: 'STA', stadt: 'Starnberg',             gruppe: 'sued', staerke: 56, farben: { primaer: '#0d173b', sekundaer: '#a4cff0', tertiaer: WEISS } },

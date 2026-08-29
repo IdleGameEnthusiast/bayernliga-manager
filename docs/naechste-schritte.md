@@ -249,6 +249,7 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Talent | wird ohne Ligadeckel generiert, bis `MAX_RATING` 99 |
 | Stärke | wird **nie** über `LIGA_MAX_STAERKE` 79 berechnet |
 | Streuung | `TALENT_STREUUNG = 6` um die Vereinsbasis; `randNormal` liefert echte sd 1 |
+| Eigene Basis | der gewählte Verein generiert mit `EIGENE_VEREINSBASIS = 45`; die schwächeren Vereine rücken je eine Stufe nach oben, die Werteleiter bleibt dieselbe |
 | Mindestrating | gibt es nicht (nur die 1 als technische Untergrenze) |
 | Alterskurve | 0,68 (18) → 1,00 (27) → 0,90 (33) → 0,711 (40) → Zerfall ×0,94/Jahr, kein Boden |
 | Veteranen | 1–2 je Verein, 75 % 45–55, 25 % 56–65, auf OL/DL, mit eigenem `ruecktrittAlter` |

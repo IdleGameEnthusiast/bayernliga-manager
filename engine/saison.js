@@ -4,7 +4,7 @@
  * Docs: docs/spec/02-core-loop.md, docs/spec/03-state-contract.md
  */
 
-import { SEASON_START_YEAR, ZUSATZ_SPIELER, makeRng } from './constants.js';
+import { SEASON_START_YEAR, ZUSATZ_SPIELER, EIGENE_VEREINSBASIS, makeRng } from './constants.js';
 import { TEAMS } from './content.js';
 import { macheKader, saisonWechsel, resetSpielerIds } from './spieler.js';
 import { macheSpielplan, anzahlSpieltage, partienAmSpieltag } from './spielplan.js';
@@ -27,6 +27,26 @@ export const SAVE_VERSION = 2;
  */
 
 /**
+ * The baseline every club's Kader is drawn around, once a club has been picked.
+ * The player's own club falls to EIGENE_VEREINSBASIS; the ladder of strengths
+ * stays exactly as the catalogue has it, so every club that stood below the
+ * pick moves up one rung. Only the generator reads this — a match is decided by
+ * the players on the field, never by the club's number.
+ * @param {string} meinTeam
+ * @returns {Record<string, number>} club id -> baseline
+ */
+export function vereinsBasen(meinTeam) {
+  const leiter = TEAMS.map((t) => t.staerke).sort((a, b) => b - a);
+  const andere = TEAMS.filter((t) => t.id !== meinTeam).sort((a, b) => b.staerke - a.staerke);
+
+  /** @type {Record<string, number>} */
+  const basen = {};
+  andere.forEach((t, i) => { basen[t.id] = leiter[i]; });
+  basen[meinTeam] = EIGENE_VEREINSBASIS;
+  return basen;
+}
+
+/**
  * A fresh career.
  * @param {string} meinTeam
  * @param {string} [seed]
@@ -39,9 +59,10 @@ export function neuesSpiel(meinTeam, seed) {
 
   /** @type {Record<string, import('./spieler.js').Spieler[]>} */
   const kader = {};
+  const basen = vereinsBasen(meinTeam);
   // Der eigene Verein startet mit dem nackten Kader, alle anderen mit Reserve.
   for (const t of TEAMS) {
-    kader[t.id] = macheKader(rng, t.staerke, t.id === meinTeam ? 0 : ZUSATZ_SPIELER);
+    kader[t.id] = macheKader(rng, basen[t.id], t.id === meinTeam ? 0 : ZUSATZ_SPIELER);
   }
 
   return {
@@ -138,8 +159,9 @@ export function naechsteSaison(stand) {
   /** @type {import('./spieler.js').Spieler[]} */
   const alleRuecktritte = [];
 
+  const basen = vereinsBasen(stand.meinTeam);
   for (const t of TEAMS) {
-    const { kader, ruecktritte } = saisonWechsel(rng, stand.kader[t.id], t.staerke);
+    const { kader, ruecktritte } = saisonWechsel(rng, stand.kader[t.id], basen[t.id]);
     stand.kader[t.id] = kader;
     if (t.id === stand.meinTeam) alleRuecktritte.push(...ruecktritte);
   }
