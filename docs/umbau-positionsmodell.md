@@ -609,7 +609,7 @@ Zwei Dinge, die beim Bauen entschieden werden mussten:
   Nur so ist der 95-Kilo-Tackle wirklich beweglich und schwach statt nur „leicht für
   einen Tackle".
 
-### Inkrement 3 — Positionsformeln
+### Inkrement 3 — Positionsformeln ✅ fertig
 Neu: `engine/positionen.js`. Tests.
 
 Die Tabellen aus Abschnitt 3 als Daten, dazu `eignung(spieler, platz, art)` mit dem
@@ -617,6 +617,34 @@ Technik-Transfer **und** dem Körpermalus aus Abschnitt 4. Fertig, wenn ein TE a
 messbar besser ist als ein WR auf `T`, ein CB die Seite kostenlos wechselt und die
 Kosten der Umstellung ungefähr die Tabelle aus Abschnitt 4 treffen — die ist der
 Sollwert.
+
+Gemessen an einem Musterspieler je Position — kein Rauschen, Körper in der
+Korridormitte, Stärke 50:
+
+| Stufe | Wechsel | gemessen | Soll | Spanne | Soll |
+| --- | --- | --- | --- | --- | --- |
+| Innerhalb der Gruppe | 32 | 14,5 % | 13,5 % | 1 – 34 % | 2 – 26 % |
+| Andere Gruppe, gleiche Einheit | 112 | 29,7 % | 26,5 % | 3 – 54 % | 4 – 44 % |
+| Über die Einheiten hinweg | 162 | 39,6 % | 35,6 % | 22 – 60 % | 21 – 51 % |
+| **Alle 306 Wechsel** | | **33,4 %** | **29,9 %** | | |
+
+Die Form stimmt, das Niveau läuft rund drei Punkte heiß. Die Körperkopplung aus
+Inkrement 2 erklärt davon nur 0,7 Punkte — der Rest kommt daher, dass das Modell
+hinter der Tabelle den Spieler etwas weniger scharf auf sein Profil gezogen hat, als
+`PROFIL_SPEZIALISIERUNG` es jetzt tut. Bewusst so gelassen: die drei Eigenschaften,
+die das Modell haben soll, hat es nachweisbar.
+
+- Unsymmetrisch: `TE → T` kostet 10,5 %, `T → TE` 28,9 % — ein Tight End kann Tackle
+  spielen, ein Tackle keinen Tight End.
+- Der Quarterback ist eine Insel: seine billigste Alternative kostet 23,6 %, und
+  niemand kommt unter 18 % zu ihm.
+- Innerhalb der Gruppe trägt die Technik den Preis; Profil und Körper wirken erst
+  über größere Distanzen.
+
+Die Seiten hängen ab hier am Spieler: wo eine Position zwei davon hat, ist er auf
+einer ausgebildet, und der Grundkader bildet abwechselnd links und rechts aus. Dass
+ein Verein keinen Right Tackle hat, soll aus Verletzungen kommen und nicht aus der
+Ziehung.
 
 ### Inkrement 4 — Aufstellung
 Neu: `engine/aufstellung.js`. `engine/team.js` wird umgebaut. Tests.
@@ -670,6 +698,10 @@ unbemerkt.
    Umstellungskosten von 24 auf 30 %, innerhalb einer Gruppe von 9 auf 13 %. Zusammen
    mit dem harten Doppeleinsatz-Preis wird ein 30-Mann-Kader sehr spröde. Der Deckel von
    20 % ist der schonendere Hebel, falls es zu viel ist — nach Inkrement 4 messbar.
+
+   *Nach Inkrement 3 gemessen:* 33,4 % statt der veranschlagten 29,9 %, also noch
+   einmal drei Punkte härter als geplant. Die Frage ist damit offen und dringend, aber
+   erst zu beantworten, wenn die Aufstellung zeigt, wie oft überhaupt umgestellt wird.
 3. **Passanteile je Gruppierung** (Abschnitt 6) sind ein Vorschlag, keine Entscheidung.
 4. **Verletzungsrate.** `INJURY_CHANCE_PER_GAME` = 0,055 steht seit der Verkürzung auf
    12 Spieltage offen. Der harte Doppeleinsatz-Multiplikator macht die Frage dringender.

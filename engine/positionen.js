@@ -9,7 +9,7 @@
  * Docs: docs/umbau-positionsmodell.md, Abschnitte 2 und 3
  */
 
-import { ATTRIBUTE } from './constants.js';
+import { ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE } from './constants.js';
 
 /**
  * Größe (cm) und Gewicht (kg), in denen eine Position normalerweise steckt.
@@ -217,4 +217,149 @@ export function bewerte(werte, anteile) {
   let summe = 0;
   for (const attribut in anteile) summe += (werte[attribut] || 0) * anteile[attribut];
   return summe;
+}
+
+// --- Plätze ----------------------------------------------------------------
+// Docs: docs/umbau-positionsmodell.md, Abschnitte 1 und 5
+
+/**
+ * Die Plätze, die eine Aufstellung kennt. Links und rechts sind Plätze, keine
+ * Positionen: der Katalog kennt `T`, die Formation kennt `LT` und `RT`.
+ * @type {Record<string, { position: string, seite?: 'L'|'R' }>}
+ */
+export const PLAETZE = {
+  QB: { position: 'QB' },
+  RB: { position: 'RB' },
+  FB: { position: 'FB' },
+  WR: { position: 'WR' },
+  SL: { position: 'SL' },
+  TE: { position: 'TE' },
+  LT: { position: 'T', seite: 'L' },
+  RT: { position: 'T', seite: 'R' },
+  LG: { position: 'G', seite: 'L' },
+  RG: { position: 'G', seite: 'R' },
+  C: { position: 'C' },
+  LDE: { position: 'DE', seite: 'L' },
+  RDE: { position: 'DE', seite: 'R' },
+  DT: { position: 'DT' },
+  NT: { position: 'NT' },
+  MLB: { position: 'MLB' },
+  SAM: { position: 'SAM' },
+  WILL: { position: 'WILL' },
+  LCB: { position: 'CB', seite: 'L' },
+  RCB: { position: 'CB', seite: 'R' },
+  FS: { position: 'FS' },
+  SS: { position: 'SS' },
+};
+
+/**
+ * Die Positionen, auf denen ein Spieler auf einer Seite ausgebildet wird.
+ * Für alle anderen ist die Seite keine Größe.
+ */
+export const SEITEN_POSITIONEN = /** @type {const} */ (['T', 'G', 'DE', 'CB', 'WR']);
+
+/**
+ * Was ein Seitenwechsel von der Technik übrig lässt. Bewusst positionsabhängig:
+ * außen in der Line ist die Seite Gewöhnungssache, in der Secondary nicht.
+ * @type {Record<string, number>}
+ */
+export const SEITENWECHSEL = {
+  CB: 1.00,   // die beiden Seiten sind gleich
+  WR: 1.00,
+  DE: 0.98,
+  G: 0.92,
+  T: 0.90,
+};
+
+/**
+ * Die Stufenleiter des Technik-Transfers: was ein Spieler von seinem Handwerk
+ * mitnimmt, wenn er woanders steht.
+ */
+export const TRANSFER_GRUPPE = 0.70;    // Nachbarposition derselben Gruppe
+export const TRANSFER_EINHEIT = 0.45;   // andere Gruppe derselben Einheit
+export const TRANSFER_FREMD = 0.25;     // andere Einheit, Offense gegen Defense
+
+/** Körpermalus: je Kilo Abstand der Korridormitten, gedeckelt. */
+export const KOERPERMALUS_JE_KILO = 0.004;
+export const KOERPERMALUS_DECKEL = 0.20;
+
+/**
+ * Was ein Spieler von seiner Technik behält, wenn er auf `platz` spielt.
+ *
+ * `technik` hängt am Platz, auf dem er ausgebildet wurde. Der Umstellungs-
+ * abschlag entsteht damit aus dem Modell selbst — es braucht keine Strafe von
+ * außen. Wo die Formation keine Seiten unterscheidet, kostet die Seite nichts.
+ * @param {{ position: string, seite?: 'L'|'R'|null }} spieler
+ * @param {string} platz Schlüssel aus PLAETZE
+ */
+export function technikTransfer(spieler, platz) {
+  const ziel = PLAETZE[platz];
+  if (!ziel) throw new Error(`Unbekannter Platz: ${platz}`);
+
+  if (spieler.position === ziel.position) {
+    const gleicheSeite = !spieler.seite || !ziel.seite || spieler.seite === ziel.seite;
+    return gleicheSeite ? 1 : (SEITENWECHSEL[ziel.position] ?? 1);
+  }
+  const gruppeA = GRUPPE_JE_POSITION[spieler.position];
+  const gruppeB = GRUPPE_JE_POSITION[ziel.position];
+  if (gruppeA === gruppeB) return TRANSFER_GRUPPE;
+  if (EINHEIT_JE_GRUPPE[gruppeA] === EINHEIT_JE_GRUPPE[gruppeB]) return TRANSFER_EINHEIT;
+  return TRANSFER_FREMD;
+}
+
+/**
+ * Der zweite Abschlag: die Technik allein reicht nicht. Ein 137-Kilo-Mann kann
+ * keinen Cornerback spielen, auch wenn sein Tackling stimmt. Gerechnet wird
+ * über den Abstand der beiden Korridormitten — damit fallen die groben
+ * Körperbänder der Liga von selbst an, ohne dass sie gepflegt werden müssten.
+ * @param {string} vonPosition
+ * @param {string} nachPosition
+ */
+export function koerperMalus(vonPosition, nachPosition) {
+  const abstand = Math.abs(korridorMitte(vonPosition) - korridorMitte(nachPosition));
+  return Math.min(KOERPERMALUS_DECKEL, abstand * KOERPERMALUS_JE_KILO);
+}
+
+/**
+ * Was ein Spieler auf einem Platz wert ist, im Lauf- oder im Passspiel.
+ *
+ * Drei Teile stecken darin. Der **Profil-Mismatch** fällt aus der Rechnung
+ * selbst: gewertet wird mit der Formel der Zielposition, und wer die falschen
+ * Werte mitbringt, verliert dort. Dazu kommen der **Technikverlust** über den
+ * Transfer und der **Körpermalus** über den Gewichtsabstand.
+ *
+ * Es zählt der Technikanteil der Zielposition, nicht der Ausgangsposition —
+ * dem Spieler fehlt das Handwerk des Platzes, auf dem er steht.
+ * @param {{ position: string, seite?: 'L'|'R'|null, attribute: Record<string, number> }} spieler
+ * @param {string} platz Schlüssel aus PLAETZE
+ * @param {'pass'|'lauf'} art
+ */
+export function eignung(spieler, platz, art) {
+  const ziel = PLAETZE[platz];
+  const werte = { ...spieler.attribute };
+  werte.technik = werte.technik * technikTransfer(spieler, platz);
+
+  const roh = bewerte(werte, formelAnteile(ziel.position, art));
+  return roh * (1 - koerperMalus(spieler.position, ziel.position));
+}
+
+/**
+ * Eine der beiden Formeln als Anteile, die auf 1 summieren.
+ * @param {string} position
+ * @param {'pass'|'lauf'} art
+ */
+export function formelAnteile(position, art) {
+  return gemischteFormel(position, art === 'pass' ? 1 : 0);
+}
+
+/**
+ * Die Eignung, nach dem Passanteil eines Vereins gemischt. Das ist die Zahl,
+ * nach der eine Aufstellung entscheidet.
+ * @param {{ position: string, seite?: 'L'|'R'|null, attribute: Record<string, number> }} spieler
+ * @param {string} platz
+ * @param {number} passAnteil 0..1
+ */
+export function eignungGemischt(spieler, platz, passAnteil) {
+  return eignung(spieler, platz, 'pass') * passAnteil
+    + eignung(spieler, platz, 'lauf') * (1 - passAnteil);
 }

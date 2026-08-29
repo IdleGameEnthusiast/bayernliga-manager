@@ -231,13 +231,19 @@ test('fünf bis neun einstellige Nummern gehen an die Besten', () => {
     assert.ok(einstellig.length >= 5 && einstellig.length <= 9,
       `${seed}: ${einstellig.length} einstellige Nummern`);
 
-    // Alle stammen aus den zwölf stärksten Nicht-Linemen.
-    const zwoelf = new Set(kader
+    // Alle stammen aus den zwölf stärksten Nicht-Linemen. Geprüft wird über
+    // die Stärke des Zwölften, nicht über die Namensliste: stehen mehrere auf
+    // demselben Wert, ist die Auswahl unter ihnen frei.
+    const nichtLine = kader
       .filter((s) => !POSITION_GRUPPEN.lineOffense.includes(s.position))
-      .sort((a, b) => b.staerke - a.staerke)
-      .slice(0, 12)
-      .map((s) => s.id));
-    for (const s of einstellig) assert.ok(zwoelf.has(s.id), `${seed}: ${s.nachname}`);
+      .sort((a, b) => b.staerke - a.staerke);
+    const schwelle = nichtLine[11].staerke;
+    for (const s of einstellig) {
+      assert.ok(!POSITION_GRUPPEN.lineOffense.includes(s.position),
+        `${seed}: ${s.position} ${s.nachname}`);
+      assert.ok(s.staerke >= schwelle,
+        `${seed}: ${s.nachname} hat ${s.staerke}, der Zwölfte ${schwelle}`);
+    }
   }
 });
 

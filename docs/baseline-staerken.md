@@ -78,3 +78,26 @@ Verein kippt aus dem Rahmen. Der eigene Verein steht diesmal im Mittelfeld
 statt am Ende — das ist der Zufall der Ziehung, nicht der Umbau: seine Basis
 ist unverändert die niedrigste, er hat nur fünf Mann weniger und diesmal
 brauchbare Ziehungen.
+
+## Nach Inkrement 3 — Positionsformeln
+
+| Verein | Kader | Gesamt | angriff | verteidigung | special |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| ASS Aschaffenburg Stallions | 35 | 61 | 63.1 | 60.6 | 46.4 |
+| GC Gendorf Crusaders | 35 | 55 | 52.5 | 56.6 | 61.2 |
+| KBA Königsbrunn Ants | 35 | 55 | 57.8 | 56.8 | 32.9 |
+| ERS Erlangen Sharks | 35 | 54 | 58.9 | 54.3 | 28.8 |
+| STA Starnberg Argonauts | 35 | 54 | 56.1 | 52.5 | 55.5 |
+| HR Herzo Rhinos | 35 | 52 | 50.9 | 51.7 | 58.7 |
+| FEL Feldkirchen Lions | 35 | 50 | 50.6 | 52.9 | 31.4 |
+| BTC Bad Tölz Capricorns | 35 | 48 | 49.0 | 43.7 | 63.7 |
+| MR München Rangers | 35 | 47 | 45.7 | 46.4 | 63.2 |
+| HEG Hemhofen Gechers | 30 | 45 | 45.5 | 43.5 | 51.5 |
+| PP Passau Pirates | 35 | 45 | 45.7 | 41.2 | 58.7 |
+| FKK Franken Knights | 35 | 44 | 44.9 | 42.7 | 52.4 |
+
+Die Eignung wirkt auf die Simulation noch nicht — `teamStaerken()` liest weiter
+nur `staerke`. Verschoben hat sich die Liga trotzdem, weil die ausgebildete
+Seite eine Zufallszahl je Spieler kostet und alles dahinter mitwandert. Ab
+Inkrement 4 hört das auf: dann rechnet die Aufstellung, und ein Unterschied in
+dieser Tabelle bedeutet endlich etwas.

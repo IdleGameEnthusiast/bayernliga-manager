@@ -18,7 +18,9 @@ import {
   GROESSE_MIN, GROESSE_MAX, GEWICHT_MIN, GEWICHT_MAX,
   POSITIONS, POSITION_GRUPPEN, clamp, randInt, pick, pickWeighted, randNormal, shuffle,
 } from './constants.js';
-import { KOERPER_KORRIDOR, generierungsProfil, bewerte } from './positionen.js';
+import {
+  KOERPER_KORRIDOR, SEITEN_POSITIONEN, generierungsProfil, bewerte,
+} from './positionen.js';
 import { VORNAMEN, NACHNAMEN } from './content.js';
 
 /**
@@ -27,6 +29,7 @@ import { VORNAMEN, NACHNAMEN } from './content.js';
  * @property {string} vorname
  * @property {string} nachname
  * @property {import('./constants.js').Position} position
+ * @property {'L'|'R'|null} seite     The side he was trained on, where a position has two
  * @property {number} nummer          Trikotnummer; OHNE_NUMMER until one is handed out
  * @property {number} alter
  * @property {number} staerke         Current overall, never above LIGA_MAX_STAERKE
@@ -291,7 +294,7 @@ function ziehName(rng, belegt) {
  * @param {() => number} rng
  * @param {import('./constants.js').Position} position
  * @param {number} teamStaerke 0..100 baseline of the club
- * @param {{ alter?: number, belegteNamen?: Set<string> }} [optionen]
+ * @param {{ alter?: number, belegteNamen?: Set<string>, seite?: 'L'|'R' }} [optionen]
  * @returns {Spieler}
  */
 export function macheSpieler(rng, position, teamStaerke, optionen) {
@@ -309,11 +312,19 @@ export function macheSpieler(rng, position, teamStaerke, optionen) {
   const staerke = berechneStaerke(talent, alter);
   const koerper = ziehKoerper(rng, position);
 
+  // Wo eine Position zwei Seiten hat, ist der Spieler auf einer davon
+  // ausgebildet. Die andere kostet ihn Technik — wie viel, entscheidet die
+  // Position: außen in der Line ist die Seite Gewöhnungssache, im Rest nicht.
+  const seite = SEITEN_POSITIONEN.includes(/** @type {any} */ (position))
+    ? ((optionen && optionen.seite) || (rng() < 0.5 ? 'L' : 'R'))
+    : null;
+
   return {
     id: 'p' + (++idCounter),
     vorname,
     nachname,
     position,
+    seite: /** @type {'L'|'R'|null} */ (seite),
     nummer: OHNE_NUMMER,
     alter,
     staerke,
@@ -385,7 +396,12 @@ export function macheKader(rng, teamStaerke, zusatz = 0) {
 
   for (const position of POSITIONS) {
     for (let i = 0; i < KADER_FORM[position]; i++) {
-      kader.push(macheSpieler(rng, position, teamStaerke, { belegteNamen }));
+      // Der Grundkader bildet abwechselnd links und rechts aus. Ein Verein,
+      // der zwei Tackles hat, hat einen für jede Seite — dass ihm einer fehlt,
+      // soll aus Verletzungen kommen und nicht aus der Ziehung.
+      kader.push(macheSpieler(rng, position, teamStaerke, {
+        belegteNamen, seite: i % 2 === 0 ? 'L' : 'R',
+      }));
     }
   }
   for (const position of zusatzPositionen(rng, zusatz)) {
@@ -456,7 +472,11 @@ export function vergebeNummern(rng, kader, neuVerteilen = false) {
 
   for (const s of kader) {
     if (s.nummer >= 0) continue;
-    const frei = zahlenIn(NUMMERN_BAND[s.position] || [[1, 99]], belegt);
+    // 0-9 sind vergeben oder bleiben frei: sie gehören den Besten und werden
+    // oben verteilt. Das QB-Band reicht bis 1 hinunter, der zweite Mann darf
+    // sich daraus trotzdem nicht bedienen.
+    const frei = zahlenIn(NUMMERN_BAND[s.position] || [[1, 99]], belegt)
+      .filter((n) => n > 9);
     if (frei.length === 0) {
       throw new Error(`Keine freie Trikotnummer für ${s.position} — die Kaderform passt nicht ins Nummernband`);
     }
