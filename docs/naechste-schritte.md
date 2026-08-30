@@ -245,6 +245,10 @@ Setzt auf 2 und 3 auf:
   Namen in der Aufstellung steht, was er *auf diesem Platz* wert ist (gemischt
   nach dem Passanteil, Doppeleinsatz abgezogen). Damit hat die Marke
   „umgestellt" endlich eine Zahl.
+- **Zwei Ebenen statt einer.** Der Roster zeigt Offense und Defense als je eine
+  Zahl (Lauf/Pass hälftig, ungeachtet der Taktik) plus Special Teams; die
+  Aufschlüsselung nach Lauf und Pass steht ausschließlich im Taktikreiter, wo
+  der Regler sie auch bewegt.
 - **Talent als Sterne** im Roster: eine Zehnerstufe ist ein halber Stern, unter
   10 bleibt es bei einem halben, ab 90 sind es fünf. Die rohe Zahl steht noch im
   Tooltip, und sortiert wird weiter numerisch.

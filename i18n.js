@@ -89,6 +89,8 @@ export const DE = {
     keineVerletzungen: 'Keine Verletzungen',
     verletztBis: (wochen) => `noch ${wochen} ${wochen === 1 ? 'Spieltag' : 'Spieltage'}`,
     einheiten: 'Mannschaftsteile',
+    angriff: 'Offense',
+    verteidigung: 'Defense',
     angriffPass: 'Offense Pass',
     angriffLauf: 'Offense Run',
     verteidigungPass: 'Defense Pass',

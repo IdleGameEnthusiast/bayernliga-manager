@@ -777,6 +777,13 @@ mit ihren fünf Skill-Plätzen, den Regler und darunter die vier Werte, die er b
 Die **Aufstellung** steht im Kader und nicht dort — sie ist das Ergebnis, nicht die
 Entscheidung, und zweimal dieselbe Karte hilft niemandem.
 
+Die vier Werte stehen **nur** in der Taktik. Der Kader zeigt darüber Offense und
+Defense als je *eine* Zahl, Lauf und Pass hälftig gemischt, ungeachtet der
+Ausrichtung (`angriffStaerke()` / `verteidigungStaerke()`). Der Roster soll sagen,
+was die Mannschaft ist; sonst hübschte der Regler ihn auf, ohne dass ein Spieler
+besser würde. Aufgeschlüsselt wird eine Ebene tiefer, dort, wo auch geschaltet
+wird. Special Teams bleibt im Kader — es hängt an keiner Ausrichtung.
+
 Die fünfzehn Attribute klappen unter der Kaderzeile auf, statt fünfzehn Spalten an
 eine Tabelle zu hängen, die schon acht hat. „Beim eigenen Kader offen, bei fremden nur
 die Gesamtstärke" ist dabei von selbst erfüllt: die Ansicht bekommt nie einen fremden

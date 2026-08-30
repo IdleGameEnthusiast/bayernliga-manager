@@ -3,7 +3,9 @@
 
 import { el, leere, tabelle as machTabelle, balken, sterne } from './dom.js';
 import { T } from '../i18n.js';
-import { teamStaerken, gesamtStaerke, verletzte } from '../engine/team.js';
+import {
+  teamStaerken, gesamtStaerke, angriffStaerke, verteidigungStaerke, verletzte,
+} from '../engine/team.js';
 import { istFit, talentSterne } from '../engine/spieler.js';
 import {
   LIGA_MAX_STAERKE, POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE,
@@ -53,12 +55,13 @@ export function zeigeKader(kader, spieltag, personnel, passAnteil) {
   const s = teamStaerken(kader, spieltag, personnel, passAnteil);
   const verletzt = verletzte(kader, spieltag);
 
+  // Drei Zahlen, nicht fünf. Der Roster sagt, was die Mannschaft ist — Lauf und
+  // Pass hälftig, ungeachtet der Ausrichtung. Wie sich die Taktik darauf
+  // auswirkt, steht aufgeschlüsselt im Taktikreiter und nur dort.
   const einheiten = el('div', { class: 'karte' },
     el('h2', { text: T.kader.einheiten }),
-    reihe(T.kader.angriffPass, s.passAngriff),
-    reihe(T.kader.angriffLauf, s.laufAngriff),
-    reihe(T.kader.verteidigungPass, s.passVerteidigung),
-    reihe(T.kader.verteidigungLauf, s.laufVerteidigung),
+    reihe(T.kader.angriff, angriffStaerke(s)),
+    reihe(T.kader.verteidigung, verteidigungStaerke(s)),
     reihe(T.kader.special, s.special),
     el('p', { class: 'klein', style: { margin: '10px 0 0' } },
       el('strong', { text: `${T.kader.gesamt}: ${gesamtStaerke(s)}` }),

@@ -104,6 +104,10 @@ function ausrichtungKarte(personnel, anteil, staerken, setze) {
  * Wer wo steht. Ein Umsteller ist markiert, ein Doppeleinsatz auch — beides
  * ist eine Nachricht an den Manager und nicht Dekoration.
  *
+ * Die Zeile endet rechtsbündig auf Position und Wert; die Marken stehen davor.
+ * So stehen die Zahlen aller zweiundzwanzig Zeilen untereinander, statt von
+ * einer Marke aus der Flucht geschoben zu werden.
+ *
  * Hinter jedem Namen steht, was er **auf diesem Platz** wert ist, nicht seine
  * gezogene Stärke. Erst damit lässt sich die Marke „umgestellt" beziffern —
  * und auch ein Mann auf seiner eigenen Position steht mal besser, mal
@@ -120,6 +124,10 @@ export function aufstellungKarte(a) {
     el('ul', { class: 'aufstellung' }, plaetze.map((p) => el('li', {},
       el('span', { class: 'platz', text: platzKuerzel(p.platz) }),
       el('span', { class: 'platz-name', text: name(p) }),
+      p.umgestellt ? el('span', { class: 'marke um', text: T.taktik.umgestellt }) : null,
+      p.doppel
+        ? el('span', { class: 'marke doppel', title: T.taktik.doppelHinweis, text: T.taktik.doppel })
+        : null,
       el('span', {
         class: 'platz-pos leise',
         text: p.spieler ? positionsKuerzel(p.spieler) : '',
@@ -128,11 +136,7 @@ export function aufstellungKarte(a) {
         class: 'platz-stk',
         title: T.taktik.platzStaerke(Math.round(p.staerke)),
         text: String(Math.round(p.staerke)),
-      }) : null,
-      p.umgestellt ? el('span', { class: 'marke um', text: T.taktik.umgestellt }) : null,
-      p.doppel
-        ? el('span', { class: 'marke doppel', title: T.taktik.doppelHinweis, text: T.taktik.doppel })
-        : null)));
+      }) : null)));
 
   return el('div', { class: 'karte' },
     el('h2', { text: T.taktik.aufstellung }),

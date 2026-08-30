@@ -119,12 +119,26 @@ export function teamStaerken(kader, spieltag, personnel = STANDARD_PERSONNEL, pa
     passVerteidigung,
     laufVerteidigung,
     special: k * 0.7 + p * 0.3,
-    // Übergangsfelder, bis die Simulation in Inkrement 5 beide Duelle selbst
-    // ausspielt. Danach fallen sie weg.
-    angriff: (passAngriff + laufAngriff) / 2,
-    verteidigung: (passVerteidigung + laufVerteidigung) / 2,
     aufstellung,
   };
+}
+
+/**
+ * Die Offense als **eine** Zahl: Lauf und Pass zu gleichen Teilen.
+ *
+ * Bewusst hälftig und nicht nach dem Passanteil des Vereins. Diese Zahl sagt,
+ * was die Mannschaft ist, nicht was der Manager gerade mit ihr vorhat — sonst
+ * hübschte der Regler den Roster auf, ohne dass ein Spieler besser würde. Was
+ * die Ausrichtung ausmacht, steht im Taktikreiter, und zwar aufgeschlüsselt.
+ * @param {Staerken} s
+ */
+export function angriffStaerke(s) {
+  return (s.passAngriff + s.laufAngriff) / 2;
+}
+
+/** Dasselbe für die Defense. @param {Staerken} s */
+export function verteidigungStaerke(s) {
+  return (s.passVerteidigung + s.laufVerteidigung) / 2;
 }
 
 /**
@@ -133,9 +147,8 @@ export function teamStaerken(kader, spieltag, personnel = STANDARD_PERSONNEL, pa
  * @param {Staerken} s
  */
 export function gesamtStaerke(s) {
-  const angriff = (s.passAngriff + s.laufAngriff) / 2;
-  const verteidigung = (s.passVerteidigung + s.laufVerteidigung) / 2;
-  return Math.round(angriff * 0.46 + verteidigung * 0.46 + s.special * 0.08);
+  return Math.round(
+    angriffStaerke(s) * 0.46 + verteidigungStaerke(s) * 0.46 + s.special * 0.08);
 }
 
 /**

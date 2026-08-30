@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 
 import { makeRng, ERSATZ_STAERKE, KICK_FUSS_AUSSCHLUSS } from '../engine/constants.js';
 import { macheKader, macheSpieler, ziehKickWerte, resetSpielerIds } from '../engine/spieler.js';
-import { teamStaerken, gesamtStaerke, kickerWert, punterWert, besterFuss } from '../engine/team.js';
+import {
+  teamStaerken, gesamtStaerke, angriffStaerke, verteidigungStaerke,
+  kickerWert, punterWert, besterFuss,
+} from '../engine/team.js';
 
 test('jeder Spieler bekommt beide Kickwerte', () => {
   resetSpielerIds();
@@ -103,4 +106,28 @@ test('macheSpieler zieht die Kickwerte reproduzierbar', () => {
   const b = macheSpieler(makeRng('s'), 'WR', 55);
   assert.equal(a.kickStaerke, b.kickStaerke);
   assert.equal(a.kickGenauigkeit, b.kickGenauigkeit);
+});
+
+test('Offense und Defense sind das hälftige Mittel aus Lauf und Pass', () => {
+  resetSpielerIds();
+  const kader = macheKader(makeRng('mittel'), 58, 5);
+  const s = teamStaerken(kader, 3, '11', 0.8);
+
+  assert.equal(angriffStaerke(s), (s.passAngriff + s.laufAngriff) / 2);
+  assert.equal(verteidigungStaerke(s), (s.passVerteidigung + s.laufVerteidigung) / 2);
+  assert.equal(gesamtStaerke(s), Math.round(
+    angriffStaerke(s) * 0.46 + verteidigungStaerke(s) * 0.46 + s.special * 0.08));
+});
+
+test('der Regler hübscht die Rosterzahl nicht auf', () => {
+  resetSpielerIds();
+  const kader = macheKader(makeRng('regler'), 58, 5);
+
+  // Derselbe Kader, dieselbe Gruppierung, nur der Passanteil ganz außen. Das
+  // hälftige Mittel darf davon höchstens durch die Aufstellung selbst wandern,
+  // nicht durch die Gewichtung — ein Regler macht keinen Spieler besser.
+  const werfend = teamStaerken(kader, 3, '11', 1);
+  const laufend = teamStaerken(kader, 3, '11', 0);
+  const abstand = Math.abs(angriffStaerke(werfend) - angriffStaerke(laufend));
+  assert.ok(abstand < 4, `Der Passanteil verschiebt die Offense um ${abstand.toFixed(1)}`);
 });
