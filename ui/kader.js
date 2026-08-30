@@ -23,7 +23,7 @@ import {
   LIGA_MAX_STAERKE, POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE,
 } from '../engine/constants.js';
 import { positionsKuerzel, hauptPosition, platzKuerzel } from '../engine/positionen.js';
-import { bestenFuer, wertAuf, vollstaendig } from '../engine/aufstellung.js';
+import { bestenFuer, bestePlaetze, wertAuf, vollstaendig } from '../engine/aufstellung.js';
 import { personnelVon, passAnteilVon, aufstellungVon } from '../engine/saison.js';
 import { aufstellungKarte, wechselLeiste } from './aufstellung.js';
 
@@ -196,7 +196,7 @@ export function zeigeKader(stand, entwurf, aktionen) {
       liste.flatMap((spieler, i) => [
         zeile(spieler, spieltag, male, trennerVor(liste, i),
           waehleSpieler, auswahl.spieler, starter.get(spieler.id)),
-        offeneWerte.has(spieler.id) ? werteZeile(spieler) : null,
+        offeneWerte.has(spieler.id) ? werteZeile(spieler, anteil) : null,
       ].filter(Boolean))));
   };
   male();
@@ -350,7 +350,7 @@ function zeile(sp, spieltag, male, trenner, waehle, gewaehlt, plaetze) {
         : null),
     el('td', { text: positionsKuerzel(sp) }),
     el('td', { class: 'leise', text: T.kader.koerperWert(sp.groesse, sp.gewicht) }),
-    el('td', { text: String(sp.alter) }),
+    el('td', { class: 'leise', text: T.kader.alterWert(sp.alter) }),
     el('td', { style: { fontWeight: '600' }, text: String(sp.staerke) }),
     el('td', {}, sterne(talentSterne(sp.talent), T.kader.talentTitel(sp.talent))),
     el('td', { class: fit ? 'leise' : 'verletzt' },
@@ -365,17 +365,39 @@ function zeile(sp, spieltag, male, trenner, waehle, gewaehlt, plaetze) {
 }
 
 /**
- * Die fünfzehn Werte eines Spielers, aufgeklappt unter seiner Zeile.
+ * Die fünfzehn Werte eines Spielers, aufgeklappt unter seiner Zeile — und
+ * darunter die fünf Plätze, auf denen er jetzt am meisten wert wäre.
+ *
+ * Die Attribute sagen, was er mitbringt; die fünf Plätze sagen, wozu das
+ * gerade taugt. Es ist dieselbe Zahl, die die Aufstellung hinter einem Namen
+ * zeigt, also mit der Ausrichtung gerechnet, die der Verein gerade fährt — die
+ * beiden Ansichten dürfen sich hier nicht widersprechen.
  * @param {import('../engine/spieler.js').Spieler} sp
+ * @param {number} anteil Der Passanteil des eigenen Vereins
  */
-function werteZeile(sp) {
+function werteZeile(sp, anteil) {
+  const heimat = positionsKuerzel(sp);
+
   return el('tr', { class: 'wertezeile' },
     el('td', { colspan: String(SPALTEN.length + 1) },
       el('div', { class: 'werte' },
         ATTRIBUTE.map((attribut) => el('div', { class: 'wert' },
           el('span', { class: 'klein leise', text: T.attribute[attribut] }),
           balken(sp.attribute[attribut], LIGA_MAX_STAERKE),
-          el('span', { class: 'klein', text: String(Math.round(sp.attribute[attribut])) }))))));
+          el('span', { class: 'klein', text: String(Math.round(sp.attribute[attribut])) })))),
+      el('div', { class: 'plaetze' },
+        el('span', { class: 'klein leise', text: T.kader.bestePositionen }),
+        bestePlaetze(sp, anteil).map((eintrag) => {
+          const wert = Math.round(eintrag.wert);
+          const heim = eintrag.kuerzel === heimat;
+          return el('span', {
+            class: heim ? 'platzwert heim' : 'platzwert',
+            title: T.kader.positionsWert(eintrag.kuerzel, wert)
+              + (heim ? ' — ' + T.kader.eigenePosition(eintrag.kuerzel) : ''),
+          },
+            el('b', { text: eintrag.kuerzel }),
+            el('span', { text: String(wert) }));
+        }))));
 }
 
 /** @param {string} beschriftung @param {number} wert */

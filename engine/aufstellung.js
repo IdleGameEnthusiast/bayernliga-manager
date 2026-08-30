@@ -16,7 +16,9 @@
 
 import { ERSATZ_STAERKE, clamp, interpoliere } from './constants.js';
 import { istFit } from './spieler.js';
-import { eignung, eignungGemischt, PLAETZE, hauptPosition } from './positionen.js';
+import {
+  eignung, eignungGemischt, PLAETZE, PLATZ_JE_KUERZEL, hauptPosition,
+} from './positionen.js';
 
 // --- Formationen -----------------------------------------------------------
 
@@ -726,6 +728,30 @@ export function setzePlatz(vorgabe, schluessel, spielerId) {
  */
 export function wertAuf(spieler, platz, passAnteil) {
   return eignungGemischt(spieler, platz, bewertungsAnteil(platz, passAnteil));
+}
+
+/**
+ * Die Plätze, auf denen er jetzt am meisten wert wäre — absteigend, die besten
+ * `anzahl`.
+ *
+ * Die Gegenfrage zu `bestenFuer()`: nicht „wer ist hier der Beste", sondern
+ * „wo ist er der Beste". Gerechnet wird mit derselben Zahl, die die Aufstellung
+ * hinter einem Namen zeigt — also mit der Ausrichtung, die der Verein gerade
+ * fährt, und ohne Doppeleinsatz.
+ *
+ * Ein Platz je Kürzel: `CB1` und `CB2` sind derselbe Platz und stünden sonst
+ * zweimal in der Liste. `LT` und `RT` bleiben zwei, denn der Seitenwechsel
+ * kostet.
+ * @param {import('./spieler.js').Spieler} spieler
+ * @param {number} passAnteil
+ * @param {number} [anzahl]
+ * @returns {{ kuerzel: string, platz: string, wert: number }[]}
+ */
+export function bestePlaetze(spieler, passAnteil, anzahl = 5) {
+  return Object.entries(PLATZ_JE_KUERZEL)
+    .map(([kuerzel, platz]) => ({ kuerzel, platz, wert: wertAuf(spieler, platz, passAnteil) }))
+    .sort((a, b) => b.wert - a.wert)
+    .slice(0, anzahl);
 }
 
 /**

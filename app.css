@@ -522,6 +522,23 @@ tr.wertezeile td { padding: 0 8px 12px; text-align: left; white-space: normal; }
 .wert .spur i { display: block; height: 100%; background: var(--akzent); }
 .wert span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 
+/* Die fünf Plätze, auf denen er jetzt am meisten wert wäre. Marken statt
+   Balken: es sind fünf Zahlen im Vergleich zueinander, keine Skala. */
+.plaetze { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.plaetze > span.klein { margin-right: 2px; }
+.platzwert {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 2px 8px;
+  background: var(--bg-erhoben);
+  border: 1px solid var(--rand); border-radius: 999px;
+  font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.platzwert b { font-weight: 700; }
+.platzwert span { color: var(--text-leise); }
+/* Sein eigener Platz, damit sichtbar wird, ob er überhaupt darunter steht. */
+.platzwert.heim { border-color: var(--akzent); }
+.platzwert.heim b { color: var(--akzent-hell); }
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }

@@ -7,14 +7,15 @@ import {
   macheKader, macheSpieler, resetSpielerIds, setzeStaerke, spieleEinsatz, verfalleEinsaetze,
 } from '../engine/spieler.js';
 import {
-  PLAETZE, hauptPlatz, hauptPosition, einsaetzeAuf, EINGESPIELT_VOLL,
+  PLAETZE, hauptPlatz, hauptPosition, positionsKuerzel, platzKuerzel, einsaetzeAuf,
+  EINGESPIELT_VOLL,
 } from '../engine/positionen.js';
 import {
   PERSONNEL, PERSONNEL_REIHE, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
   BLOCK_GEWICHT, PLATZ_ANTEIL, SKILL_LEITER, SKILL_ROLLE, SKILL_NORM,
   stelleAuf, skillAnteile, doppelAbzug, doppelRisiko, doppelEinsaetze, umstellungen,
-  platzStaerke, alsVorgabe, setzePlatz, bestenFuer, wertAuf, vollstaendig, leereVorgabe,
-  entferneSpieler,
+  platzStaerke, alsVorgabe, setzePlatz, bestenFuer, bestePlaetze, wertAuf, vollstaendig,
+  leereVorgabe, entferneSpieler,
 } from '../engine/aufstellung.js';
 import { teamStaerken } from '../engine/team.js';
 
@@ -535,6 +536,34 @@ test('wertAuf ist dieselbe Zahl wie die der Aufstellung, nur für jeden Platz', 
   const mann = k[0];
   assert.equal(wertAuf(mann, 'CB1', 0.9), wertAuf(mann, 'CB1', 0.1));
   assert.notEqual(wertAuf(mann, 'WR', 0.9), wertAuf(mann, 'WR', 0.1));
+});
+
+test('bestePlaetze zeigt, wo ein Mann jetzt am meisten wert wäre', () => {
+  const k = kader('bestepl');
+  const mann = k[0];
+  const liste = bestePlaetze(mann, 0.6);
+
+  assert.equal(liste.length, 5);
+  assert.equal(bestePlaetze(mann, 0.6, 3).length, 3, 'die Anzahl ist einstellbar');
+
+  // Absteigend, mit genau der Zahl, die auch die Aufstellung zeigt.
+  for (let i = 0; i < liste.length; i++) {
+    assert.equal(liste[i].wert, wertAuf(mann, liste[i].platz, 0.6), liste[i].kuerzel);
+    if (i > 0) assert.ok(liste[i - 1].wert >= liste[i].wert, 'absteigend');
+  }
+
+  // Ein Platz je Kürzel: CB1 und CB2 sind derselbe Platz und stünden sonst
+  // zweimal darin.
+  const kuerzel = liste.map((e) => e.kuerzel);
+  assert.equal(new Set(kuerzel).size, kuerzel.length);
+  for (const e of liste) assert.equal(platzKuerzel(e.platz), e.kuerzel);
+
+  // Sein eigener Platz steht bei jedem im Kader darunter — auf dem ist er seine
+  // Stärke wert, anderswo zahlt er Transfer und Körperabstand.
+  for (const s of k) {
+    assert.ok(bestePlaetze(s, 0.6).some((e) => e.kuerzel === positionsKuerzel(s)),
+      `${positionsKuerzel(s)} fehlt in seinen eigenen fünf Besten`);
+  }
 });
 
 // --- Der ausdrücklich freie Platz ------------------------------------------

@@ -98,7 +98,8 @@ Der Fahrplan mit allen gefallenen Entscheidungen steht in
 
 Gespielt werden kann: Verein wählen, die Ansprache zum Amtsantritt, Spieltage
 simulieren, zwei Gruppentabellen, Kader mit Depth Chart, sortierbaren Spalten
-und Verletzungen, Taktik mit Personnel und Ausrichtung, **die Aufstellung von
+und Verletzungen — aufgeklappt zeigt eine Zeile die fünfzehn Attribute und die
+fünf Plätze, auf denen der Mann gerade am meisten wert wäre —, Taktik mit Personnel und Ausrichtung, **die Aufstellung von
 Hand** — Platz antippen und aus den fünf Besten wählen, oder einen Spieler
 antippen und sehen, was er auf jedem der zweiundzwanzig Plätze brächte; die
 Elf lässt sich auch ganz leeren und von Grund auf bauen, gespeichert wird sie

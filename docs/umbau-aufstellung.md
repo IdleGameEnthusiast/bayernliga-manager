@@ -137,6 +137,16 @@ Knopf am Zeilenende bekommen. Zwei Bedeutungen auf derselben Fläche gehen nicht
 auf; Aufstellen ist die Handlung dieser Ansicht, Werte nachsehen die
 Nebensache.
 
+Aufgeklappt stehen unter den fünfzehn Attributen die **fünf Plätze, auf denen
+er jetzt am meisten wert wäre** — `bestePlaetze()`, die Gegenfrage zu
+`bestenFuer()`: nicht „wer ist hier der Beste", sondern *wo ist er der Beste*.
+Gerechnet wird mit derselben Zahl, die die Aufstellung hinter einem Namen
+zeigt, also mit der Ausrichtung, die der Verein gerade fährt und ohne
+Doppeleinsatz; die beiden Ansichten dürfen sich hier nicht widersprechen. Ein
+Platz je Kürzel — `CB1` und `CB2` sind derselbe, `LT` und `RT` nicht, denn der
+Seitenwechsel kostet. Sein eigener Platz ist hervorgehoben: erst daran ist
+abzulesen, ob ein Mann überhaupt dort steht, wo er am meisten kann.
+
 Ein Knopf **Automatisch** wirft die Vorgabe weg. Er steht nur da, wenn es eine
 gibt — er *ist* das Vergessen, keine zweite Aufstellungslogik.
 
@@ -242,6 +252,7 @@ retten, nur etwas nachzutragen, und dafür ist die Migration da.
 | Schalter Starter | an als Standard; aus zeigt die fünf Besten, die noch nicht stehen — gefiltert wird der Kader, nicht die Regel |
 | Vorschau | im Zielmodus steht an jedem Platz die Zahl des Gewählten neben der des Manns, der dort steht |
 | Rosterzeile | wählt aus; die fünfzehn Werte bekommen einen eigenen Knopf am Zeilenende |
+| Beste Positionen | unter den Attributen die fünf stärksten Plätze des Manns, mit der aktuellen Ausrichtung gerechnet; sein eigener hervorgehoben |
 | Startermarke | grüner Balken plus Platzkürzel — die Frage ist, wer *nicht* steht |
 | Alter | steht in der Kandidatenliste neben dem Wert; die eine Zahl ist ohne die andere nur die halbe Auskunft |
 | Herausnehmen | der Platz wird frei, nicht nachbesetzt — sonst stellte die Automatik denselben Mann sofort wieder hin |
