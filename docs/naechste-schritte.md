@@ -249,10 +249,25 @@ Setzt auf 2 und 3 auf:
   Namen in der Aufstellung steht, was er *auf diesem Platz* wert ist (gemischt
   nach dem Passanteil, Doppeleinsatz abgezogen). Damit hat die Marke
   „umgestellt" endlich eine Zahl.
-- **Zwei Ebenen statt einer.** Der Roster zeigt Offense und Defense als je eine
+- ~~**Zwei Ebenen statt einer.** Der Roster zeigt Offense und Defense als je eine
   Zahl (Lauf/Pass hälftig, ungeachtet der Taktik) plus Special Teams; die
   Aufschlüsselung nach Lauf und Pass steht ausschließlich im Taktikreiter, wo
-  der Regler sie auch bewegt.
+  der Regler sie auch bewegt.~~ **Erledigt, aber der letzte Halbsatz war falsch.**
+  Der Regler bewegt die vier Werte *nicht*: er erreicht `teamStaerken()` nur über
+  die Platzvergabe in `stelleAuf()`, und in einem System mit festen Skill-Plätzen
+  — Double Wing, `RB · FB · FB · TE · TE` — sind das Zehntel. Von 20 % auf 100 %
+  gerechnet: `passAngriff` 43,1 → 44,4, gerundet also 43 → 44. Wer den Regler
+  ganz herumzog und auf die Balken sah, sah nichts und hielt die Ausrichtung für
+  nicht umgesetzt.
+
+  Was er wirklich bewegt, ist `vorteil()` — im selben Fall +3,0 → −28,0
+  Stärkepunkte, gut dreizehn Punkte im Endstand. Das stand nirgends. Der
+  Taktikreiter zeigt es jetzt: `vorteilTeile()` schlüsselt die Zahl in ihre vier
+  Summanden auf (Passduell, Laufduell, Einseitigkeit, Randband), gerechnet gegen
+  den **nächsten Gegner** — oder gegen den Ligaschnitt, wenn keiner mehr ansteht.
+  `bestesPassAnteil()` markiert dazu das rechnerische Optimum auf der Reglerskala.
+  Die vier Balken bleiben stehen, aber unter der ehrlichen Überschrift „Angriff
+  und Verteidigung" und mit dem Hinweis, dass sie sagen, was die Mannschaft *ist*.
 - **Talent als Sterne** im Roster: eine Zehnerstufe ist ein halber Stern, unter
   10 bleibt es bei einem halben, ab 90 sind es fünf. Die rohe Zahl steht noch im
   Tooltip, und sortiert wird weiter numerisch.

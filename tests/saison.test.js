@@ -10,9 +10,10 @@ import {
   gruppenSpieltage, losePersonnel, personnelVon, passAnteilVon, setzeTaktik,
   erlaubterPassAnteil, alsGegner, eigeneAufstellung, aufstellungVon,
   setzeAufstellung, automatischAufstellen, entwurfSetze, entwurfVon,
-  entwurfVollstaendig, entwurfLeeren,
+  entwurfVollstaendig, entwurfLeeren, naechstePartie, ligaSchnittVerteidigung,
 } from '../engine/saison.js';
 import { PERSONNEL } from '../engine/aufstellung.js';
+import { teamStaerken } from '../engine/team.js';
 import { partienDerRunde, sieger } from '../engine/spielplan.js';
 import { SAVE_VERSION } from '../engine/saison.js';
 import { migriere, exportiere, importiere } from '../engine/save.js';
@@ -399,6 +400,44 @@ test('alsGegner reicht die Ausrichtung an die Simulation weiter', () => {
   assert.equal(heg.personnel, '00');
   assert.equal(heg.passAnteil, 0.8);
   assert.equal(heg.kader, stand.kader.heg);
+});
+
+test('die nächste Partie ist die früheste ungespielte, nicht die erste im Array', () => {
+  // Der Spielplan liegt nach Gruppen und Hin-/Rückrunde im Array, nicht nach
+  // Spieltagen. Wer den ersten Treffer nimmt, bekommt irgendeine Partie.
+  const stand = neuesSpiel('heg', 'naechste');
+  const erste = naechstePartie(stand, 'heg');
+  assert.ok(erste);
+  assert.equal(erste.spieltag, 1);
+  assert.ok(erste.heim === 'heg' || erste.gast === 'heg');
+
+  spieleSpieltag(stand);
+  const zweite = naechstePartie(stand, 'heg');
+  assert.ok(zweite);
+  assert.equal(zweite.spieltag, 2);
+
+  // Nach dem letzten Spieltag steht keine mehr an — der Fall, für den es den
+  // Rückfall auf den Ligaschnitt gibt.
+  while (!saisonVorbei(stand)) spieleSpieltag(stand);
+  assert.equal(naechstePartie(stand, 'heg'), null);
+});
+
+test('der Ligaschnitt mittelt die Verteidigung aller anderen Vereine', () => {
+  const stand = neuesSpiel('heg', 'schnitt');
+  const schnitt = ligaSchnittVerteidigung(stand);
+  const andere = TEAMS.filter((t) => t.id !== 'heg');
+  const einzeln = andere.map((t) => alsGegner(stand, t.id));
+
+  assert.ok(Number.isFinite(schnitt.passVerteidigung));
+  assert.ok(Number.isFinite(schnitt.laufVerteidigung));
+  assert.equal(einzeln.length, TEAMS.length - 1, 'der eigene Verein zählt nicht mit');
+
+  // Ein Mittel liegt zwischen den Rändern dessen, was es mittelt.
+  const werte = andere.map((t) => teamStaerken(
+    stand.kader[t.id], stand.spieltag, personnelVon(stand, t.id), passAnteilVon(stand, t.id)));
+  const pass = werte.map((w) => w.passVerteidigung);
+  assert.ok(schnitt.passVerteidigung >= Math.min(...pass));
+  assert.ok(schnitt.passVerteidigung <= Math.max(...pass));
 });
 
 test('Export und Import nehmen die Taktik mit', () => {

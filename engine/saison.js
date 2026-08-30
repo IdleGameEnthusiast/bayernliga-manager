@@ -26,6 +26,7 @@ import {
   leereVorgabe, entferneSpieler,
 } from './aufstellung.js';
 import { berechneTabelle } from './tabelle.js';
+import { teamStaerken } from './team.js';
 
 export const SAVE_VERSION = 4;
 
@@ -284,6 +285,47 @@ export function alsGegner(stand, teamId) {
     passAnteil: passAnteilVon(stand, teamId),
     aufstellung: aufstellungVon(stand, teamId),
   };
+}
+
+/**
+ * Die nächste noch nicht gespielte Partie eines Vereins, oder null.
+ *
+ * Der Spielplan liegt **nicht** nach Spieltagen sortiert im Array — die Gruppen
+ * stehen hintereinander und die Rückrunde hinter der Hinrunde —, deshalb wird
+ * das Minimum gesucht statt der erste Treffer genommen. Ein Verein, der in den
+ * Playoffs nicht mehr vorkommt, hat keine nächste Partie; das ist kein Fehler,
+ * sondern der Grund für den Rückfall auf den Ligaschnitt.
+ * @param {SpielStand} stand
+ * @param {string} teamId
+ * @returns {import('./spielplan.js').Partie | null}
+ */
+export function naechstePartie(stand, teamId) {
+  const kommende = stand.spielplan.filter(
+    (p) => p.spieltag >= stand.spieltag && (p.heim === teamId || p.gast === teamId));
+  if (kommende.length === 0) return null;
+  return kommende.reduce((a, b) => (b.spieltag < a.spieltag ? b : a));
+}
+
+/**
+ * Die Verteidigung der Liga im Mittel — der Maßstab, wenn kein Gegner feststeht.
+ *
+ * Nur die beiden Verteidigungswerte, denn mehr liest `vorteil()` von der
+ * anderen Seite nicht. Ein gemittelter Angriff wäre eine Zahl ohne Gegenstück:
+ * gegen den Ligaschnitt spielt niemand, man vergleicht sich nur mit ihm.
+ * @param {SpielStand} stand
+ * @returns {import('./spiel.js').Verteidiger}
+ */
+export function ligaSchnittVerteidigung(stand) {
+  const andere = TEAMS.filter((t) => t.id !== stand.meinTeam);
+  let pass = 0;
+  let lauf = 0;
+  for (const t of andere) {
+    const s = teamStaerken(
+      stand.kader[t.id], stand.spieltag, personnelVon(stand, t.id), passAnteilVon(stand, t.id));
+    pass += s.passVerteidigung;
+    lauf += s.laufVerteidigung;
+  }
+  return { passVerteidigung: pass / andere.length, laufVerteidigung: lauf / andere.length };
 }
 
 /** The group stage, as the Spielplan is drawn at the start of a season. */

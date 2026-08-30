@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { makeRng, AUSGEWOGENHEIT, RATING_TO_POINTS } from '../engine/constants.js';
 import { macheKader, resetSpielerIds } from '../engine/spieler.js';
 import {
-  simuliereSpiel, baueScore, vorteil, angriffGemischt, passAnteilVon,
+  simuliereSpiel, baueScore, vorteil, vorteilTeile, bestesPassAnteil,
+  angriffGemischt, passAnteilVon,
 } from '../engine/spiel.js';
 import { teamStaerken, gesamtStaerke } from '../engine/team.js';
 import { PERSONNEL } from '../engine/aufstellung.js';
@@ -139,16 +140,14 @@ function werte(pa, la, pv, lv) {
   });
 }
 
-/** Der Passanteil, bei dem `vorteil()` sein Maximum hat. */
-function optimum(angriff, verteidigung, schritt = 0.002) {
-  let best = 0;
-  let bester = -Infinity;
-  for (let a = schritt; a < 1; a += schritt) {
-    const w = vorteil(angriff, verteidigung, a);
-    if (w > bester) { bester = w; best = a; }
-  }
-  return best;
-}
+/**
+ * Der Passanteil, bei dem `vorteil()` sein Maximum hat.
+ *
+ * Die Engine rechnet ihn selbst, seit die Taktikansicht ihn auf der
+ * Reglerskala markiert. Der Test benutzt genau den Weg, den das Spiel geht,
+ * statt einen zweiten daneben zu stellen, der still auseinanderlaufen könnte.
+ */
+const optimum = bestesPassAnteil;
 
 test('bei 50/50 mischt der Vorteil die beiden Duelle blank', () => {
   // Die Strafe für Einseitigkeit ist genau in der Mitte null. Dort und nur dort
@@ -270,6 +269,66 @@ test('ein Laufteam nutzt eine schwache Laufverteidigung', () => {
   const werfend = 0.95;
   const differenz = vorteil(angriff, loechrig, werfend) - vorteil(angriff, dicht, werfend);
   assert.ok(differenz < 2, `werfend macht es ${differenz} Punkte aus`);
+});
+
+test('die Aufschlüsselung ist derselbe Vorteil, nur einzeln', () => {
+  // `vorteil()` ist die Summe von `vorteilTeile()` und sonst nichts. Sobald das
+  // zwei Rechnungen wären, zeigte der Taktikreiter etwas anderes an, als die
+  // Simulation spielt — und niemand merkte es.
+  const angriff = werte(58, 44, 0, 0);
+  const gegner = werte(0, 0, 51, 49);
+  for (const a of [0, 0.02, 0.2, 0.5, 0.85, 1]) {
+    const t = vorteilTeile(angriff, gegner, a);
+    assert.equal(t.pass + t.lauf + t.einseitig + t.klippe, t.summe);
+    assert.equal(t.summe, vorteil(angriff, gegner, a));
+  }
+});
+
+test('die beiden Strafen sind nie positiv, und in der Mitte beide null', () => {
+  const angriff = werte(58, 44, 0, 0);
+  const gegner = werte(0, 0, 51, 49);
+  for (let a = 0; a <= 1.0001; a += 0.05) {
+    const t = vorteilTeile(angriff, gegner, Math.min(a, 1));
+    assert.ok(t.einseitig <= 0, `Einseitigkeit bei ${a.toFixed(2)}: ${t.einseitig}`);
+    assert.ok(t.klippe <= 0, `Klippe bei ${a.toFixed(2)}: ${t.klippe}`);
+  }
+  // Über den Betrag, weil die Entropie in der Mitte ein negatives Null liefert
+  // und `assert.equal` das von der positiven unterscheidet.
+  const mitte = vorteilTeile(angriff, gegner, 0.5);
+  assert.equal(Math.abs(mitte.einseitig), 0);
+  assert.equal(Math.abs(mitte.klippe), 0);
+});
+
+test('der Regler bewegt den Vorteil, auch wo er die Stärken nicht bewegt', () => {
+  // Der Grund, warum die Taktikansicht die Aufschlüsselung zeigt und nicht nur
+  // die vier Balken. Im Double Wing liegen die fünf Skill-Plätze fest, also
+  // erreicht der Passanteil die Stärkewerte nur noch über die Platzvergabe —
+  // gerundet steht dort dieselbe Zahl. Der Vorteil dagegen bricht weg.
+  resetSpielerIds();
+  const kader = macheKader(makeRng('ausrichtung-eigen'), 60);
+  const gegner = teamStaerken(macheKader(makeRng('ausrichtung-gegner'), 60), 5, '11', 0.5);
+  const bei = (/** @type {number} */ a) => teamStaerken(kader, 5, '32', a);
+
+  const spanne = Math.abs(bei(1).passAngriff - bei(0.2).passAngriff);
+  assert.ok(spanne < 3,
+    `die Stärken hängen doch am Regler (${spanne.toFixed(2)}) — dann darf die `
+    + 'Ansicht sie wieder als Wirkung zeigen');
+
+  const verloren = vorteil(bei(0.2), gegner, 0.2) - vorteil(bei(1), gegner, 1);
+  assert.ok(verloren > 20,
+    `100 % Pass aus Double Wing kostet nur ${verloren.toFixed(1)} Stärkepunkte`);
+});
+
+test('das Optimum weicht dem Randband aus, wo die Formel hineinliefe', () => {
+  // Der Grund fürs Abtasten. Bei absurd schiefem Kader liegt sigmoid(d/A) im
+  // Randband, und dort ist die geschlossene Form blind für die Klippe: sie
+  // nennte 0,25 %, wo 2,9 % dreizehn Stärkepunkte mehr bringen.
+  const gegner = werte(0, 0, 50, 50);
+  const angriff = werte(20, 80, 0, 0);
+  const formel = 1 / (1 + Math.exp(60 / AUSGEWOGENHEIT));
+  const gemessen = bestesPassAnteil(angriff, gegner);
+  assert.ok(vorteil(angriff, gegner, gemessen) > vorteil(angriff, gegner, formel) + 10,
+    'das Abtasten findet nichts Besseres als die Formel — dann kann es entfallen');
 });
 
 test('die Ausrichtung entscheidet im echten Spiel mit', () => {

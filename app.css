@@ -294,6 +294,33 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
 .reglerzeile input[type='range'] { width: 100%; height: var(--tap); accent-color: var(--akzent); }
 .reglerwert { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 
+/* Die Marke fürs rechnerische Optimum sitzt unter der Spur, nicht auf ihr:
+   auf ihr verdeckte der Daumen sie genau dann, wenn man dort steht. Sie heißt
+   `optimum` und nicht `marke` — die Klasse `.marke` ist weiter unten schon die
+   Pille hinter einem Spielernamen und brächte ihr Polster mit. */
+.reglerskala { margin: -8px 0 6px; }
+.skala { position: relative; height: 12px; }
+.skala .optimum {
+  position: absolute; top: 0;
+  width: 2px; height: 8px; margin-left: -1px; padding: 0;
+  background: var(--gruen); border-radius: 1px;
+}
+
+/* Die Aufschlüsselung des Vorteils. Nur die Summenzeile trägt die dritte
+   Spalte — die Beiträge einzeln in Punkte umzurechnen legte eine Genauigkeit
+   nahe, die sie nicht haben. */
+.duellreihe {
+  display: grid; grid-template-columns: 1fr 68px 84px;
+  gap: 10px; align-items: baseline; margin-bottom: 6px;
+}
+.duellwert { text-align: right; font-variant-numeric: tabular-nums; }
+.duellpunkte { text-align: right; font-variant-numeric: tabular-nums; }
+.duellreihe.summe {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--rand);
+}
+.duellreihe.summe .duellwert { font-weight: 700; }
+
 .elfen { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
 
 .aufstellung { list-style: none; margin: 6px 0 0; padding: 0; }

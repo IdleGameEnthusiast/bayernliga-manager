@@ -42,6 +42,24 @@ import { verfuegbar, kurzName } from './spieler.js';
  */
 
 /**
+ * Was `vorteil()` von den beiden Seiten wirklich liest. Absichtlich schmaler als
+ * `Staerken`: so darf die Taktikansicht auch einen gemittelten Ligagegner
+ * hineinreichen, der keine Aufstellung hat und keine haben kann.
+ * @typedef {{ passAngriff: number, laufAngriff: number }} Angreifer
+ */
+
+/** @typedef {{ passVerteidigung: number, laufVerteidigung: number }} Verteidiger */
+
+/**
+ * @typedef {object} VorteilTeile
+ * @property {number} pass       Passduell, schon mit dem Passanteil gewichtet
+ * @property {number} lauf       Laufduell, mit dem Gegenanteil gewichtet
+ * @property {number} einseitig  Strafe für Einseitigkeit, nie positiv
+ * @property {number} klippe     Einbruch im Randband, nie positiv
+ * @property {number} summe      Was `vorteil()` liefert
+ */
+
+/**
  * @typedef {object} Verletzung
  * @property {string} teamId
  * @property {string} spielerId
@@ -195,14 +213,64 @@ function klippe(passAnteil) {
  * und wo genau, sagt die `neigung` der Gruppierung: sie ist so kalibriert, dass
  * dort deren `passAnteil` herauskommt. Ein Empty-System will werfen, ein Double
  * Wing laufen, und beide zahlen für das Gegenteil.
- * @param {import('./team.js').Staerken} angriff
- * @param {import('./team.js').Staerken} verteidigung des Gegners
+ * Gerechnet wird er in `vorteilTeile()`; diese Funktion ist nur deren Summe.
+ * Die Taktikansicht zeigt die Teile einzeln, und zwei Rechenwege für dieselbe
+ * Zahl wären genau ein Weg zu viel.
+ * @param {Angreifer} angriff
+ * @param {Verteidiger} verteidigung des Gegners
  * @param {number} passAnteil des angreifenden Vereins
  */
 export function vorteil(angriff, verteidigung, passAnteil) {
-  return passAnteil * (angriff.passAngriff - verteidigung.passVerteidigung)
-    + (1 - passAnteil) * (angriff.laufAngriff - verteidigung.laufVerteidigung)
-    + einseitig(passAnteil) + klippe(passAnteil);
+  return vorteilTeile(angriff, verteidigung, passAnteil).summe;
+}
+
+/**
+ * Was `vorteil()` liefert, aufgeschlüsselt in seine vier Summanden.
+ *
+ * Das ist die Zahl, die der Regler wirklich bewegt. Die vier Stärkewerte einer
+ * Mannschaft tun es nicht — der Passanteil erreicht sie nur über die
+ * Platzvergabe in `stelleAuf()`, und das sind Zehntel. Wer im Taktikreiter nur
+ * die Balken sah, sah deshalb nichts, obwohl zwischen den Enden des Reglers gut
+ * dreißig Stärkepunkte liegen. Diese Aufschlüsselung ist die Antwort darauf.
+ * @param {Angreifer} angriff
+ * @param {Verteidiger} verteidigung des Gegners
+ * @param {number} passAnteil des angreifenden Vereins
+ * @returns {VorteilTeile}
+ */
+export function vorteilTeile(angriff, verteidigung, passAnteil) {
+  const pass = passAnteil * (angriff.passAngriff - verteidigung.passVerteidigung);
+  const lauf = (1 - passAnteil) * (angriff.laufAngriff - verteidigung.laufVerteidigung);
+  const schief = einseitig(passAnteil);
+  const rand = klippe(passAnteil);
+  return { pass, lauf, einseitig: schief, klippe: rand, summe: pass + lauf + schief + rand };
+}
+
+/**
+ * Der Passanteil, bei dem `vorteil()` gegen diese Verteidigung sein Maximum
+ * hat — das rechnerische Optimum, das der Taktikreiter auf der Reglerskala
+ * markiert.
+ *
+ * Geschlossen stünde es bei `sigmoid(d / AUSGEWOGENHEIT)`, und für jeden Kader,
+ * den diese Liga hervorbringt, steht es dort auch — `tests/spiel.test.js`
+ * rechnet beide Wege gegeneinander. Gesucht wird es trotzdem, denn die Formel
+ * kennt die Klippe nicht: läge das Maximum ausnahmsweise im Randband, nennte
+ * sie eine Zahl, die dort niemand spielen will. Ein Abtasten kann das nicht
+ * passieren, und teuer ist es bei tausend Auswertungen einer Handvoll
+ * Rechenschritte auch nicht.
+ * @param {Angreifer} angriff
+ * @param {Verteidiger} verteidigung des Gegners
+ * @param {number} [schritt] Feinheit des Rasters
+ */
+export function bestesPassAnteil(angriff, verteidigung, schritt = 0.001) {
+  const stufen = Math.round(1 / schritt);
+  let bester = 0.5;
+  let beste = -Infinity;
+  for (let i = 0; i <= stufen; i++) {
+    const a = i / stufen;
+    const w = vorteil(angriff, verteidigung, a);
+    if (w > beste) { beste = w; bester = a; }
+  }
+  return bester;
 }
 
 /**

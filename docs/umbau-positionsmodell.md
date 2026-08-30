@@ -667,6 +667,16 @@ was ohnehin daneben liegt.
 Was ein Ende kostet, hängt am Ende nur noch am Optimum selbst — `-AUSGEWOGENHEIT·ln(1-a*)`
 für 0 % und `-AUSGEWOGENHEIT·ln(a*)` für 100 %, plus `KLIPPE`.
 
+**`vorteilTeile()`** ist dieselbe Rechnung, nur einzeln ausgewiesen, und `vorteil()`
+ist seitdem nichts als ihre Summe — zwei Rechenwege für dieselbe Zahl wären genau
+einer zu viel. Die vier Summanden sind das, was die Taktikansicht zeigt.
+
+**`bestesPassAnteil()`** sucht `a*` durch Abtasten in Tausendstelschritten statt es
+zu formeln. Der Grund ist die Klippe: die geschlossene Form kennt sie nicht, und bei
+absurd schiefem Kader landete sie im Randband. Bei `20/80` gegen `50/50` nennt die
+Formel 0,25 %, wo 2,9 % dreizehn Stärkepunkte mehr bringen. Innerhalb des Bandes
+stimmen beide Wege überein — `tests/spiel.test.js` rechnet sie gegeneinander.
+
 Alles Übrige in `engine/spiel.js` — Rauschen, Grenzen, Verlängerung — bleibt
 unverändert. Special Teams bleiben eine Zahl aus `kickStaerke` und `kickGenauigkeit`.
 
@@ -817,6 +827,13 @@ passAnteil: Record<teamId, number>     // 0..1, Vorschlag aus personnel, vom Man
 - **Neue Ansicht „Taktik"** neben Kader, Spielplan und Tabelle: Auswahl der
   Personnel-Gruppierung, Regler für den Passanteil, daneben die Auswirkung auf Lauf-
   und Passstärke. Später kommt hier die Defense-Formation dazu.
+- **Was der Regler ausmacht.** Die vier Stärkewerte sind dafür der falsche Ort: der
+  Passanteil erreicht sie nur über die Platzvergabe, das sind Zehntel. Die Ansicht
+  zeigt deshalb `vorteilTeile()` gegen den nächsten Gegner — Passduell, Laufduell,
+  Einseitigkeit, Randband, Summe und daneben, was daraus an Punkten wird — und
+  markiert `bestesPassAnteil()` auf der Reglerskala. Steht kein Gegner mehr an,
+  tritt `ligaSchnittVerteidigung()` an seine Stelle. Alles davon rechnet schon beim
+  Ziehen neu, nicht erst beim Loslassen.
 - **Kaderscreen**: Lauf- und Passstärke statt einer Angriffszahl; die Aufstellung mit
   Platz, Spieler und Umstellungsmarkierung; Größe und Gewicht in der Kaderliste. Der
   Roster steht nach Positionen sortiert und trennt sie mit einer Linie — eine dünne
