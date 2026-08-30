@@ -238,6 +238,50 @@ test('ein v4-Stand mit alten Positionsnamen wird umgeschrieben', () => {
   ]);
 });
 
+test('ein v4-Stand ohne Einsätze bekommt ein leeres Konto', () => {
+  const stand = migriere({
+    version: 4, seed: 'alt', meinTeam: 'heg',
+    kader: { heg: [{ id: 'a', position: 'G', seite: 'L' }] },
+  });
+  assert.deepEqual(stand.kader.heg[0].einsaetze, {},
+    'leer ist die richtige Vergangenheit — der ausgebildete Platz zählt ohnehin');
+});
+
+test('ein Spieltag verbucht die Einsätze bei allen Vereinen', () => {
+  const stand = neuesSpiel(TEAMS[0].id, 'einsaetze');
+  const alle = () => TEAMS.flatMap((t) => stand.kader[t.id]);
+  assert.equal(alle().filter((s) => Object.keys(s.einsaetze).length > 0).length, 0,
+    'vor dem ersten Spieltag hat niemand einen Einsatz');
+
+  spieleSpieltag(stand);
+
+  const gespielt = alle().filter((s) => Object.keys(s.einsaetze).length > 0);
+  // Zweiundzwanzig Plätze mal zwölf Vereine, abzüglich der Doppeleinsätze.
+  assert.ok(gespielt.length > 200, `nur ${gespielt.length} Spieler mit Einsatz`);
+  for (const spieler of gespielt) {
+    for (const kuerzel in spieler.einsaetze) {
+      assert.ok(spieler.einsaetze[kuerzel] >= 1, `${kuerzel} steht auf ${spieler.einsaetze[kuerzel]}`);
+    }
+  }
+
+  // Jeder Verein war beteiligt, keiner geht leer aus.
+  for (const t of TEAMS) {
+    assert.ok(stand.kader[t.id].some((s) => Object.keys(s.einsaetze).length > 0), t.id);
+  }
+});
+
+test('die Aufstellung landet nicht im gespeicherten Ergebnis', () => {
+  // Sie ist flüchtig: sie dient der Verbuchung und hätte im Spielplan nur den
+  // Speicherstand aufgebläht.
+  const stand = neuesSpiel(TEAMS[0].id, 'fluechtig');
+  spieleSpieltag(stand);
+  const gespielt = stand.spielplan.filter((p) => p.ergebnis);
+  assert.ok(gespielt.length > 0);
+  for (const p of gespielt) {
+    assert.ok(!('aufstellungen' in p.ergebnis), `${p.heim} trägt eine Aufstellung mit sich`);
+  }
+});
+
 test('ein leerer Speicherstand wird abgelehnt', () => {
   assert.throws(() => migriere(null));
 });

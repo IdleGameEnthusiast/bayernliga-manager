@@ -10,7 +10,7 @@ import { istFit, talentSterne } from '../engine/spieler.js';
 import {
   LIGA_MAX_STAERKE, POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE,
 } from '../engine/constants.js';
-import { positionsKuerzel } from '../engine/positionen.js';
+import { positionsKuerzel, hauptPosition } from '../engine/positionen.js';
 import { aufstellungKarte } from './taktik.js';
 
 /**
@@ -29,7 +29,7 @@ import { aufstellungKarte } from './taktik.js';
 const SPALTEN = [
   { id: 'nummer', kopf: T.kader.nummer, wert: (sp) => sp.nummer },
   { id: 'name', kopf: T.kader.name, wert: (sp) => sp.nachname + ' ' + sp.vorname },
-  { id: 'position', kopf: T.kader.position, wert: (sp) => POSITIONS.length - POSITIONS.indexOf(sp.position) },
+  { id: 'position', kopf: T.kader.position, wert: (sp) => POSITIONS.length - POSITIONS.indexOf(hauptPosition(sp)) },
   { id: 'koerper', kopf: T.kader.koerper, wert: (sp) => sp.gewicht },
   { id: 'alter', kopf: T.kader.alter, wert: (sp) => sp.alter },
   { id: 'staerke', kopf: T.kader.staerke, wert: (sp) => sp.staerke },
@@ -155,8 +155,8 @@ function sortiere(kader, spieltag) {
 function trennerVor(liste, i) {
   if (i === 0) return '';
   if (sortierung && sortierung.spalte !== 'position') return '';
-  const hier = liste[i].position;
-  const davor = liste[i - 1].position;
+  const hier = hauptPosition(liste[i]);
+  const davor = hauptPosition(liste[i - 1]);
   if (hier === davor) return '';
   const einheit = (/** @type {string} */ pos) => EINHEIT_JE_GRUPPE[GRUPPE_JE_POSITION[pos]];
   return einheit(hier) === einheit(davor) ? 'positionsstart' : 'einheitsstart';
@@ -219,7 +219,7 @@ function werteZeile(sp) {
         ATTRIBUTE.map((attribut) => el('div', { class: 'wert' },
           el('span', { class: 'klein leise', text: T.attribute[attribut] }),
           balken(sp.attribute[attribut], LIGA_MAX_STAERKE),
-          el('span', { class: 'klein', text: String(sp.attribute[attribut]) }))))));
+          el('span', { class: 'klein', text: String(Math.round(sp.attribute[attribut])) }))))));
 }
 
 /** @param {string} beschriftung @param {number} wert */

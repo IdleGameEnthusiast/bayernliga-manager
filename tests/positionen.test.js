@@ -9,8 +9,9 @@ import { ziehAttribute } from '../engine/spieler.js';
 import {
   FORMELN, PROFIL_BEITRAG, KOERPER_KORRIDOR, korridorMitte,
   profilPassAnteil, gemischteFormel, generierungsProfil, bewerte,
-  technikTransfer, koerperMalus, eignung, eignungGemischt,
-  SEITEN_POSITIONEN, PLAETZE, positionsKuerzel, platzKuerzel,
+  technikTransfer, leiterTransfer, koerperMalus, eignung, eignungGemischt,
+  SEITEN_POSITIONEN, PLAETZE, positionsKuerzel, platzKuerzel, ausbildungsKuerzel,
+  eingespieltheit, hauptPlatz, hauptPosition, EINGESPIELT_VOLL, POSITION_JE_KUERZEL,
 } from '../engine/positionen.js';
 
 test('jede Position hat beide Formeln, einen Korridor und einen Beitrag', () => {
@@ -264,4 +265,81 @@ test('die gemischte Eignung liegt zwischen ihren beiden Hälften', () => {
 
 test('ein unbekannter Platz wirft', () => {
   assert.throws(() => technikTransfer(muster('QB'), 'LSL'), /Unbekannter Platz/);
+});
+
+// --- Eingespieltheit -------------------------------------------------------
+
+test('die Kurve steigt und deckelt bei einer vollen Umschulung', () => {
+  const g = muster('G');
+  assert.equal(eingespieltheit(g, 'MIKE'), 0, 'ohne Einsatz nichts');
+
+  let vorher = 0;
+  for (const n of [1, 5, 10, 20, 30]) {
+    const wert = eingespieltheit({ ...g, einsaetze: { MIKE: n } }, 'MIKE');
+    assert.ok(wert > vorher, `${n} Einsätze bringen nicht mehr als ${vorher}`);
+    vorher = wert;
+  }
+  assert.equal(eingespieltheit({ ...g, einsaetze: { MIKE: 30 } }, 'MIKE'), 1);
+  assert.equal(eingespieltheit({ ...g, einsaetze: { MIKE: 300 } }, 'MIKE'), 1,
+    'über die letzte Stützstelle hinaus bleibt die Kurve flach');
+});
+
+test('die Einsätze schließen die Lücke, die die Leiter offen lässt', () => {
+  const g = muster('G');
+  const leiter = leiterTransfer(g, 'MIKE');
+  assert.equal(leiter, 0.25, 'andere Einheit');
+  assert.equal(technikTransfer(g, 'MIKE'), leiter, 'ohne Einsatz zählt nur die Leiter');
+
+  const halb = technikTransfer({ ...g, einsaetze: { MIKE: 10 } }, 'MIKE');
+  assert.ok(halb > leiter && halb < 1, `zwischen Leiter und eins, ist ${halb}`);
+  assert.equal(technikTransfer({ ...g, einsaetze: { MIKE: 30 } }, 'MIKE'), 1);
+
+  // Auf dem eigenen Platz gibt es nichts zu schließen, und die Einsätze
+  // heben ihn auch nicht über eins.
+  assert.equal(technikTransfer({ ...g, einsaetze: { LG: 200 } }, 'LG'), 1);
+});
+
+test('Einsätze auf dem einen Platz helfen auf dem anderen nicht', () => {
+  const g = muster('G');
+  const nurSam = { ...g, einsaetze: { SAM: 30 } };
+  assert.equal(technikTransfer(nurSam, 'SAM'), 1);
+  assert.equal(technikTransfer(nurSam, 'MIKE'), leiterTransfer(g, 'MIKE'));
+});
+
+test('CB1 und CB2 zählen als ein Platz, LG und RG nicht', () => {
+  const cb = { ...muster('CB'), einsaetze: { CB: 30 } };
+  assert.equal(technikTransfer(cb, 'CB1'), technikTransfer(cb, 'CB2'));
+
+  const g = { ...muster('G', 'L'), einsaetze: { RG: 30 } };
+  assert.equal(technikTransfer(g, 'RG'), 1, 'rechts ist er eingespielt');
+  assert.equal(technikTransfer(g, 'LG'), 1, 'links ist er ausgebildet');
+  const frisch = muster('G', 'L');
+  assert.ok(technikTransfer(frisch, 'RG') < 1, 'ohne Einsätze kostet die Seite');
+});
+
+test('der Hauptplatz kippt erst nach drei Saisons', () => {
+  const g = muster('G', 'L');
+  assert.equal(ausbildungsKuerzel(g), 'LG');
+  assert.equal(hauptPlatz(g), 'LG', 'ohne Einsätze zählt die Ausbildung');
+  assert.equal(positionsKuerzel(g), 'LG');
+
+  assert.equal(hauptPlatz({ ...g, einsaetze: { MIKE: 1 } }), 'LG',
+    'ein Aushilfseinsatz dreht nichts');
+  assert.equal(hauptPlatz({ ...g, einsaetze: { MIKE: EINGESPIELT_VOLL } }), 'LG',
+    'gleichauf gewinnt die Ausbildung');
+
+  const umgeschult = { ...g, einsaetze: { MIKE: EINGESPIELT_VOLL + 1 } };
+  assert.equal(hauptPlatz(umgeschult), 'MIKE');
+  assert.equal(positionsKuerzel(umgeschult), 'MIKE', 'so steht er auch im Roster');
+  assert.equal(hauptPosition(umgeschult), 'MIKE');
+  assert.equal(umgeschult.position, 'G', 'die Ausbildung bleibt, was sie war');
+
+  // Wer auf seinem eigenen Platz bleibt, kippt nie — auch nach zwanzig Jahren.
+  assert.equal(hauptPlatz({ ...g, einsaetze: { LG: 220, MIKE: 3 } }), 'LG');
+});
+
+test('jedes Kürzel führt auf genau eine Position zurück', () => {
+  for (const platz in PLAETZE) {
+    assert.equal(POSITION_JE_KUERZEL[platzKuerzel(platz)], PLAETZE[platz].position, platz);
+  }
 });

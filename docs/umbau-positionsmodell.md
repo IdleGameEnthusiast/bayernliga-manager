@@ -331,6 +331,88 @@ Richtige.)*
 
 ---
 
+### Eingespieltheit: was die Umstellung zurückgibt
+
+Die Stufenleiter oben sagt, was ein Spieler auf einem fremden Platz **mitbringt**. Sie
+ist der Startpunkt, nicht das Ergebnis. Jeder Einsatz dort zählt, und mit dem Zähler
+schließt sich die Lücke:
+
+```
+transfer = leiter + (1 - leiter) × eingespieltheit(einsätze)
+```
+
+`spieler.einsaetze` ist eine Karte `{ Platz-Kürzel: Spiele }` — nach Kürzel, nicht nach
+Platzschlüssel: `CB1` und `CB2` sind derselbe Platz, `LG` und `RG` nicht. Eine Saison
+sind zehn Spieltage plus Playoffs, also rund elf Einsätze.
+
+| Spiele auf dem Platz | Lücke geschlossen |
+| --- | --- |
+| 0 | 0 % |
+| 5 | 35 % |
+| 10 · eine Saison | 60 % |
+| 20 | 85 % |
+| 30 · drei Saisons | 100 % |
+
+**Die Ausbildung ändert sich nie.** `position` und `seite` sind, woraus Körper und
+Attribute gezogen wurden, und bleiben stehen. Wo ein Spieler zu Hause ist, wird
+**abgeleitet**: `hauptPlatz()` nimmt den Platz mit den meisten Einsätzen, wobei der
+ausgebildete von Anfang an mit `EINGESPIELT_VOLL` (30) zählt. Es braucht also drei volle
+Saisons woanders, um den Pass zu drehen, und ein einzelner Aushilfseinsatz dreht nichts.
+Weil nichts gespeichert wird, kann auch nichts auseinanderlaufen. `positionsKuerzel()`,
+die Sortierung im Roster und `stelleAuf()` lesen alle den Hauptplatz — wer umgeschult
+ist, wird in Runde eins gegriffen und trägt die Marke „umgestellt" nicht mehr.
+
+### Der eigentliche Hebel sind die Attribute, nicht die Technik
+
+Die Technik allein reicht nicht, und das ist nachgerechnet. `technik` trägt in jeder
+Formel zehn bis zwanzig Prozent, also ist die volle Umschulung von 0,25 auf 1,00
+höchstens rund vier Punkte wert. Ein Guard, der zehn Jahre als MIKE aufläuft, käme damit
+auf 46 — gegen 65 eines geborenen MIKE, und er wäre auf seinem alten Platz immer noch
+62 wert. Der Etikettenwechsel fiele, aber kein Manager stellte ihn je auf.
+
+Deshalb **zieht jeder Einsatz die Attribute ein Stück auf das Sollprofil seines Platzes
+zu** — dasselbe Profil, aus dem `sollAttribute()` einen geborenen Spieler dieser Stärke
+bauen würde, **mit seinem Körper gerechnet**. Der Körper geht mit, und darin steckt die
+Schranke: der Sollwert eines 147-Kilo-Manns als Linebacker hat immer noch die
+Schnelligkeit eines 147-Kilo-Manns.
+
+Gerechnet wird **je Spiel** (`ATTRIBUT_DRIFT_JE_SPIEL`), nicht je Saison. Elf Einsätze
+machen zusammen rund 15 %, und wer seine Zeit auf zwei Plätze aufteilt, zieht anteilig
+in beide Richtungen — ohne dass es dafür eine eigene Regel bräuchte.
+
+Was dabei herauskommt, mit Talent 72 ab dem 21. Lebensjahr:
+
+| Jahr | Guard → MIKE | auf `LG` | Receiver → QB | auf `WR` |
+| ---: | ---: | ---: | ---: | ---: |
+| 0 | 37,6 | 56,9 | 39,2 | 57,4 |
+| 3 | 50,2 | 59,3 | 56,0 | 60,9 |
+| 5 | 57,0 | 61,8 | 64,4 | 64,2 |
+| 10 | 59,9 | 58,5 | 67,1 | 59,1 |
+| *geboren, mit 31* | *65,5* | | *69,5* | |
+
+Drei Eigenschaften, die daraus von selbst folgen:
+
+- **Skill zu Skill zahlt sich nach fünf Jahren aus, Line zu Linebacker erst am
+  Karriereende und nie ganz.** Das ist Football: ein Receiver, der Quarterback lernt, ist
+  eine normale Sache, ein Guard, der Mike Linebacker wird, nicht.
+- **Der alte Platz verfällt mit.** Der Receiver ist im Jahr 6 als `WR` noch 66 wert, im
+  Jahr 10 nur noch 59. Eine Umschulung ist eine Entscheidung mit Preis, keine
+  Gratis-Vielseitigkeit.
+- **Umschulen ist eine Sache für junge Spieler.** Die rohe Stärke gipfelt mit 27; wer
+  erst mit 26 umgestellt wird, hat die Gewinne nicht mehr, bevor der Altersabfall sie
+  auffrisst. Auch dafür braucht es keine Regel.
+
+Über den Winter verfällt jeder Platz um `EINSATZ_VERFALL` (7 %) — auch der gespielte,
+der sich seine elf Einsätze ja gleich wiederholt. Ohne den Verfall hätte ein
+Vierunddreißigjähriger irgendwann jeden Platz einmal gespielt.
+
+Gemessen an einer vollen Liga über fünf Saisons: die Durchschnittsstärke steigt von
+49,67 auf 51,75 statt auf 51,42 ohne das Modell, und 10 von 415 Spielern haben ihren
+Hauptplatz gewechselt — fast immer in ein Loch im Kader hinein (`WR → TE`, `SL → TE`).
+Das Modell ist damit kein Motor der Inflation, sondern ein Ventil für Kadernot.
+
+---
+
 ## 5 — Formationen
 
 ### Offense: elf Plätze

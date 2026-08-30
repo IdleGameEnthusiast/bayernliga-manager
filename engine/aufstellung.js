@@ -14,9 +14,9 @@
  * Docs: docs/umbau-positionsmodell.md, Abschnitte 5, 6 und 7
  */
 
-import { ERSATZ_STAERKE, clamp } from './constants.js';
+import { ERSATZ_STAERKE, clamp, interpoliere } from './constants.js';
 import { istFit } from './spieler.js';
-import { eignung, eignungGemischt, PLAETZE } from './positionen.js';
+import { eignung, eignungGemischt, PLAETZE, hauptPosition } from './positionen.js';
 
 // --- Formationen -----------------------------------------------------------
 
@@ -142,23 +142,6 @@ export const SKILL_ROLLE = {
 /** Stützstellen: [Wert, Ergebnis], aufsteigend. */
 const DOPPEL_ABZUG = [[20, 0.40], [50, 0.28], [80, 0.15]];
 const DOPPEL_RISIKO = [[20, 4.0], [50, 3.0], [80, 2.0]];
-
-/**
- * Linear zwischen den Stützstellen, außerhalb flach.
- * @param {[number, number][]} kurve
- * @param {number} wert
- */
-function interpoliere(kurve, wert) {
-  if (wert <= kurve[0][0]) return kurve[0][1];
-  const letzte = kurve[kurve.length - 1];
-  if (wert >= letzte[0]) return letzte[1];
-  for (let i = 1; i < kurve.length; i++) {
-    const [x0, y0] = kurve[i - 1];
-    const [x1, y1] = kurve[i];
-    if (wert <= x1) return y0 + ((wert - x0) / (x1 - x0)) * (y1 - y0);
-  }
-  return letzte[1];
-}
 
 /**
  * Was der zweite Einsatz an Leistung kostet. Ausdauer trägt ihn: ein Mann mit
@@ -402,9 +385,11 @@ export function stelleAuf(kader, spieltag, personnel = STANDARD_PERSONNEL, passA
 
   // Runde eins: der stärkste fitte Mann seiner Position — und wo eine Position
   // mehrere Plätze hat, entscheidet danach die Eignung, wer davon welchen nimmt.
+  // „Seine Position" ist sein Hauptplatz, nicht seine Ausbildung: wer drei
+  // Saisons als MIKE gespielt hat, ist einer und kein Umsteller mehr.
   for (const [position, plaetze] of nachPosition(alle)) {
     const eigene = fit
-      .filter((s) => s.position === position)
+      .filter((s) => hauptPosition(s) === position)
       .sort((a, b) => b.staerke - a.staerke)
       .slice(0, plaetze.length);
     for (const [platz, spieler] of verteile(eigene, plaetze, anteil)) {
@@ -447,7 +432,7 @@ export function stelleAuf(kader, spieltag, personnel = STANDARD_PERSONNEL, passA
     if (!bester) continue;
     platz.spieler = bester;
     platz.doppel = true;
-    platz.umgestellt = bester.position !== platz.position;
+    platz.umgestellt = hauptPosition(bester) !== platz.position;
   }
 
   for (const platz of alle) platz.staerke = platzStaerke(platz, anteil);

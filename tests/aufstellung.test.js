@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 import { makeRng, ZUSATZ_SPIELER, ERSATZ_STAERKE } from '../engine/constants.js';
 import { macheKader, macheSpieler, resetSpielerIds, setzeStaerke } from '../engine/spieler.js';
-import { PLAETZE } from '../engine/positionen.js';
+import { PLAETZE, hauptPlatz, EINGESPIELT_VOLL } from '../engine/positionen.js';
 import {
   PERSONNEL, PERSONNEL_REIHE, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
   BLOCK_GEWICHT, PLATZ_ANTEIL, SKILL_LEITER, SKILL_ROLLE, SKILL_NORM,
@@ -328,4 +328,26 @@ test('der Passanteil des Vereins verschiebt nur, wer nachrückt', () => {
   for (const a of [laufig, passig]) {
     for (const p of [...a.offense, ...a.defense]) assert.ok(p.spieler, p.platz);
   }
+});
+
+test('ein Umgeschulter steht auf seinem Hauptplatz und gilt nicht als Umsteller', () => {
+  // Ein Guard, der drei Saisons als MIKE gelaufen ist, ist einer. Er muss in
+  // Runde eins gegriffen werden, nicht erst als Notlösung in Runde zwei — und
+  // die Marke „umgestellt" gehört ihm nicht mehr.
+  const rng = makeRng('umgeschult');
+  const guard = macheSpieler(rng, 'G', 60, { seite: 'L' });
+  guard.einsaetze = { MIKE: EINGESPIELT_VOLL + 5 };
+  setzeStaerke(guard, 70);
+  assert.equal(hauptPlatz(guard), 'MIKE');
+
+  const echterGuard = macheSpieler(rng, 'G', 60, { seite: 'L' });
+  setzeStaerke(echterGuard, 50);
+
+  const a = stelleAuf([guard, echterGuard], 1, '11');
+  const mike = a.defense.find((p) => p.platz === 'MIKE');
+  assert.equal(mike.spieler.id, guard.id, 'er besetzt den Linebacker');
+  assert.equal(mike.umgestellt, false, 'und ist dort kein Umsteller mehr');
+
+  // Der Guardplatz bleibt dem, der noch einer ist.
+  assert.equal(a.offense.find((p) => p.platz === 'LG').spieler.id, echterGuard.id);
 });

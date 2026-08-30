@@ -277,7 +277,18 @@ Setzt auf 2 und 3 auf:
   einstellige Nummer wechseln. Das kommt als **Anfrage an den Manager** und
   muss genehmigt werden. Braucht ein Postfach/Genehmigungs-Konzept, das es noch
   nicht gibt. Datenfeld wäre `nummerWunsch` neben `nummer`.
-- **Aufstellung selbst bestimmen** statt Depth Chart nach Stärke.
+- **Aufstellung selbst bestimmen** statt Depth Chart nach Stärke. Der Plan
+  steht: die volle Aufstellung liegt als `{ personnel, plaetze }` im Stand,
+  `stelleAuf()` bekommt sie als Runde null vorgesetzt und behält die Runden 1–3
+  als **Reparaturweg** für Verletzte, Verkaufte und Plätze, die es nach einem
+  Systemwechsel nicht mehr gibt. Ein Knopf „Automatisch aufstellen" ist
+  `stelleAuf()` ohne Vorgabe. KI-Vereine bekommen über `alsGegner()` gar keine
+  Vorgabe mit — sie *können* keine haben. Dazu zwei Wege in der Ansicht: Klick
+  auf einen Platz zeigt die besten fünf für **diesen** Platz (nach
+  `eignungGemischt` auf ihn, nicht global optimiert — die Liste beantwortet
+  „wer ist hier der Beste", `verteile()` beantwortet „was ist fürs Paar am
+  besten"), und Ziehen legt jeden Spieler auf jeden Platz, mit Tausch, wenn er
+  schon irgendwo steht.
 - **Auf- und Abstieg**, zweite Liga darüber. `MAX_RATING` steht deshalb noch
   auf 99, obwohl die Bayernliga bei 79 gedeckelt ist.
 - Transfers und Verträge, Play-by-Play, Finanzen.
@@ -297,6 +308,17 @@ Nichts davon blockiert Block 2 oder 3, aber irgendwann muss es fallen:
    gleich — es gibt also nie eine junge Aufsteigermannschaft oder einen
    überalterten Absteiger. Bewusst so entschieden, aber es bleibt ein Hebel.
 5. **Veteranen-Nachschub**, siehe oben.
+6. **Körpermalus am tatsächlichen Körper.** `koerperMalus()` rechnet heute über
+   die beiden **Korridormitten**, nicht über das Gewicht des Mannes: ein
+   147-Kilo-Guard zahlt für den Weg zum Linebacker dieselben 4,4 % wie ein
+   105-Kilo-Guard. Der naheliegende Fix — Abstand vom eigenen Gewicht zur
+   Zielmitte — geht nicht, weil er den Mann auch auf seiner **eigenen**
+   Position belasten würde und damit die tragende Eigenschaft bricht, dass ein
+   Spieler auf seinem Platz genau seine `staerke` wert ist. Wer das reparieren
+   will, braucht einen Term, der bei Ausbildung = Ziel null ist und trotzdem
+   Extremkörper härter trifft — quadratisch im Abstand statt linear. Das ist
+   eine Balance-Änderung mit großem Radius und gehört in einen eigenen Schritt
+   mit eigener Messung, nicht nebenbei.
 
 ---
 
@@ -334,3 +356,8 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Speicherstände | vor v3 abgelehnt statt migriert — die alte Ligaform lässt sich nicht retten |
 | Vereinsfarben | drei je Verein, in `farben: { primaer, sekundaer, tertiaer }` |
 | Kürzel | zwei- oder dreistellig, gemischt ist in Ordnung |
+| Eingespieltheit | `spieler.einsaetze` je Platz-Kürzel; die Stufenleiter ist der Startpunkt, die Einsätze schließen die Lücke; voll nach 30 Spielen |
+| Ausbildung | `position`/`seite` ändern sich **nie** — der Hauptplatz wird aus den Einsätzen abgeleitet, nicht gespeichert |
+| Attributdrift | 15 % je Saison auf das Sollprofil des gespielten Platzes, gerechnet je Spiel; der Körper geht ins Sollprofil ein und bremst |
+| Einsatzverfall | 7 % je Saison auf **jedem** Platz, auch dem gespielten |
+| Umschulung | soll den geborenen Spieler nie einholen — 15 % ist die Rate, bei der Skill→Skill nach fünf Jahren trägt und Line→Linebacker erst am Karriereende |

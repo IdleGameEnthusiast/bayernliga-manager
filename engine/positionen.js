@@ -9,7 +9,7 @@
  * Docs: docs/umbau-positionsmodell.md, Abschnitte 2 und 3
  */
 
-import { ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE } from './constants.js';
+import { ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE, interpoliere } from './constants.js';
 
 /**
  * Größe (cm) und Gewicht (kg), in denen eine Position normalerweise steckt.
@@ -223,6 +223,17 @@ export function bewerte(werte, anteile) {
 // Docs: docs/umbau-positionsmodell.md, Abschnitte 1 und 5
 
 /**
+ * Was dieses Modul von einem Spieler braucht. Nicht der volle `Spieler` aus
+ * `spieler.js` — so lassen sich die Formeln mit einem Muster aus drei Feldern
+ * prüfen, ohne einen ganzen Mann zu ziehen.
+ * @typedef {object} Spielbar
+ * @property {string} position          Worauf er ausgebildet wurde
+ * @property {'L'|'R'|null} [seite]
+ * @property {Record<string, number>} [einsaetze] Spiele je Platz-Kürzel
+ * @property {Record<string, number>} [attribute]
+ */
+
+/**
  * Die Plätze, die eine Aufstellung kennt. Links und rechts sind Plätze, keine
  * Positionen: der Katalog kennt `T`, die Formation kennt `LT` und `RT`.
  *
@@ -291,12 +302,23 @@ export const SEITEN_KUERZEL = {
 };
 
 /**
- * Wie ein Spieler auf dem Bogen steht: `LT`, `RE`, `MIKE`, `CB`.
+ * Der Platz, auf dem er **ausgebildet** wurde: `LT`, `RE`, `MIKE`, `CB`. Das
+ * ist die Zuschreibung aus der Ziehung, und sie ändert sich nie — Körper und
+ * Attribute stammen daraus.
  * @param {{ position: string, seite?: 'L'|'R'|null }} spieler
  */
-export function positionsKuerzel(spieler) {
+export function ausbildungsKuerzel(spieler) {
   const mitSeite = spieler.seite && SEITEN_KUERZEL[spieler.position];
   return (mitSeite && mitSeite[spieler.seite]) || spieler.position;
+}
+
+/**
+ * Wie ein Spieler auf dem Bogen steht — sein **Hauptplatz**, nicht seine
+ * Ausbildung. Wer lange genug woanders spielt, steht irgendwann dort.
+ * @param {Spielbar} spieler
+ */
+export function positionsKuerzel(spieler) {
+  return hauptPlatz(spieler);
 }
 
 /**
@@ -310,6 +332,95 @@ export function platzKuerzel(platz) {
 
 /** @type {Record<string, string>} */
 const PLATZ_KUERZEL = { CB1: 'CB', CB2: 'CB' };
+
+/**
+ * Die Position hinter einem Kürzel. `LG` ist ein `G`, `CB` ein `CB`.
+ * @type {Record<string, string>}
+ */
+export const POSITION_JE_KUERZEL = Object.fromEntries(
+  Object.entries(PLAETZE).map(([platz, def]) => [platzKuerzel(platz), def.position]),
+);
+
+// --- Eingespieltheit -------------------------------------------------------
+// Docs: docs/umbau-positionsmodell.md, Abschnitt 4
+
+/**
+ * Wie viel von der fehlenden Technik ein Spieler sich auf einem fremden Platz
+ * erarbeitet hat. Die Stufenleiter unten sagt, was er **mitbringt**; diese
+ * Kurve sagt, was er sich dazuholt.
+ *
+ * Zehn Einsätze sind eine Saison. Nach dreien ist die Lücke geschlossen — und
+ * genau dann trägt der neue Platz auch mehr Punkte als der ausgebildete, siehe
+ * `EINGESPIELT_VOLL`.
+ * @type {[number, number][]}
+ */
+export const EINGESPIELT_KURVE = [[0, 0], [5, 0.35], [10, 0.60], [20, 0.85], [30, 1]];
+
+/**
+ * Ab wie vielen Einsätzen ein Platz als eingespielt gilt. Dieselbe Zahl, bei
+ * der die Kurve oben ankommt: der ausgebildete Platz zählt von Anfang an so
+ * viel, also braucht es drei volle Saisons woanders, um den Pass zu drehen.
+ * Ein einzelner Aushilfseinsatz dreht nichts.
+ */
+export const EINGESPIELT_VOLL = 30;
+
+/**
+ * Was ein Platz je Saison verliert. Er wird auf jedem Platz gerechnet, auch
+ * dem gespielten — der holt sich seine elf Einsätze ja gleich wieder. Ohne den
+ * Verfall hätte ein Vierunddreißigjähriger irgendwann alles einmal gespielt.
+ */
+export const EINSATZ_VERFALL = 0.93;
+
+/**
+ * Wie oft er auf einem Platz stand. Nach Kürzel, nicht nach Platzschlüssel:
+ * `CB1` und `CB2` sind derselbe Platz, `LG` und `RG` nicht.
+ * @param {Spielbar} spieler
+ * @param {string} platz Schlüssel aus PLAETZE
+ */
+export function einsaetzeAuf(spieler, platz) {
+  const einsaetze = spieler.einsaetze;
+  return (einsaetze && einsaetze[platzKuerzel(platz)]) || 0;
+}
+
+/**
+ * Wie eingespielt er dort ist: 0 beim ersten Mal, 1 nach drei Saisons.
+ * @param {Spielbar} spieler
+ * @param {string} platz
+ */
+export function eingespieltheit(spieler, platz) {
+  return interpoliere(EINGESPIELT_KURVE, einsaetzeAuf(spieler, platz));
+}
+
+/**
+ * Der Platz, auf dem er zu Hause ist.
+ *
+ * Nicht gespeichert, sondern abgeleitet — es gibt keinen zweiten Zustand, der
+ * mit den Einsätzen auseinanderlaufen könnte. Der ausgebildete Platz zählt
+ * dabei mit `EINGESPIELT_VOLL`, sonst schöbe der erste Aushilfseinsatz eines
+ * Neulings ihn schon woandershin.
+ * @param {Spielbar} spieler
+ */
+export function hauptPlatz(spieler) {
+  const heimat = ausbildungsKuerzel(spieler);
+  let bester = heimat;
+  let meiste = EINGESPIELT_VOLL;
+  for (const kuerzel in spieler.einsaetze || {}) {
+    const punkte = kuerzel === heimat
+      ? Math.max(spieler.einsaetze[kuerzel], EINGESPIELT_VOLL)
+      : spieler.einsaetze[kuerzel];
+    if (punkte > meiste) { meiste = punkte; bester = kuerzel; }
+  }
+  return bester;
+}
+
+/**
+ * Die Position seines Hauptplatzes. Danach wird er einsortiert und
+ * aufgestellt — nicht nach der Ausbildung.
+ * @param {Spielbar} spieler
+ */
+export function hauptPosition(spieler) {
+  return POSITION_JE_KUERZEL[hauptPlatz(spieler)] || spieler.position;
+}
 
 /**
  * Die Stufenleiter des Technik-Transfers: was ein Spieler von seinem Handwerk
@@ -329,10 +440,26 @@ export const KOERPERMALUS_DECKEL = 0.20;
  * `technik` hängt am Platz, auf dem er ausgebildet wurde. Der Umstellungs-
  * abschlag entsteht damit aus dem Modell selbst — es braucht keine Strafe von
  * außen. Wo die Formation keine Seiten unterscheidet, kostet die Seite nichts.
- * @param {{ position: string, seite?: 'L'|'R'|null }} spieler
+ *
+ * Die Stufenleiter ist dabei der **Startpunkt**, nicht das Ergebnis: was er
+ * dort gespielt hat, schließt die Lücke. Wer drei Saisons als MIKE aufläuft,
+ * hat die Technik eines MIKE — was er nicht bekommt, ist dessen Körper und
+ * dessen Profil, und die beiden tragen den Löwenanteil des Abstands.
+ * @param {Spielbar} spieler
  * @param {string} platz Schlüssel aus PLAETZE
  */
 export function technikTransfer(spieler, platz) {
+  const leiter = leiterTransfer(spieler, platz);
+  if (leiter >= 1) return 1;
+  return leiter + (1 - leiter) * eingespieltheit(spieler, platz);
+}
+
+/**
+ * Was er ohne einen einzigen Einsatz dort mitbrächte — die reine Stufenleiter.
+ * @param {{ position: string, seite?: 'L'|'R'|null }} spieler
+ * @param {string} platz
+ */
+export function leiterTransfer(spieler, platz) {
   const ziel = PLAETZE[platz];
   if (!ziel) throw new Error(`Unbekannter Platz: ${platz}`);
 

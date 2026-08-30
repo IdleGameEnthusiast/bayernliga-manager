@@ -12,14 +12,15 @@ import {
   KADER_FORM, ZUSATZ_GEWICHTE, ZUSATZ_MAX_JE_POSITION,
   KICK_BASIS, KICK_STREUUNG, KICK_FUSS_ANTEIL, KICK_FUSS_BASIS,
   KICK_FUSS_STREUUNG, KICK_FUSS_AUSSCHLUSS,
-  ATTRIBUTE, PROFIL_SPEZIALISIERUNG, ATTRIBUT_STREUUNG,
+  ATTRIBUTE, PROFIL_SPEZIALISIERUNG, ATTRIBUT_STREUUNG, ATTRIBUT_DRIFT_JE_SPIEL,
   KOERPER_ANTEIL_DANEBEN, KOERPER_DANEBEN_MIN, KOERPER_DANEBEN_MAX,
   KOERPER_MITTE, KOERPER_SPANNE, KOERPER_KOPPLUNG,
   GROESSE_MIN, GROESSE_MAX, GEWICHT_MIN, GEWICHT_MAX,
   POSITIONS, POSITION_GRUPPEN, clamp, randInt, pick, pickWeighted, randNormal, shuffle,
 } from './constants.js';
 import {
-  KOERPER_KORRIDOR, SEITEN_POSITIONEN, generierungsProfil, bewerte,
+  KOERPER_KORRIDOR, SEITEN_POSITIONEN, POSITION_JE_KUERZEL, EINSATZ_VERFALL,
+  generierungsProfil, bewerte, platzKuerzel, hauptPosition,
 } from './positionen.js';
 import { VORNAMEN, NACHNAMEN } from './content.js';
 
@@ -30,6 +31,8 @@ import { VORNAMEN, NACHNAMEN } from './content.js';
  * @property {string} nachname
  * @property {import('./constants.js').Position} position
  * @property {'L'|'R'|null} seite     The side he was trained on, where a position has two
+ * @property {Record<string, number>} einsaetze  Spiele je Platz-Kürzel — woher die
+ *   Eingespieltheit und der Hauptplatz kommen. Bruchzahlen, siehe `verfalleEinsaetze`
  * @property {number} nummer          Trikotnummer; OHNE_NUMMER until one is handed out
  * @property {number} alter
  * @property {number} staerke         Current overall, never above LIGA_MAX_STAERKE
@@ -227,6 +230,34 @@ function skaliereAufStaerke(werte, profil, ziel) {
  * @returns {Record<string, number>}
  */
 export function ziehAttribute(rng, position, staerke, gewicht) {
+  return baueAttribute(position, staerke, gewicht, () => randNormal(rng) * ATTRIBUT_STREUUNG);
+}
+
+/**
+ * Derselbe Satz ohne Streuung: wie ein Spieler dieser Stärke **mit diesem
+ * Körper** auf dieser Position aussähe, wenn ihm der Zufall nichts dazugegeben
+ * hätte. Das ist das Ziel, auf das die Einsätze einen Umgestellten zuziehen.
+ *
+ * Dass der Körper mitgeht, ist der Punkt: der Sollwert eines 147-Kilo-Manns
+ * als Linebacker hat immer noch die Schnelligkeit eines 147-Kilo-Manns. Die
+ * Umschulung repariert das Handwerk, nicht die Statur.
+ * @param {string} position
+ * @param {number} staerke
+ * @param {number} gewicht kg
+ * @returns {Record<string, number>}
+ */
+export function sollAttribute(position, staerke, gewicht) {
+  return baueAttribute(position, staerke, gewicht, () => 0);
+}
+
+/**
+ * @param {string} position
+ * @param {number} staerke
+ * @param {number} gewicht
+ * @param {() => number} rauschen
+ * @returns {Record<string, number>}
+ */
+function baueAttribute(position, staerke, gewicht, rauschen) {
   const profil = generierungsProfil(position);
   const hoechster = Math.max(...Object.values(profil));
   const schwer = clamp((gewicht - KOERPER_MITTE) / KOERPER_SPANNE, -1.5, 1.5);
@@ -235,8 +266,7 @@ export function ziehAttribute(rng, position, staerke, gewicht) {
   const werte = {};
   for (const attribut of ATTRIBUTE) {
     const gewichtung = (profil[attribut] || 0) / hoechster;
-    let wert = staerke * (1 - PROFIL_SPEZIALISIERUNG * (1 - gewichtung))
-      + randNormal(rng) * ATTRIBUT_STREUUNG;
+    let wert = staerke * (1 - PROFIL_SPEZIALISIERUNG * (1 - gewichtung)) + rauschen();
 
     if (attribut === 'kraft') wert *= 1 + KOERPER_KOPPLUNG * schwer;
     if (attribut === 'schnelligkeit') wert *= 1 - KOERPER_KOPPLUNG * schwer;
@@ -248,6 +278,39 @@ export function ziehAttribute(rng, position, staerke, gewicht) {
   skaliereAufStaerke(werte, profil, staerke);
   for (const attribut of ATTRIBUTE) werte[attribut] = Math.round(werte[attribut]);
   return werte;
+}
+
+/**
+ * Ein Einsatz auf einem Platz: er zählt, und er zieht.
+ *
+ * Zwei Dinge in einer Bewegung. Der Zähler entscheidet über die Technik und
+ * darüber, wo der Mann irgendwann zu Hause ist. Der Zug bewegt seine Attribute
+ * ein Stück auf das Sollprofil dieses Platzes zu — und das ist der eigentliche
+ * Hebel: die Technik trägt in jeder Formel nur zehn bis zwanzig Prozent, das
+ * Profil trägt den Rest. Ohne den Zug bliebe eine Umschulung ein Wort im
+ * Roster.
+ *
+ * Gerechnet wird je Spiel und nicht je Saison, damit geteilte Einsatzzeit von
+ * selbst anteilig in beide Richtungen zieht. Die Werte bleiben dabei bewusst
+ * gebrochen — auf ganze Zahlen gerundet wäre jeder einzelne Schritt kleiner
+ * als eins und fiele weg. Gerundet wird beim Anzeigen und beim Jahreswechsel.
+ * @param {Spieler} spieler
+ * @param {string} platz Schlüssel aus PLAETZE
+ */
+export function spieleEinsatz(spieler, platz) {
+  const kuerzel = platzKuerzel(platz);
+  if (!spieler.einsaetze) spieler.einsaetze = {};
+  spieler.einsaetze[kuerzel] = (spieler.einsaetze[kuerzel] || 0) + 1;
+
+  const soll = sollAttribute(POSITION_JE_KUERZEL[kuerzel], spieler.staerke, spieler.gewicht);
+  for (const attribut of ATTRIBUTE) {
+    const ist = spieler.attribute[attribut];
+    spieler.attribute[attribut] = clamp(
+      ist + (soll[attribut] - ist) * ATTRIBUT_DRIFT_JE_SPIEL,
+      RATING_UNTERGRENZE, LIGA_MAX_STAERKE,
+    );
+  }
+  return spieler;
 }
 
 /**
@@ -325,6 +388,7 @@ export function macheSpieler(rng, position, teamStaerke, optionen) {
     nachname,
     position,
     seite: /** @type {'L'|'R'|null} */ (seite),
+    einsaetze: /** @type {Record<string, number>} */ ({}),
     nummer: OHNE_NUMMER,
     alter,
     staerke,
@@ -421,7 +485,7 @@ export function sortiereKader(kader) {
     Object.fromEntries(POSITIONS.map((p, i) => [p, i]))
   );
   return kader.slice().sort((a, b) =>
-    rang[a.position] - rang[b.position] || b.staerke - a.staerke);
+    rang[hauptPosition(a)] - rang[hauptPosition(b)] || b.staerke - a.staerke);
 }
 
 /**
@@ -512,7 +576,7 @@ export function talentSterne(talent) {
  */
 export function verfuegbar(kader, position, spieltag) {
   return kader
-    .filter((s) => s.position === position && istFit(s, spieltag))
+    .filter((s) => hauptPosition(s) === position && istFit(s, spieltag))
     .sort((a, b) => b.staerke - a.staerke);
 }
 
@@ -524,6 +588,26 @@ export function name(s) {
 /** Short form for box scores: "M. Weber". @param {Spieler} s */
 export function kurzName(s) {
   return s.vorname.charAt(0) + '. ' + s.nachname;
+}
+
+/**
+ * Was von den Einsätzen über den Winter übrig bleibt.
+ *
+ * Der Verfall greift auf **jedem** Platz, auch dem gespielten — der holt sich
+ * seine elf Einsätze in der neuen Saison ja gleich wieder. Ohne ihn hätte ein
+ * Vierunddreißigjähriger irgendwann jeden Platz einmal gespielt und wäre
+ * überall zu Hause.
+ * @param {Record<string, number> | undefined} einsaetze
+ * @returns {Record<string, number>}
+ */
+export function verfalleEinsaetze(einsaetze) {
+  /** @type {Record<string, number>} */
+  const uebrig = {};
+  for (const kuerzel in einsaetze || {}) {
+    const wert = einsaetze[kuerzel] * EINSATZ_VERFALL;
+    if (wert >= 0.5) uebrig[kuerzel] = wert;
+  }
+  return uebrig;
 }
 
 /**
@@ -563,6 +647,7 @@ export function saisonWechsel(rng, kader, teamStaerke) {
       alter,
       talent,
       attribute: { ...s.attribute },
+      einsaetze: verfalleEinsaetze(s.einsaetze),
       verletztBis: 0,
     }, berechneStaerke(talent, alter)));
   }

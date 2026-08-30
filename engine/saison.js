@@ -15,7 +15,7 @@ import {
 } from './constants.js';
 import { TEAMS, GRUPPEN, teamById, teamsDerGruppe } from './content.js';
 import { T } from '../i18n.js';
-import { macheKader, saisonWechsel, resetSpielerIds } from './spieler.js';
+import { macheKader, saisonWechsel, resetSpielerIds, spieleEinsatz } from './spieler.js';
 import {
   macheGruppenplan, macheHalbfinale, macheFinale, sieger,
   anzahlSpieltage, partienAmSpieltag, partienDerRunde,
@@ -286,6 +286,18 @@ export function meister(stand) {
 }
 
 /**
+ * Einsätze einer Elf verbuchen. Ein Doppeleinsatz zählt zweimal — er hat ja
+ * beides gespielt. Kicker und Punter laufen außerhalb der Aufstellung und
+ * bekommen nichts.
+ * @param {import('./aufstellung.js').Aufstellung} a
+ */
+function verbucheEinsaetze(a) {
+  for (const platz of [...a.offense, ...a.defense]) {
+    if (platz.spieler) spieleEinsatz(platz.spieler, platz.platz);
+  }
+}
+
+/**
  * Play the current matchday. Mutates `stand` and returns what happened, so the
  * UI can show a report without recomputing it.
  * @param {SpielStand} stand
@@ -301,10 +313,17 @@ export function spieleSpieltag(stand) {
   const alleVerletzungen = [];
 
   for (const p of partien) {
-    const ergebnis = simuliereSpiel(
+    const { aufstellungen, ...ergebnis } = simuliereSpiel(
       rng, alsGegner(stand, p.heim), alsGegner(stand, p.gast), spieltag,
     );
     p.ergebnis = ergebnis;
+
+    // Wer gespielt hat, hat dort gespielt: der Zähler wächst und die Attribute
+    // rücken ein Stück auf das Sollprofil des Platzes zu. Für alle zwölf
+    // Vereine, nicht nur den eigenen — sonst versteinert die Liga, während der
+    // Manager seine Leute umschult.
+    verbucheEinsaetze(aufstellungen.heim);
+    verbucheEinsaetze(aufstellungen.gast);
 
     for (const v of ergebnis.verletzungen) {
       const spieler = stand.kader[v.teamId].find((s) => s.id === v.spielerId);

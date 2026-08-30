@@ -53,10 +53,10 @@ export function migriere(roh) {
     }
   }
 
-  // Umbenannte Positionen. Ein Stand, in dem noch ein `MLB` steht, beschreibt
-  // dieselbe Liga — nur mit einem Namen, den der Katalog nicht mehr kennt, und
-  // ohne den fiele der Mann aus jeder Formel. Das ist eine Umschrift, keine
-  // neue Version.
+  // Umbenannte Positionen und fehlende Einsätze. Ein Stand, in dem noch ein
+  // `MLB` steht, beschreibt dieselbe Liga — nur mit einem Namen, den der
+  // Katalog nicht mehr kennt, und ohne den fiele der Mann aus jeder Formel.
+  // Das ist eine Umschrift, keine neue Version.
   if (stand.kader && typeof stand.kader === 'object') {
     for (const kader of Object.values(stand.kader)) {
       if (Array.isArray(kader)) kader.forEach(benennePositionUm);
@@ -81,6 +81,11 @@ function benennePositionUm(spieler) {
   const neu = ALTE_POSITIONEN[spieler.position];
   if (neu) spieler.position = neu;
   if (spieler.seite && !SEITEN_POSITIONEN.includes(spieler.position)) spieler.seite = null;
+
+  // Einsätze gab es früher nicht. Leer ist die richtige Vergangenheit: der
+  // ausgebildete Platz zählt ohnehin als eingespielt, also steht ein alter
+  // Kader danach genau da, wo er vorher stand.
+  if (!spieler.einsaetze || typeof spieler.einsaetze !== 'object') spieler.einsaetze = {};
 }
 
 /** @param {import('./saison.js').SpielStand} stand */

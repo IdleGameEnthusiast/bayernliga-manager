@@ -9,10 +9,12 @@ import {
 } from '../engine/constants.js';
 import {
   macheKader, macheSpieler, saisonWechsel, alterFaktor, berechneStaerke, verfuegbar,
-  ziehAttribute, resetSpielerIds, talentSterne,
+  ziehAttribute, sollAttribute, spieleEinsatz, verfalleEinsaetze, setzeStaerke,
+  resetSpielerIds, talentSterne,
 } from '../engine/spieler.js';
 import {
-  KOERPER_KORRIDOR, generierungsProfil, bewerte,
+  KOERPER_KORRIDOR, generierungsProfil, bewerte, hauptPlatz, einsaetzeAuf,
+  EINSATZ_VERFALL,
 } from '../engine/positionen.js';
 
 test('der Katalog kennt achtzehn Positionen, keinen Kicker und keinen Punter', () => {
@@ -388,5 +390,111 @@ test('die Sternleiter steigt nie und fällt nie zurück', () => {
     assert.ok(halbe >= vorher, `Talent ${talent} fällt zurück`);
     assert.ok(halbe >= 1 && halbe <= 10, `Talent ${talent}: ${halbe} halbe Sterne`);
     vorher = halbe;
+  }
+});
+
+// --- Einsätze --------------------------------------------------------------
+
+test('das Sollprofil ist die Ziehung ohne Rauschen', () => {
+  // Vier gleiche Ziehungen ergeben in randNormal exakt null Abweichung, also
+  // muss ziehAttribute mit einem konstanten Zufall dasselbe liefern.
+  for (const position of ['G', 'WR', 'MIKE']) {
+    const [von, bis] = KOERPER_KORRIDOR[position].gewicht;
+    const gewicht = (von + bis) / 2;
+    assert.deepEqual(
+      sollAttribute(position, 60, gewicht),
+      ziehAttribute(() => 0.5, position, 60, gewicht),
+      position,
+    );
+  }
+});
+
+test('das Sollprofil trägt den Körper des Mannes, nicht den der Position', () => {
+  // Derselbe Linebacker-Platz, zwei Körper: der schwere bleibt langsam.
+  const leicht = sollAttribute('MIKE', 60, 100);
+  const schwer = sollAttribute('MIKE', 60, 145);
+  assert.ok(schwer.kraft > leicht.kraft, 'der Schwere ist stärker');
+  assert.ok(schwer.schnelligkeit < leicht.schnelligkeit, 'und langsamer');
+});
+
+test('ein Einsatz zählt und zieht die Attribute auf den Platz zu', () => {
+  resetSpielerIds();
+  const s = macheSpieler(makeRng('einsatz'), 'G', 60, { alter: 24, seite: 'L' });
+  const vorher = { ...s.attribute };
+  const soll = sollAttribute('MIKE', s.staerke, s.gewicht);
+
+  spieleEinsatz(s, 'MIKE');
+  assert.equal(einsaetzeAuf(s, 'MIKE'), 1, 'der Zähler steht');
+
+  // Jedes Attribut rückt ein Stück in Richtung Sollwert und schießt nicht
+  // darüber hinaus. Wo es schon stimmt, bewegt sich nichts.
+  for (const attribut of ATTRIBUTE) {
+    const weg = soll[attribut] - vorher[attribut];
+    const schritt = s.attribute[attribut] - vorher[attribut];
+    assert.ok(Math.abs(schritt) <= Math.abs(weg) + 1e-9, `${attribut} schießt über das Ziel`);
+    if (weg !== 0) assert.ok(schritt * weg > 0, `${attribut} geht in die falsche Richtung`);
+  }
+});
+
+test('elf Einsätze sind eine Saison und bringen rund fünfzehn Prozent des Wegs', () => {
+  resetSpielerIds();
+  const s = macheSpieler(makeRng('saison'), 'WR', 60, { alter: 24 });
+  const vorher = { ...s.attribute };
+  const soll = sollAttribute('QB', s.staerke, s.gewicht);
+  for (let i = 0; i < 11; i++) spieleEinsatz(s, 'QB');
+
+  const weg = soll.werfen - vorher.werfen;
+  const anteil = (s.attribute.werfen - vorher.werfen) / weg;
+  assert.ok(anteil > 0.13 && anteil < 0.17, `nach einer Saison ${(anteil * 100).toFixed(1)} %`);
+  assert.equal(einsaetzeAuf(s, 'QB'), 11);
+});
+
+test('geteilte Einsatzzeit zieht anteilig in beide Richtungen', () => {
+  resetSpielerIds();
+  const rng = makeRng('geteilt');
+  const ganz = macheSpieler(rng, 'WR', 60, { alter: 24 });
+  const halb = { ...ganz, attribute: { ...ganz.attribute }, einsaetze: {} };
+
+  for (let i = 0; i < 10; i++) spieleEinsatz(ganz, 'QB');
+  for (let i = 0; i < 5; i++) { spieleEinsatz(halb, 'QB'); spieleEinsatz(halb, 'WR'); }
+
+  assert.ok(halb.attribute.werfen < ganz.attribute.werfen,
+    'wer nur die Hälfte dort steht, lernt weniger');
+  assert.equal(einsaetzeAuf(halb, 'QB'), 5);
+  assert.equal(einsaetzeAuf(halb, 'WR'), 5);
+});
+
+test('drei Saisons auf einem fremden Platz drehen den Pass', () => {
+  resetSpielerIds();
+  const s = macheSpieler(makeRng('umschulung'), 'G', 60, { alter: 22, seite: 'L' });
+  assert.equal(hauptPlatz(s), 'LG');
+  for (let saison = 0; saison < 4; saison++) {
+    for (let i = 0; i < 11; i++) spieleEinsatz(s, 'MIKE');
+    s.einsaetze = verfalleEinsaetze(s.einsaetze);
+  }
+  assert.equal(hauptPlatz(s), 'MIKE');
+  assert.equal(s.position, 'G', 'seine Ausbildung steht weiter im Pass');
+});
+
+test('der Verfall frisst jeden Platz und räumt die Reste weg', () => {
+  const uebrig = verfalleEinsaetze({ LG: 40, MIKE: 10, SAM: 0.5 });
+  assert.equal(uebrig.LG, 40 * EINSATZ_VERFALL);
+  assert.equal(uebrig.MIKE, 10 * EINSATZ_VERFALL);
+  assert.ok(!('SAM' in uebrig), 'was unter ein halbes Spiel fällt, verschwindet');
+  assert.deepEqual(verfalleEinsaetze(undefined), {});
+});
+
+test('der Jahreswechsel lässt die Einsätze verfallen und rundet die Werte', () => {
+  resetSpielerIds();
+  const s = macheSpieler(makeRng('winter'), 'G', 60, { alter: 24, seite: 'L' });
+  for (let i = 0; i < 11; i++) spieleEinsatz(s, 'MIKE');
+  const vorWinter = einsaetzeAuf(s, 'MIKE');
+
+  const { kader } = saisonWechsel(makeRng('winter2'), [s], 60);
+  const danach = kader[0];
+  assert.ok(einsaetzeAuf(danach, 'MIKE') < vorWinter, 'die Einsätze verfallen');
+  for (const attribut of ATTRIBUTE) {
+    assert.equal(danach.attribute[attribut], Math.round(danach.attribute[attribut]),
+      `${attribut} steht nach dem Winter krumm`);
   }
 });

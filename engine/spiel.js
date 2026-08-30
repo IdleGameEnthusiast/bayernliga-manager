@@ -59,6 +59,12 @@ import { verfuegbar, kurzName } from './spieler.js';
  * @property {TeamStats} heimStats
  * @property {TeamStats} gastStats
  * @property {Verletzung[]} verletzungen
+ * @property {{ heim: import('./aufstellung.js').Aufstellung, gast: import('./aufstellung.js').Aufstellung }} aufstellungen
+ *   Wer tatsächlich auf dem Feld stand. Flüchtig: `spieleSpieltag()` bucht daraus
+ *   die Einsätze und streift das Feld ab, bevor das Ergebnis im Spielplan landet.
+ *   Es hier zurückzugeben und nicht später neu zu rechnen ist wichtig — nach dem
+ *   Spiel stehen die Verletzungen schon im Kader, und `stelleAuf()` käme dann auf
+ *   eine andere Elf als die, die gespielt hat.
  */
 
 /** Scoring events, with the weight each carries. Sums to 1. */
@@ -329,6 +335,7 @@ export function simuliereSpiel(rng, heim, gast, spieltag) {
     heimStats: baueStats(rng, heim.kader, spieltag, heimTds, heimStaerken, heimAnteil),
     gastStats: baueStats(rng, gast.kader, spieltag, gastTds, gastStaerken, gastAnteil),
     verletzungen,
+    aufstellungen: { heim: heimStaerken.aufstellung, gast: gastStaerken.aufstellung },
   };
 }
 

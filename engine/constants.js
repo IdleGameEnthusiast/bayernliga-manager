@@ -150,6 +150,16 @@ export const PROFIL_SPEZIALISIERUNG = 0.40;
 export const ATTRIBUT_STREUUNG = 6;
 
 /**
+ * Wie weit ein Einsatz die Attribute auf das Sollprofil seines Platzes zuzieht.
+ *
+ * Elf Spiele sind eine Saison, und elf davon machen zusammen rund 15 % — die
+ * Rate, bei der eine Umschulung sich lohnt, ohne den geborenen Spieler
+ * einzuholen. Wer die Saison aufteilt, zieht anteilig in beide Richtungen; das
+ * fällt von selbst an, weil je Spiel gerechnet wird und nicht je Saison.
+ */
+export const ATTRIBUT_DRIFT_JE_SPIEL = 0.0147;
+
+/**
  * The body. Height and weight are real data, not attributes — but `kraft` and
  * `schnelligkeit` hang off them, which is what makes the 95-kilo tackle a real
  * player rather than a mislabelled one: agile, and weak.
@@ -253,6 +263,27 @@ export const PLAYOFF_PLAETZE = 2;
 /** @param {number} v @param {number} lo @param {number} hi */
 export function clamp(v, lo, hi) {
   return v < lo ? lo : v > hi ? hi : v;
+}
+
+/**
+ * Linear zwischen Stützstellen, außerhalb flach.
+ *
+ * Das Modell beschreibt seine Kurven lieber als Tabelle denn als Formel: eine
+ * Zeile je Stützstelle liest sich beim Balancieren, eine Exponentialfunktion
+ * nicht. Die Stützstellen stehen aufsteigend, jede als `[Eingang, Ergebnis]`.
+ * @param {[number, number][]} kurve
+ * @param {number} wert
+ */
+export function interpoliere(kurve, wert) {
+  if (wert <= kurve[0][0]) return kurve[0][1];
+  const letzte = kurve[kurve.length - 1];
+  if (wert >= letzte[0]) return letzte[1];
+  for (let i = 1; i < kurve.length; i++) {
+    const [x0, y0] = kurve[i - 1];
+    const [x1, y1] = kurve[i];
+    if (wert <= x1) return y0 + ((wert - x0) / (x1 - x0)) * (y1 - y0);
+  }
+  return letzte[1];
 }
 
 // --- RNG -------------------------------------------------------------------
