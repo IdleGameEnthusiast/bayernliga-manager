@@ -71,7 +71,7 @@ function ausrichtungKarte(personnel, anteil, staerken, setze) {
     type: 'range',
     min: '0',
     max: '100',
-    step: '5',
+    step: '1',
     value: String(prozent(anteil)),
     'aria-label': T.taktik.passAnteil,
     oninput: (/** @type {Event} */ e) => {

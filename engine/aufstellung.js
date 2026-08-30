@@ -32,17 +32,32 @@ export const QB_PLATZ = 'QB';
  * Der Passanteil ist der Vorschlag der Gruppierung, keine Schranke: der
  * Manager darf frei zwischen 0 und 1 stellen. Was eine Gruppierung nicht kann,
  * sagt ihr Rollenwert, nicht ein verbotener Reglerbereich.
- * @type {Record<string, { name: string, skill: string[], passAnteil: number }>}
+ *
+ * Seit der Ausrichtung ist der Passanteil zugleich das **rechnerische Optimum**:
+ * `neigung` ist genau so kalibriert, dass `vorteil()` beim Durchschnittskader
+ * gegen die Durchschnittsverteidigung dort sein Maximum hat. Der Vorschlag ist
+ * damit keine Meinung mehr, sondern eine nachprüfbare Vorhersage — die Zahlen
+ * stehen in `tests/spiel.test.js` unter derselben Überschrift.
+ *
+ * `neigung` ist ein Kipp in Stärkepunkten, den `spreize()` auf Pass- und
+ * Laufangriff verteilt. Dass fast alle Werte negativ sind, ist kein Fehler: das
+ * Stärkemodell ist insgesamt passlastig, jedes System außer Double Wing steht
+ * roh über null. Nur die Abstände zwischen den Zahlen tragen die Identität.
+ *
+ * Die Werte hängen an den gemessenen Rohneigungen und driften, sobald sich
+ * Skill-Listen, Rollenwerte oder die Kadererzeugung ändern. Der Test rechnet
+ * sie nach und schlägt an, statt sie still veralten zu lassen.
+ * @type {Record<string, { name: string, skill: string[], passAnteil: number, neigung: number }>}
  */
 export const PERSONNEL = {
-  '00': { name: 'Empty', skill: ['SL', 'SL', 'SL', 'WR', 'WR'], passAnteil: 0.85 },
-  '01': { name: 'Empty mit TE', skill: ['TE', 'SL', 'SL', 'WR', 'WR'], passAnteil: 0.80 },
-  '10': { name: 'Spread', skill: ['RB', 'SL', 'WR', 'WR', 'SL'], passAnteil: 0.70 },
-  '11': { name: 'Standard', skill: ['RB', 'TE', 'WR', 'WR', 'SL'], passAnteil: 0.60 },
-  '12': { name: 'Double Tight', skill: ['RB', 'TE', 'TE', 'WR', 'WR'], passAnteil: 0.45 },
-  '20': { name: 'Two Back', skill: ['RB', 'FB', 'WR', 'WR', 'SL'], passAnteil: 0.50 },
-  '21': { name: 'Pro', skill: ['RB', 'FB', 'TE', 'WR', 'WR'], passAnteil: 0.40 },
-  '32': { name: 'Double Wing', skill: ['RB', 'FB', 'FB', 'TE', 'TE'], passAnteil: 0.20 },
+  '00': { name: 'Empty', skill: ['SL', 'SL', 'SL', 'WR', 'WR'], passAnteil: 0.90, neigung: 16.4 },
+  '01': { name: 'Empty mit TE', skill: ['TE', 'SL', 'SL', 'WR', 'WR'], passAnteil: 0.85, neigung: 12.8 },
+  '10': { name: 'Spread', skill: ['RB', 'SL', 'WR', 'WR', 'SL'], passAnteil: 0.60, neigung: 0.5 },
+  '11': { name: 'Standard', skill: ['RB', 'TE', 'WR', 'WR', 'SL'], passAnteil: 0.50, neigung: -2.3 },
+  '12': { name: 'Double Tight', skill: ['RB', 'TE', 'TE', 'WR', 'WR'], passAnteil: 0.45, neigung: -3.1 },
+  '20': { name: 'Two Back', skill: ['RB', 'FB', 'WR', 'WR', 'SL'], passAnteil: 0.45, neigung: -3.1 },
+  '21': { name: 'Pro', skill: ['RB', 'FB', 'TE', 'WR', 'WR'], passAnteil: 0.40, neigung: -4.0 },
+  '32': { name: 'Double Wing', skill: ['RB', 'FB', 'FB', 'TE', 'TE'], passAnteil: 0.20, neigung: -7.6 },
 };
 
 /**

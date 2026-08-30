@@ -165,7 +165,7 @@ export const DE = {
     ausrichtung: 'Run und Pass',
     passAnteil: 'Passanteil',
     vorschlag: (wert) => `Vorschlag des Systems: ${wert} %`,
-    frei: 'Frei wählbar — was das System nicht kann, kostet Leistung.',
+    frei: 'Frei wählbar — aber ganz ohne Lauf- oder Passandrohung bricht der Angriff ein.',
     gilt: 'Die Änderung gilt ab dem nächsten Spieltag.',
     wirkung: 'Was das ausmacht',
     aufstellung: 'Aufstellung',

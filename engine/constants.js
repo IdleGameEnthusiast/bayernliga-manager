@@ -235,6 +235,34 @@ export const MIN_EXPECTED = 3;
 export const MAX_EXPECTED = 56;
 
 /**
+ * Ausrichtung: warum eine Mischung schlägt, was an den Enden steht.
+ *
+ * `vorteil()` mischte Lauf und Pass früher linear. Eine Gerade hat ihr Optimum
+ * immer an einem Ende, und ihre Steigung war fast waagerecht: über den ganzen
+ * Reglerweg lagen 0,45 erwartete Punkte, gegen ein MATCH_NOISE von 6,5. Der
+ * Regler war damit unsichtbar und die Entscheidung keine.
+ *
+ * Vier Zahlen richten das:
+ *
+ * - AUSGEWOGENHEIT macht die Mischung konkav. Die Strafe ist null bei 50/50 und
+ *   wächst zu den Rändern, weshalb das Optimum bei `sigmoid(d / AUSGEWOGENHEIT)`
+ *   liegt und damit für *jedes* d echt innen. Sie sagt zugleich, was ein Ende
+ *   höchstens kostet: `AUSGEWOGENHEIT * ln2` Stärkepunkte.
+ * - SPREIZUNG sagt, wie weit Kader und Gegner dieses Optimum verschieben. Sie
+ *   spreizt Pass und Lauf um ihren gemeinsamen Mittelwert, lässt den also in
+ *   Ruhe — siehe `spreize()` in team.js.
+ * - KLIPPE und RAND brechen die letzten Prozent weg. Ohne sie kostete reines
+ *   Passspiel aus Empty heraus 0,4 Punkte und wäre unsichtbar geblieben; mit
+ *   ihnen kostet es 7. Ohne Laufandrohung kein Passspiel.
+ *
+ * Docs: docs/umbau-positionsmodell.md, Abschnitt 6
+ */
+export const AUSGEWOGENHEIT = 10;   // Stärkepunkte, die Einseitigkeit höchstens kostet
+export const SPREIZUNG = 1.0;       // wie weit Kader und Gegner das Systemoptimum verschieben
+export const KLIPPE = 16;           // Einbruch am äußersten Rand, in Stärkepunkten
+export const RAND = 0.03;           // Breite des Bandes, in dem die Klippe greift
+
+/**
  * Standings: German American football scores 2:0 for a win. There is no third
  * outcome — overtime runs until somebody is ahead, in the group stage as well
  * as in the playoffs, so no draw ever reaches the table.

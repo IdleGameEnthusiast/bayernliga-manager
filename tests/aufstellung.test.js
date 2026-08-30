@@ -314,8 +314,11 @@ test('ein voller Kader kommt der Ersatzstärke nie nahe', () => {
     s.passVerteidigung, s.laufVerteidigung) > ERSATZ_STAERKE + 10);
 
   const leer = teamStaerken([], 1);
-  assert.equal(leer.passAngriff, ERSATZ_STAERKE);
-  assert.equal(leer.laufVerteidigung, ERSATZ_STAERKE);
+  // Die Gruppierung kippt auch ein leeres Feld nach ihrer Neigung. Was bleibt,
+  // ist das hälftige Mittel — genau das, was `spreize()` verspricht.
+  assert.equal((leer.passAngriff + leer.laufAngriff) / 2, ERSATZ_STAERKE);
+  assert.equal(leer.laufVerteidigung, ERSATZ_STAERKE, 'die Defense kennt kein Personnel');
+  assert.equal(leer.passVerteidigung, ERSATZ_STAERKE);
   assert.equal(leer.special, ERSATZ_STAERKE);
 });
 

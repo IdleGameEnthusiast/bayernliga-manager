@@ -11,7 +11,7 @@
  * Docs: docs/umbau-positionsmodell.md, Abschnitt 6
  */
 
-import { ERSATZ_STAERKE } from './constants.js';
+import { ERSATZ_STAERKE, SPREIZUNG } from './constants.js';
 import { istFit } from './spieler.js';
 import {
   PERSONNEL, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
@@ -65,6 +65,30 @@ export function besterFuss(kader, spieltag, wert) {
 }
 
 /**
+ * Spreizt zwei Werte um ihren gemeinsamen Mittelwert und kippt sie um die
+ * Neigung des Systems.
+ *
+ * Der Mittelwert bleibt dabei **exakt** stehen, und das ist der ganze Punkt:
+ * `angriffStaerke()` ist genau dieser Mittelwert, also sehen Tabelle, Scouting
+ * und `gesamtStaerke()` von der Spreizung nichts. Sie existiert nur dort, wo die
+ * taktische Entscheidung fällt.
+ *
+ * Warum ungeklammert: `mitte` liegt nie unter ERSATZ_STAERKE, und `halb` bleibt
+ * darunter — die größte Neigung ist 16,4 und die größte beobachtete Rohspanne
+ * gut 15, zusammen also unter 16. Eine Klammer würde nur die Invariante oben
+ * kaputtmachen, ohne je zu greifen.
+ * @param {number} pass
+ * @param {number} lauf
+ * @param {number} neigung Kipp des Systems in Stärkepunkten; die Defense kennt keinen
+ * @returns {[number, number]}
+ */
+function spreize(pass, lauf, neigung) {
+  const mitte = (pass + lauf) / 2;
+  const halb = ((pass - lauf) / 2) * SPREIZUNG + neigung / 2;
+  return [mitte + halb, mitte - halb];
+}
+
+/**
  * Die Werte einer Mannschaft zu einem Zeitpunkt der Saison.
  *
  * Die Blockgewichte sind das Modell: im Passspiel trägt der Quarterback, im
@@ -105,10 +129,12 @@ export function teamStaerken(kader, spieltag, personnel = STANDARD_PERSONNEL, pa
       + blockWert(db, ['CB1', 'CB2', 'FS', 'SS'].map((p) => PLATZ_ANTEIL.db[art][p]), art) * g.db;
   };
 
-  const passAngriff = angriff('pass');
-  const laufAngriff = angriff('lauf');
-  const passVerteidigung = verteidigung('pass');
-  const laufVerteidigung = verteidigung('lauf');
+  // Die Gruppierung kippt den Angriff, die Defense kennt kein Personnel und
+  // wird nur gespreizt. Beides lässt das hälftige Mittel in Ruhe.
+  const [passAngriff, laufAngriff] =
+    spreize(angriff('pass'), angriff('lauf'), gruppierung.neigung);
+  const [passVerteidigung, laufVerteidigung] =
+    spreize(verteidigung('pass'), verteidigung('lauf'), 0);
 
   const k = aufstellung.k ? kickerWert(aufstellung.k) : ERSATZ_STAERKE;
   const p = aufstellung.p ? punterWert(aufstellung.p) : ERSATZ_STAERKE;

@@ -455,14 +455,30 @@ Die feste Linie dazu: `LT` `LG` `C` `RG` `RT` und `QB`.
 
 ### Ausrichtung
 
-Jeder Verein hat einen **Passanteil**. Die Personnel-Gruppierung schlägt ihn vor, der
-Manager verschiebt ihn um bis zu ±0,20:
+Jeder Verein hat einen **Passanteil**, frei wählbar zwischen 0 und 1. Die
+Personnel-Gruppierung nennt dazu einen Wert — und der ist seit der Eichung kein
+Vorschlag mehr, sondern das **rechnerische Optimum**: dort hat `vorteil()` beim
+Durchschnittskader gegen die Durchschnittsverteidigung sein Maximum.
 
 | Gruppierung | `00` | `01` | `10` | `11` | `12` | `20` | `21` | `32` |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Passanteil | 0,85 | 0,80 | 0,70 | 0,60 | 0,45 | 0,50 | 0,40 | 0,20 |
+| Passanteil | 0,90 | 0,85 | 0,60 | 0,50 | 0,45 | 0,45 | 0,40 | 0,20 |
+| `neigung` | +16,4 | +12,8 | +0,5 | −2,3 | −3,1 | −3,1 | −4,0 | −7,6 |
 
-*(Diese Zahlen sind ein Vorschlag und stehen unter Abschnitt 12, Nr. 3.)*
+`neigung` ist ein Kipp in Stärkepunkten, den `spreize()` in [`team.js`](../engine/team.js)
+auf Pass- und Laufangriff verteilt — nach oben das eine, nach unten das andere, der
+Mittelwert bleibt exakt stehen. Deshalb sieht `angriffStaerke()` und mit ihr Tabelle,
+Scouting und `gesamtStaerke()` von der ganzen Mechanik **nichts**. Sie existiert nur
+dort, wo die taktische Entscheidung fällt.
+
+Dass fast alle Neigungen negativ sind, ist kein Fehler: das Stärkemodell ist insgesamt
+passlastig, jedes System außer Double Wing steht roh über null. Nur die Abstände
+zwischen den Zahlen tragen die Identität.
+
+Die Werte hängen an den gemessenen Rohneigungen und driften, sobald sich Skill-Listen,
+Rollenwerte oder die Kadererzeugung ändern. `tests/spiel.test.js` rechnet sie unter
+*„jede Gruppierung hat ihren Passanteil als Optimum"* nach und schlägt an, statt sie
+still veralten zu lassen.
 
 ### Blockgewichte
 
@@ -557,9 +573,50 @@ erwarteten Punkte mischen beide Duelle nach dem Passanteil des angreifenden Vere
 ```
 vorteil = passAnteil        * (passAngriff - passVerteidigungGegner)
         + (1 - passAnteil)  * (laufAngriff - laufVerteidigungGegner)
+        + einseitig(passAnteil)
+        + klippe(passAnteil)
 
 erwartet = BASE_POINTS + RATING_TO_POINTS * vorteil   (+ HOME_ADVANTAGE)
 ```
+
+Die ersten beiden Zeilen sind linear, und **das war der Fehler**: eine Gerade hat ihr
+Optimum immer an einem Ende, und ihre Steigung war fast waagerecht. Über den ganzen
+Reglerweg lagen 0,45 erwartete Punkte, gegen ein `MATCH_NOISE` von 6,5. Der Regler war
+unsichtbar und die Entscheidung keine.
+
+**`einseitig()`** ist die binäre Entropie, mal `AUSGEWOGENHEIT`, negativ gezählt:
+
+```
+einseitig(a) = -AUSGEWOGENHEIT * (ln2 + a·ln a + (1-a)·ln(1-a))
+```
+
+Null bei 50/50, an den Enden `-AUSGEWOGENHEIT · ln2`. Weil ihre Ableitung an den
+Rändern gegen unendlich geht, liegt das Optimum in geschlossener Form bei
+
+```
+a* = sigmoid( ((passAngriff - laufAngriff) - (passVert - laufVert)) / AUSGEWOGENHEIT )
+```
+
+und damit für **jedes** d echt innen — ohne Klammerung, ohne Sonderfall. Eine Parabel
+täte das nicht: bei genügend schiefem Kader kippt sie wieder in die Ecke.
+
+**`klippe()`** bricht die letzten `RAND` Prozent weg. Sie ist nötig, weil die Entropie
+zwar unendliche Steigung am Rand hat, ihr *Betrag* dort aber mit `(1 - a)` verschwindet:
+reines Passspiel aus Empty heraus kostete 0,4 Punkte und war nicht zu bemerken. Mit der
+Klippe kostet es 7.
+
+```
+saum(x)   = (1 - x/RAND)²  für x < RAND, sonst 0
+klippe(a) = -KLIPPE * (saum(a) + saum(1-a))
+```
+
+Das Scharnier ist quadratisch, hat bei `RAND` also waagerechte Ableitung und schließt
+knickfrei an — beim Schieben merkt man bis 97 % nichts. Und weil der Term auf
+`[RAND, 1-RAND]` identisch null ist, kann er kein Optimum verschieben: er senkt nur,
+was ohnehin daneben liegt.
+
+Was ein Ende kostet, hängt am Ende nur noch am Optimum selbst — `-AUSGEWOGENHEIT·ln(1-a*)`
+für 0 % und `-AUSGEWOGENHEIT·ln(a*)` für 100 %, plus `KLIPPE`.
 
 Alles Übrige in `engine/spiel.js` — Rauschen, Grenzen, Verlängerung — bleibt
 unverändert. Special Teams bleiben eine Zahl aus `kickStaerke` und `kickGenauigkeit`.
@@ -964,7 +1021,9 @@ Damit nichts zweimal verhandelt wird. Alles darüber stützt sich hierauf.
 | Defense Lauf | DL 0,40 · LB 0,40 · DB 0,20 |
 | Defense Pass | DL 0,35 · DB 0,40 · LB 0,25 |
 | Lauf/Pass | wird bis in die Simulation ausgespielt |
-| Ausrichtung | Personnel schlägt vor, Manager verschiebt (±0,20) |
+| Ausrichtung | frei von 0 bis 1; der `passAnteil` der Gruppierung **ist** das Optimum, geeicht über `neigung` |
+| Mischung | konkav über die Entropie (`AUSGEWOGENHEIT` 10), Randklippe in den letzten 3 % (`KLIPPE` 16) |
+| Spreizung | `SPREIZUNG` 1,0 — kippt Pass gegen Lauf, lässt das hälftige Mittel exakt stehen |
 | Personnel | acht Gruppierungen, jede listet ihre Plätze; ausgelost, vom Manager jederzeit wählbar |
 | Defense-Formation | 4-3 zum Start, weitere später über denselben Platz-Apparat |
 | Aufstellung | innerhalb der Position nach `staerke`, von außen nach berechneter Eignung |

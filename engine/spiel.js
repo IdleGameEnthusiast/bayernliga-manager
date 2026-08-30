@@ -14,6 +14,7 @@ import {
   BASE_POINTS, RATING_TO_POINTS, HOME_ADVANTAGE, MATCH_NOISE,
   MIN_EXPECTED, MAX_EXPECTED, INJURY_CHANCE_PER_GAME,
   INJURY_MIN_WEEKS, INJURY_MAX_WEEKS, OT_NOTBREMSE_RUNDEN,
+  AUSGEWOGENHEIT, KLIPPE, RAND,
   clamp, randInt, randNormal, pickWeighted,
 } from './constants.js';
 import { teamStaerken } from './team.js';
@@ -134,6 +135,51 @@ export function passAnteilVon(verein) {
   return gruppierung.passAnteil;
 }
 
+/** x·ln x, mit dem Grenzwert 0 an der Null. */
+function xlnx(x) {
+  return x <= 0 ? 0 : x * Math.log(x);
+}
+
+/**
+ * Die Strafe für Einseitigkeit: null bei 50/50, an den Enden `-AUSGEWOGENHEIT · ln2`.
+ *
+ * Es ist die binäre Entropie, und die ist hier keine Koketterie. Ihre Ableitung
+ * geht an den Rändern gegen unendlich, weshalb `vorteil()` sein Maximum immer
+ * echt innen hat — für jeden noch so schiefen Kader, ohne Klammerung und ohne
+ * Sonderfall. Eine Parabel kippt bei genügend schiefem d wieder in die Ecke.
+ * @param {number} passAnteil
+ */
+function einseitig(passAnteil) {
+  return -AUSGEWOGENHEIT * (Math.LN2 + xlnx(passAnteil) + xlnx(1 - passAnteil));
+}
+
+/**
+ * Quadratisches Scharnier: null ab RAND, und dort mit waagerechter Ableitung.
+ * Der Anschluss ist damit knickfrei — beim Schieben merkt man nichts, bis man
+ * im Band ist.
+ * @param {number} abstand zum jeweiligen Ende
+ */
+function saum(abstand) {
+  const v = 1 - abstand / RAND;
+  return v > 0 ? v * v : 0;
+}
+
+/**
+ * Ohne Laufandrohung kein Passspiel: die letzten Prozent brechen weg.
+ *
+ * Die Entropie allein reicht dafür nicht. Sie hat zwar unendliche Steigung am
+ * Rand, aber ihr *Betrag* dort verschwindet mit `(1 - a)`: reines Passspiel aus
+ * Empty heraus kostete 0,4 Punkte gegen ein Rauschen von 6,5, war also nicht zu
+ * bemerken. Mit der Klippe kostet es 7.
+ *
+ * Der Term ist auf `[RAND, 1 - RAND]` identisch null und kann das Optimum
+ * deshalb nicht verschieben — er senkt nur, was ohnehin daneben liegt.
+ * @param {number} passAnteil
+ */
+function klippe(passAnteil) {
+  return -KLIPPE * (saum(passAnteil) + saum(1 - passAnteil));
+}
+
 /**
  * Der Vorteil einer Mannschaft über die andere.
  *
@@ -142,13 +188,21 @@ export function passAnteilVon(verein) {
  * angreifenden Vereins gemischt: wer läuft, trifft auf die Laufverteidigung
  * des Gegners, und ein Laufteam gegen eine löchrige Front punktet, auch wenn
  * dieselbe Front den Pass gut verteidigt.
+ *
+ * Gemischt wird **nicht linear**, denn eine Gerade hat ihr Optimum immer an
+ * einem Ende. Mit `einseitig()` liegt es bei
+ * `sigmoid(((passAngriff - laufAngriff) - (passVert - laufVert)) / AUSGEWOGENHEIT)`,
+ * und wo genau, sagt die `neigung` der Gruppierung: sie ist so kalibriert, dass
+ * dort deren `passAnteil` herauskommt. Ein Empty-System will werfen, ein Double
+ * Wing laufen, und beide zahlen für das Gegenteil.
  * @param {import('./team.js').Staerken} angriff
  * @param {import('./team.js').Staerken} verteidigung des Gegners
  * @param {number} passAnteil des angreifenden Vereins
  */
 export function vorteil(angriff, verteidigung, passAnteil) {
   return passAnteil * (angriff.passAngriff - verteidigung.passVerteidigung)
-    + (1 - passAnteil) * (angriff.laufAngriff - verteidigung.laufVerteidigung);
+    + (1 - passAnteil) * (angriff.laufAngriff - verteidigung.laufVerteidigung)
+    + einseitig(passAnteil) + klippe(passAnteil);
 }
 
 /**

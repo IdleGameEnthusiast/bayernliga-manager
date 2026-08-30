@@ -2,13 +2,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { makeRng } from '../engine/constants.js';
+import { makeRng, AUSGEWOGENHEIT, RATING_TO_POINTS } from '../engine/constants.js';
 import { macheKader, resetSpielerIds } from '../engine/spieler.js';
 import {
   simuliereSpiel, baueScore, vorteil, angriffGemischt, passAnteilVon,
 } from '../engine/spiel.js';
 import { teamStaerken, gesamtStaerke } from '../engine/team.js';
 import { PERSONNEL } from '../engine/aufstellung.js';
+import { neuesSpiel } from '../engine/saison.js';
+import { TEAMS } from '../engine/content.js';
 
 /** @param {string} id @param {number} staerke */
 function team(id, staerke) {
@@ -137,19 +139,121 @@ function werte(pa, la, pv, lv) {
   });
 }
 
-test('der Vorteil mischt die beiden Duelle nach dem Passanteil', () => {
+/** Der Passanteil, bei dem `vorteil()` sein Maximum hat. */
+function optimum(angriff, verteidigung, schritt = 0.002) {
+  let best = 0;
+  let bester = -Infinity;
+  for (let a = schritt; a < 1; a += schritt) {
+    const w = vorteil(angriff, verteidigung, a);
+    if (w > bester) { bester = w; best = a; }
+  }
+  return best;
+}
+
+test('bei 50/50 mischt der Vorteil die beiden Duelle blank', () => {
+  // Die Strafe für Einseitigkeit ist genau in der Mitte null. Dort und nur dort
+  // steht das nackte Mittel der beiden Duelle — daran hängt die Eichung von
+  // BASE_POINTS.
   const angriff = werte(60, 40, 0, 0);
   const gegner = werte(0, 0, 50, 30);
-
-  assert.equal(vorteil(angriff, gegner, 1), 10, 'reines Passspiel');
-  assert.equal(vorteil(angriff, gegner, 0), 10, 'reines Laufspiel');
   assert.equal(vorteil(angriff, gegner, 0.5), 10);
 
-  // Und wenn die beiden Duelle auseinanderlaufen, entscheidet die Ausrichtung.
   const einseitig = werte(70, 40, 0, 0);
-  assert.equal(vorteil(einseitig, gegner, 1), 20);
-  assert.equal(vorteil(einseitig, gegner, 0), 10);
-  assert.equal(vorteil(einseitig, gegner, 0.25), 12.5);
+  assert.equal(vorteil(einseitig, gegner, 0.5), 15);
+});
+
+test('kein Ende ist je das Beste — auch bei absurd schiefem Kader nicht', () => {
+  // Die Garantie der Entropie: ihre Ableitung geht am Rand gegen unendlich,
+  // also schlägt *irgendein* innerer Punkt jedes Ende. Das gilt ohne Klammerung
+  // und ohne Sonderfall, auch für Kader, die es in der Liga nicht gibt.
+  const gegner = werte(0, 0, 50, 50);
+  for (let pa = 5; pa <= 95; pa += 5) {
+    const a = werte(pa, 100 - pa, 0, 0);
+    const beste = vorteil(a, gegner, optimum(a, gegner));
+    assert.ok(beste > vorteil(a, gegner, 0), `Pass ${pa}: 0 % schlägt das Optimum`);
+    assert.ok(beste > vorteil(a, gegner, 1), `Pass ${pa}: 100 % schlägt das Optimum`);
+  }
+});
+
+test('bei echten Kadern bleibt das Optimum aus dem Randband heraus', () => {
+  // Das Randband ist 3 % breit. Solange die beiden Angriffswerte höchstens rund
+  // zwanzig Punkte auseinanderliegen — und weiter treibt sie keine Gruppierung —
+  // liegt das Optimum mit Abstand davor, die Klippe also im Weg und nicht im Spiel.
+  const gegner = werte(0, 0, 52, 48);
+  for (let d = -20; d <= 20; d += 2) {
+    const a = optimum(werte(50 + d / 2, 50 - d / 2, 0, 0), gegner);
+    assert.ok(a > 0.05 && a < 0.95, `d ${d}: Optimum bei ${a.toFixed(3)}`);
+  }
+});
+
+test('das Optimum folgt der Sigmoide über AUSGEWOGENHEIT', () => {
+  // Die geschlossene Form, auf der die ganze Eichung ruht:
+  //   a* = sigmoid(((passAngriff - laufAngriff) - (passVert - laufVert)) / AUSGEWOGENHEIT)
+  const gegner = werte(0, 0, 52, 48);
+  for (const [pa, la] of [[60, 40], [50, 50], [44, 56], [58, 44]]) {
+    const d = (pa - la) - (52 - 48);
+    const erwartet = 1 / (1 + Math.exp(-d / AUSGEWOGENHEIT));
+    const gemessen = optimum(werte(pa, la, 0, 0), gegner);
+    assert.ok(Math.abs(gemessen - erwartet) < 0.005,
+      `${pa}/${la}: erwartet ${erwartet.toFixed(3)}, gemessen ${gemessen.toFixed(3)}`);
+  }
+});
+
+test('die letzten Prozent sind nie eine Option', () => {
+  // Der Grund für die Klippe: ohne sie kostete reines Passspiel aus einem
+  // passstarken Kader heraus Bruchteile eines Punktes und war gegen
+  // MATCH_NOISE von 6,5 nicht zu bemerken. Jetzt kostet jedes Ende mehr als
+  // drei Punkte, und zwar aus jeder Ausrichtung heraus.
+  const gegner = werte(0, 0, 50, 50);
+  for (const [pa, la] of [[58, 42], [50, 50], [42, 58]]) {
+    const a = werte(pa, la, 0, 0);
+    const beste = vorteil(a, gegner, optimum(a, gegner));
+    for (const rand of [0, 0.01, 0.99, 1]) {
+      const verlust = (beste - vorteil(a, gegner, rand)) * RATING_TO_POINTS;
+      assert.ok(verlust > 3, `${pa}/${la} bei ${rand}: nur ${verlust.toFixed(2)} Punkte`);
+    }
+  }
+});
+
+test('vor dem Randband ist die Klippe nicht zu spüren', () => {
+  // Sie ist auf [RAND, 1 - RAND] identisch null und schließt dort knickfrei an.
+  // Wer den Regler bis 97 % schiebt, merkt von ihr nichts — erst danach.
+  const a = werte(58, 42, 0, 0);
+  const gegner = werte(0, 0, 50, 50);
+  const stufe = (x, y) => Math.abs(vorteil(a, gegner, x) - vorteil(a, gegner, y));
+  // 0,32 Stärkepunkte vor dem Band gegen 14,9 darin: derselbe Reglerweg, ein
+  // Faktor 45 dazwischen.
+  assert.ok(stufe(0.95, 0.97) < 1, 'im ruhigen Bereich läuft es flach');
+  assert.ok(stufe(0.98, 1) > 10, 'im Band bricht es weg');
+});
+
+test('jede Gruppierung hat ihren Passanteil als Optimum', () => {
+  // Das ist die Eichung der `neigung`-Werte, rückwärts nachgerechnet. Der
+  // `passAnteil` einer Gruppierung ist keine Meinung, sondern die Vorhersage,
+  // wo `vorteil()` beim Durchschnittskader gegen die Durchschnittsverteidigung
+  // sein Maximum hat. Wer Skill-Listen, Rollenwerte oder die Kadererzeugung
+  // anfasst, verschiebt sie und muss die Neigungen neu messen.
+  const staende = ['eich-a', 'eich-b'].map((s) => neuesSpiel(TEAMS[0].id, s));
+  /** @type {import('../engine/team.js').Staerken[]} */
+  const verteidigungen = [];
+  for (const stand of staende) {
+    for (const t of TEAMS) verteidigungen.push(teamStaerken(stand.kader[t.id], 1, '11', 0.5));
+  }
+
+  for (const id of Object.keys(PERSONNEL)) {
+    const optima = [];
+    for (const stand of staende) {
+      for (const t of TEAMS) {
+        const angriff = teamStaerken(stand.kader[t.id], 1, id, 0.5);
+        for (const v of verteidigungen) optima.push(optimum(angriff, v, 0.01));
+      }
+    }
+    const mittel = optima.reduce((a, b) => a + b, 0) / optima.length;
+    const soll = PERSONNEL[id].passAnteil;
+    assert.ok(Math.abs(mittel - soll) < 0.05,
+      `${id} ${PERSONNEL[id].name}: Soll ${soll}, gemessen ${mittel.toFixed(3)} `
+      + `— die Neigung ${PERSONNEL[id].neigung} passt nicht mehr`);
+  }
 });
 
 test('ein Laufteam nutzt eine schwache Laufverteidigung', () => {
