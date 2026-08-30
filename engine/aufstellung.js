@@ -293,6 +293,74 @@ export function skillAnteile(skillPlaetze) {
   return { pass: fuer('pass'), lauf: fuer('lauf') };
 }
 
+/**
+ * Die Plätze nach ihrer Position gruppiert, in der Reihenfolge ihres ersten
+ * Auftretens.
+ *
+ * Zwei Plätze derselben Position werden zusammen besetzt. Einzeln gefüllt
+ * greift der vordere zuerst zu, und weil `LG` in der Liste vor `RG` steht,
+ * bekäme links immer den stärkeren Guard — gleichgültig, auf welcher Seite er
+ * ausgebildet ist.
+ * @param {Platz[]} alle
+ * @returns {Map<string, Platz[]>}
+ */
+function nachPosition(alle) {
+  /** @type {Map<string, Platz[]>} */
+  const gruppen = new Map();
+  for (const platz of alle) {
+    const liste = gruppen.get(platz.position);
+    if (liste) liste.push(platz);
+    else gruppen.set(platz.position, [platz]);
+  }
+  return gruppen;
+}
+
+/**
+ * Wer von den Ausgewählten welchen Platz nimmt.
+ *
+ * Nur nach Eignung Platz für Platz zu füllen reicht dafür nicht: ein starker
+ * rechter Guard schlägt einen schwachen linken auch nach dem Seitenabzug noch
+ * und nähme ihm den linken Platz weg — dann stünden beide falsch statt einer.
+ * Entschieden wird deshalb über das Paar: die beste noch offene Verbindung
+ * zuerst, bis nichts mehr frei ist.
+ *
+ * Das gilt auch, wo keine Seite im Spiel ist. Zwei Receiverplätze wiegen
+ * verschieden schwer — der vordere trägt die höhere Sprosse der Skill-Leiter —,
+ * also gehört der mit der besseren Eignung dorthin.
+ * @param {import('./spieler.js').Spieler[]} kandidaten
+ * @param {Platz[]} plaetze
+ * @param {number} passAnteil
+ * @returns {[Platz, import('./spieler.js').Spieler][]}
+ */
+function verteile(kandidaten, plaetze, passAnteil) {
+  /** @type {{ platz: Platz, spieler: import('./spieler.js').Spieler, wert: number }[]} */
+  const paare = [];
+  for (const platz of plaetze) {
+    for (const spieler of kandidaten) {
+      paare.push({
+        platz,
+        spieler,
+        wert: eignungGemischt(spieler, platz.platz, bewertungsAnteil(platz.platz, passAnteil)),
+      });
+    }
+  }
+  paare.sort((a, b) => b.wert - a.wert);
+
+  /** @type {Set<Platz>} */
+  const belegt = new Set();
+  /** @type {Set<string>} */
+  const vergeben = new Set();
+  /** @type {[Platz, import('./spieler.js').Spieler][]} */
+  const ergebnis = [];
+  for (const paar of paare) {
+    if (belegt.has(paar.platz) || vergeben.has(paar.spieler.id)) continue;
+    belegt.add(paar.platz);
+    vergeben.add(paar.spieler.id);
+    ergebnis.push([paar.platz, paar.spieler]);
+  }
+  return ergebnis;
+}
+
 /** @param {string} platz */
 function leererPlatz(platz) {
   return /** @type {Platz} */ ({
@@ -305,10 +373,11 @@ function leererPlatz(platz) {
  * Beide Einheiten in einem Durchgang besetzen.
  *
  * Drei Runden. Erst bekommt jeder Platz den stärksten fitten Spieler seiner
- * eigenen Position — innerhalb einer Position entscheidet `staerke`, wie
- * bisher. Dann rücken auf die noch leeren Plätze die besten Umsteller nach,
- * angefangen beim teuersten Platz. Bleibt danach noch etwas leer, greift der
- * Doppeleinsatz — teuer, und deshalb zuletzt.
+ * eigenen Position: die Stärke sagt, **wer** von ihnen spielt, die Eignung
+ * danach nur noch, **wo** — sonst stünde die Seite nach der Reihenfolge der
+ * Liste statt nach der Ausbildung. Dann rücken auf die noch leeren Plätze die
+ * besten Umsteller nach, angefangen beim teuersten Platz. Bleibt danach noch
+ * etwas leer, greift der Doppeleinsatz — teuer, und deshalb zuletzt.
  * @param {import('./spieler.js').Spieler[]} kader
  * @param {number} spieltag
  * @param {string} [personnel]
@@ -331,14 +400,17 @@ export function stelleAuf(kader, spieltag, personnel = STANDARD_PERSONNEL, passA
   /** @type {Set<string>} */
   const benutzt = new Set();
 
-  // Runde eins: der stärkste fitte Mann seiner Position.
-  for (const platz of alle) {
+  // Runde eins: der stärkste fitte Mann seiner Position — und wo eine Position
+  // mehrere Plätze hat, entscheidet danach die Eignung, wer davon welchen nimmt.
+  for (const [position, plaetze] of nachPosition(alle)) {
     const eigene = fit
-      .filter((s) => s.position === platz.position && !benutzt.has(s.id))
-      .sort((a, b) => b.staerke - a.staerke);
-    if (eigene.length === 0) continue;
-    platz.spieler = eigene[0];
-    benutzt.add(eigene[0].id);
+      .filter((s) => s.position === position)
+      .sort((a, b) => b.staerke - a.staerke)
+      .slice(0, plaetze.length);
+    for (const [platz, spieler] of verteile(eigene, plaetze, anteil)) {
+      platz.spieler = spieler;
+      benutzt.add(spieler.id);
+    }
   }
 
   // Runde zwei: umstellen, teuerste Plätze zuerst.

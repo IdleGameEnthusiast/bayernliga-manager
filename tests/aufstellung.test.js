@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { makeRng, ZUSATZ_SPIELER, ERSATZ_STAERKE } from '../engine/constants.js';
-import { macheKader, resetSpielerIds } from '../engine/spieler.js';
+import { macheKader, macheSpieler, resetSpielerIds, setzeStaerke } from '../engine/spieler.js';
 import { PLAETZE } from '../engine/positionen.js';
 import {
   PERSONNEL, PERSONNEL_REIHE, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
@@ -189,13 +189,39 @@ test('der Doppeleinsatz kostet auch in der angezeigten Stärke', () => {
   }
 });
 
-test('innerhalb einer Position entscheidet die Stärke', () => {
+test('die Stärke entscheidet, wer spielt — die Seite, wo', () => {
   const k = kader('staerke');
   const a = stelleAuf(k, 1, '11');
   const lt = a.offense.find((p) => p.platz === 'LT');
-  const staerkster = k.filter((s) => s.position === 'T').sort((x, y) => y.staerke - x.staerke)[0];
-  assert.equal(lt.spieler.id, staerkster.id, 'der stärkste Tackle steht auf LT');
+  const rt = a.offense.find((p) => p.platz === 'RT');
+
+  // Wer spielt: die beiden stärksten Tackles, keine Frage der Seite.
+  const staerkste = k.filter((s) => s.position === 'T')
+    .sort((x, y) => y.staerke - x.staerke).slice(0, 2).map((s) => s.id);
+  assert.deepEqual([lt.spieler.id, rt.spieler.id].sort(), staerkste.sort());
+
+  // Wo: jeder auf der Seite, auf der er ausgebildet ist.
+  assert.equal(lt.spieler.seite, 'L');
+  assert.equal(rt.spieler.seite, 'R');
   assert.equal(lt.umgestellt, false);
+  assert.equal(rt.umgestellt, false);
+});
+
+test('der stärkere Mann bekommt nicht den vorderen, sondern seinen Platz', () => {
+  // Der Fall, an dem das Füllen Platz für Platz scheitert: der stärkere Guard
+  // ist rechts ausgebildet. Nach Stärke allein nähme er LG, weil LG in der
+  // Liste vorn steht; nach Eignung Platz für Platz ebenfalls, weil er auch mit
+  // acht Prozent Abzug noch vor dem schwächeren liegt. Dann stünden beide
+  // falsch statt keiner.
+  const rng = makeRng('seiten');
+  const stark = macheSpieler(rng, 'G', 70, { seite: 'R' });
+  const schwach = macheSpieler(rng, 'G', 45, { seite: 'L' });
+  setzeStaerke(stark, 75);
+  setzeStaerke(schwach, 50);
+
+  const a = stelleAuf([stark, schwach], 1, '11');
+  assert.equal(a.offense.find((p) => p.platz === 'RG').spieler.id, stark.id);
+  assert.equal(a.offense.find((p) => p.platz === 'LG').spieler.id, schwach.id);
 });
 
 test('eine leere Position holt sich den besten Umsteller', () => {

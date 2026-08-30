@@ -509,9 +509,21 @@ Der Angriff mischt nach dem eigenen Passanteil, die Verteidigung hälftig, genau
 
 Regeln:
 
-1. **Innerhalb einer Position entscheidet `staerke`**, wie heute — der stärkste fitte
-   Tackle steht auf `LT`. (Dass der Manager später selbst aufstellt, ist ein eigener
-   Schritt.)
+1. **Innerhalb einer Position entscheidet `staerke`, wer spielt — die Eignung, wo.**
+   Die beiden stärksten fitten Tackles stehen in der Line; welcher davon `LT` nimmt
+   und welcher `RT`, sagt danach `eignungGemischt()`, also der Seitenwechsel.
+   (Dass der Manager selbst aufstellt, ist ein eigener Schritt.)
+
+   Platz für Platz gefüllt geht das nicht. Ein starker rechter Guard schlägt einen
+   schwachen linken auch nach den acht Prozent noch und nähme ihm `LG` weg — dann
+   stünden beide falsch statt keiner. Entschieden wird deshalb über die Gruppe:
+   `nachPosition()` sammelt die Plätze einer Position, `verteile()` vergibt immer die
+   beste noch offene Verbindung zuerst. Bei zwei Plätzen ist das die beste Lösung,
+   und mehr als zwei hat keine Position mit Seite.
+
+   Es gilt auch, wo keine Seite im Spiel ist: zwei Receiverplätze wiegen verschieden
+   schwer, weil der vordere die höhere Sprosse der Skill-Leiter trägt. Der mit der
+   besseren Eignung gehört dorthin.
 2. **Ist eine Position leer, rückt der mit der besten berechneten Eignung** für diesen
    Platz nach — über alle freien Spieler, quer durch den Kader. Die fehlende Technik
    ist der Abschlag; eine zweite Regel braucht es nicht.
