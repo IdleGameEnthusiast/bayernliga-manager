@@ -21,7 +21,7 @@ import {
   anzahlSpieltage, partienAmSpieltag, partienDerRunde,
 } from './spielplan.js';
 import { simuliereSpiel } from './spiel.js';
-import { PERSONNEL, STANDARD_PERSONNEL, PASSANTEIL_SPIELRAUM } from './aufstellung.js';
+import { PERSONNEL, STANDARD_PERSONNEL } from './aufstellung.js';
 import { berechneTabelle } from './tabelle.js';
 
 export const SAVE_VERSION = 4;
@@ -105,17 +105,17 @@ export function passAnteilVon(stand, teamId) {
 }
 
 /**
- * Was der Manager einstellen darf: der Vorschlag der Gruppierung, verschoben
- * um höchstens PASSANTEIL_SPIELRAUM.
+ * Was der Manager einstellen darf: alles zwischen 0 und 1.
+ *
+ * Früher stand hier eine Schranke um den Vorschlag der Gruppierung herum. Sie
+ * ist entfallen, seit der Rollenwert im Skill-Block den Preis nennt — wer aus
+ * Double Wing werfen will, darf das, und bezahlt es an der richtigen Stelle.
+ * Die Funktion bleibt, weil `setzeTaktik` und die Migration durch sie gehen.
  * @param {string} personnel
  * @param {number} wunsch
  */
 export function erlaubterPassAnteil(personnel, wunsch) {
-  const vorschlag = (PERSONNEL[personnel] || PERSONNEL[STANDARD_PERSONNEL]).passAnteil;
-  return clamp(
-    clamp(wunsch, vorschlag - PASSANTEIL_SPIELRAUM, vorschlag + PASSANTEIL_SPIELRAUM),
-    0, 1,
-  );
+  return clamp(wunsch, 0, 1);
 }
 
 /**

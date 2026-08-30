@@ -29,8 +29,9 @@ export const QB_PLATZ = 'QB';
  * ausdrücklich, damit sich eine Formation einzeln nachjustieren lässt, statt
  * aus den beiden Ziffern gerechnet zu werden.
  *
- * Der Passanteil ist der Vorschlag der Gruppierung; der Manager verschiebt ihn
- * um bis zu PASSANTEIL_SPIELRAUM.
+ * Der Passanteil ist der Vorschlag der Gruppierung, keine Schranke: der
+ * Manager darf frei zwischen 0 und 1 stellen. Was eine Gruppierung nicht kann,
+ * sagt ihr Rollenwert, nicht ein verbotener Reglerbereich.
  * @type {Record<string, { name: string, skill: string[], passAnteil: number }>}
  */
 export const PERSONNEL = {
@@ -38,9 +39,9 @@ export const PERSONNEL = {
   '01': { name: 'Empty mit TE', skill: ['TE', 'SL', 'SL', 'WR', 'WR'], passAnteil: 0.80 },
   '10': { name: 'Spread', skill: ['RB', 'SL', 'WR', 'WR', 'SL'], passAnteil: 0.70 },
   '11': { name: 'Standard', skill: ['RB', 'TE', 'WR', 'WR', 'SL'], passAnteil: 0.60 },
-  '12': { name: '', skill: ['RB', 'TE', 'TE', 'WR', 'WR'], passAnteil: 0.45 },
-  '20': { name: '', skill: ['RB', 'FB', 'WR', 'WR', 'SL'], passAnteil: 0.50 },
-  '21': { name: '', skill: ['RB', 'FB', 'TE', 'WR', 'WR'], passAnteil: 0.40 },
+  '12': { name: 'Double Tight', skill: ['RB', 'TE', 'TE', 'WR', 'WR'], passAnteil: 0.45 },
+  '20': { name: 'Two Back', skill: ['RB', 'FB', 'WR', 'WR', 'SL'], passAnteil: 0.50 },
+  '21': { name: 'Pro', skill: ['RB', 'FB', 'TE', 'WR', 'WR'], passAnteil: 0.40 },
   '32': { name: 'Double Wing', skill: ['RB', 'FB', 'FB', 'TE', 'TE'], passAnteil: 0.20 },
 };
 
@@ -57,8 +58,6 @@ export const PERSONNEL_REIHE = /** @type {const} */ ([
 /** Was ein Verein spielt, wenn nichts anderes gesagt ist. */
 export const STANDARD_PERSONNEL = '11';
 
-/** Wie weit der Manager den Passanteil seiner Gruppierung verschieben darf. */
-export const PASSANTEIL_SPIELRAUM = 0.20;
 
 /**
  * Die Verteidigung steht als 4-3. Weitere Formationen kommen später und
@@ -106,14 +105,35 @@ export const PLATZ_ANTEIL = {
 };
 
 /**
- * Die Skill-Leiter: Anteile am Skill-Block, nach dem Rang des Platzes. Wer der
- * erste ist, hängt an der Spielart — im Passspiel steht der Receiver vorn, im
- * Laufspiel der Runningback.
+ * Die Skill-Leiter: was ein Rang im Skill-Block trägt. Zwei Leitern, weil die
+ * beiden Spielarten verschieden verteilen — im Passspiel trägt der erste
+ * Empfänger den Spielzug, im Laufspiel blocken alle mit.
+ *
+ * Beide summieren auf 1.
  */
-export const SKILL_LEITER = [0.30, 0.25, 0.20, 0.15, 0.10];
-export const SKILL_REIHE = {
-  pass: ['WR', 'SL', 'TE', 'RB', 'FB'],
-  lauf: ['RB', 'FB', 'TE', 'SL', 'WR'],
+export const SKILL_LEITER = {
+  pass: [0.38, 0.27, 0.18, 0.11, 0.06],   // steil
+  lauf: [0.26, 0.23, 0.20, 0.17, 0.14],   // flach
+};
+
+/**
+ * Der Rollenwert: was eine Position auf ihrem Rang überhaupt darstellen kann.
+ *
+ * Das ist der Grund, warum die Wahl der Gruppierung etwas kostet. Ohne ihn
+ * füllen fünf beliebige Männer die Leiter immer voll auf 1 auf, und dann ist
+ * es einerlei, ob als dritter Empfänger ein Slotreceiver oder ein zweiter
+ * Fullback draußen steht. Der Fullback wird nach seiner eigenen Passformel
+ * bewertet, und die belohnt Blocken — er stünde also gut da.
+ *
+ * Absteigend sortiert ergeben die Zahlen genau die Reihenfolge, nach der der
+ * Block früher verteilt wurde: WR · SL · TE · RB · FB im Passspiel,
+ * RB · FB · TE · SL · WR im Laufspiel. Neu ist nur, dass der Abstand eine
+ * Größe hat.
+ * @type {Record<'pass'|'lauf', Record<string, number>>}
+ */
+export const SKILL_ROLLE = {
+  pass: { WR: 1.00, SL: 1.00, TE: 0.82, RB: 0.62, FB: 0.45 },
+  lauf: { RB: 1.00, FB: 1.00, TE: 0.92, SL: 0.72, WR: 0.62 },
 };
 
 // --- Der Preis des Doppeleinsatzes -----------------------------------------
@@ -220,23 +240,55 @@ export function platzGewicht(platz, skillPlaetze, passAnteil) {
 }
 
 /**
- * Die Leiter auf die fünf Skill-Plätze einer Gruppierung verteilt, einmal für
- * jede Spielart. Sortiert wird nach der Reihe der Spielart; bei gleicher
- * Position entscheidet die Reihenfolge in der Gruppierung.
+ * Die rohen Anteile einer Gruppierung in einer Spielart: jeder Platz bekommt
+ * die Sprosse seines Rangs, mal dem Rollenwert seiner Position. Sortiert wird
+ * nach dem Rollenwert; bei gleichem entscheidet die Reihenfolge in der
+ * Gruppierung.
+ * @param {string[]} skillPlaetze
+ * @param {'pass'|'lauf'} art
+ * @returns {number[]}
+ */
+function rohAnteile(skillPlaetze, art) {
+  const rolle = SKILL_ROLLE[art];
+  const rang = skillPlaetze
+    .map((platz, index) => ({ index, wert: rolle[PLAETZE[platz].position] || 0 }))
+    .sort((a, b) => b.wert - a.wert || a.index - b.index);
+  const anteile = new Array(skillPlaetze.length).fill(0);
+  rang.forEach((eintrag, i) => {
+    anteile[eintrag.index] = eintrag.wert * (SKILL_LEITER[art][i] || 0);
+  });
+  return anteile;
+}
+
+/** @param {number[]} zahlen */
+const summe = (zahlen) => zahlen.reduce((a, b) => a + b, 0);
+
+/**
+ * Die Normale: was das Standard-Personnel roh zusammenbringt.
+ *
+ * Ohne sie zöge der Rollenwert die ganze Liga nach unten, denn keine
+ * Gruppierung erreicht in beiden Spielarten die volle Leiter. Geteilt durch
+ * die Normale steht 11 personnel bei genau 1 und alles andere daneben — nach
+ * oben in seiner Spielart, nach unten in der anderen.
+ */
+export const SKILL_NORM = {
+  pass: summe(rohAnteile(PERSONNEL[STANDARD_PERSONNEL].skill, 'pass')),
+  lauf: summe(rohAnteile(PERSONNEL[STANDARD_PERSONNEL].skill, 'lauf')),
+};
+
+/**
+ * Die Anteile der fünf Skill-Plätze, einmal für jede Spielart.
+ *
+ * Sie summieren bewusst **nicht** auf 1: ihre Summe ist der Blockfaktor der
+ * Gruppierung. 32 personnel bringt im Passspiel 0,77 zusammen und im
+ * Laufspiel 1,21 — daher kommt der Preis dafür, aus schwerem Personal zu
+ * werfen, und er braucht keine eigene Regel.
  * @param {string[]} skillPlaetze
  * @returns {{ pass: number[], lauf: number[] }}
  */
 export function skillAnteile(skillPlaetze) {
   /** @param {'pass'|'lauf'} art */
-  const fuer = (art) => {
-    const reihe = SKILL_REIHE[art];
-    const rang = skillPlaetze
-      .map((platz, index) => ({ platz, index }))
-      .sort((a, b) => reihe.indexOf(a.platz) - reihe.indexOf(b.platz) || a.index - b.index);
-    const anteile = new Array(skillPlaetze.length).fill(0);
-    rang.forEach((eintrag, i) => { anteile[eintrag.index] = SKILL_LEITER[i]; });
-    return anteile;
-  };
+  const fuer = (art) => rohAnteile(skillPlaetze, art).map((a) => a / SKILL_NORM[art]);
   return { pass: fuer('pass'), lauf: fuer('lauf') };
 }
 

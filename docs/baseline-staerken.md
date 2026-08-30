@@ -180,3 +180,33 @@ Umstellungen, und unter jeder Kaderzeile die fünfzehn Werte des Spielers.
 Damit ist der Umbau durch. Was offen blieb, steht in Abschnitt 12 des Bauplans —
 der Tight End als Blocker, das Kostenniveau von 33 statt 30 Prozent, die
 Verletzungsrate, und die berechnete Stärke als eigener nächster Schritt.
+
+## Nach dem Rollenwert im Skill-Block
+
+| Verein | Kader | Gesamt | passAngriff | laufAngriff | passVerteidigung | laufVerteidigung | special | angriff | verteidigung |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ASS Aschaffenburg Stallions | 35 | 57 | 64.3 | 58.5 | 55.0 | 55.2 | 46.4 | 61.4 | 55.1 |
+| GC Gendorf Crusaders | 35 | 54 | 52.9 | 51.5 | 54.9 | 55.5 | 61.2 | 52.2 | 55.2 |
+| KBA Königsbrunn Ants | 35 | 54 | 58.3 | 52.9 | 55.6 | 56.2 | 32.9 | 55.6 | 55.9 |
+| STA Starnberg Argonauts | 35 | 54 | 55.7 | 55.5 | 50.4 | 51.8 | 55.5 | 55.6 | 51.1 |
+| ERS Erlangen Sharks | 35 | 53 | 59.9 | 54.6 | 53.5 | 54.6 | 28.8 | 57.2 | 54.1 |
+| HR Herzo Rhinos | 35 | 51 | 51.1 | 48.3 | 52.7 | 49.2 | 58.7 | 49.7 | 51.0 |
+| FEL Feldkirchen Lions | 35 | 49 | 50.1 | 46.7 | 53.6 | 49.7 | 31.4 | 48.4 | 51.6 |
+| BTC Bad Tölz Capricorns | 35 | 46 | 49.1 | 46.3 | 41.6 | 42.7 | 63.7 | 47.7 | 42.1 |
+| MR München Rangers | 35 | 45 | 46.4 | 44.3 | 41.5 | 42.5 | 63.2 | 45.4 | 42.0 |
+| HEG Hemhofen Gechers | 30 | 44 | 45.1 | 44.1 | 42.1 | 43.4 | 51.5 | 44.6 | 42.7 |
+| FKK Franken Knights | 35 | 44 | 43.6 | 45.9 | 41.7 | 40.5 | 52.4 | 44.7 | 41.1 |
+| PP Passau Pirates | 35 | 44 | 46.3 | 42.1 | 40.5 | 39.9 | 58.7 | 44.2 | 40.2 |
+
+Fast unverändert, und das ist der Zweck der Normale: die Tabelle rechnet alle
+Vereine auf 11 personnel, und 11 personnel steht in beiden Spielarten bei genau
+1,000. Die Ausschläge von höchstens einem Punkt kommen aus der neuen Leiter —
+sie ist im Passspiel steiler, also zieht der beste Receiver eines Kaders mehr,
+und wer hinten dünn besetzt ist, verliert weniger. STA und ERS tauschen dadurch
+die Plätze, FEL und PP steigen um einen Punkt.
+
+Interessant ist die Tabelle, die hier **nicht** steht: derselbe Kader über alle
+acht Gruppierungen. Vorher lag er zwischen 40,0 und 41,5 — eine Spanne von
+anderthalb Punkten, also nichts. Jetzt reicht er von 36,8 (Double Wing, voll
+auf Pass) bis 44,0 (Double Wing, voll auf Lauf). Über 200 gepaarte Saisons
+schlägt das mit rund einem halben Sieg durch.

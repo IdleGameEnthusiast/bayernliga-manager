@@ -10,7 +10,7 @@ import {
   gruppenSpieltage, losePersonnel, personnelVon, passAnteilVon, setzeTaktik,
   erlaubterPassAnteil, alsGegner,
 } from '../engine/saison.js';
-import { PERSONNEL, PASSANTEIL_SPIELRAUM } from '../engine/aufstellung.js';
+import { PERSONNEL } from '../engine/aufstellung.js';
 import { partienDerRunde, sieger } from '../engine/spielplan.js';
 import { SAVE_VERSION } from '../engine/saison.js';
 import { migriere, exportiere, importiere } from '../engine/save.js';
@@ -283,16 +283,18 @@ test('eine fehlende Taktik wird nachgezogen, nicht geraten', () => {
   assert.equal(passAnteilVon(leer, 'heg'), PERSONNEL[erwartet.heg].passAnteil);
 });
 
-test('der Manager verschiebt die Ausrichtung, aber nur um zwanzig Punkte', () => {
+test('der Manager verschiebt die Ausrichtung, wohin er will', () => {
   const stand = neuesSpiel('heg', 'schieben');
   setzeTaktik(stand, { personnel: '11' });
   assert.equal(stand.personnel.heg, '11');
   assert.equal(stand.passAnteil.heg, PERSONNEL['11'].passAnteil);
 
+  // Kein Spielraum mehr um den Vorschlag herum: der Preis steht im
+  // Skill-Block, nicht in einer Schranke.
   setzeTaktik(stand, { personnel: '11', passAnteil: 0.95 });
-  assert.equal(stand.passAnteil.heg, PERSONNEL['11'].passAnteil + PASSANTEIL_SPIELRAUM);
-  setzeTaktik(stand, { personnel: '11', passAnteil: 0.05 });
-  assert.equal(stand.passAnteil.heg, PERSONNEL['11'].passAnteil - PASSANTEIL_SPIELRAUM);
+  assert.equal(stand.passAnteil.heg, 0.95);
+  setzeTaktik(stand, { personnel: '32', passAnteil: 1 });
+  assert.equal(stand.passAnteil.heg, 1, 'auch aus Double Wing darf geworfen werden');
 
   // Und nur beim eigenen Verein.
   const fremd = TEAMS.find((t) => t.id !== 'heg');
@@ -300,8 +302,8 @@ test('der Manager verschiebt die Ausrichtung, aber nur um zwanzig Punkte', () =>
   setzeTaktik(stand, { personnel: '32' });
   assert.equal(stand.personnel[fremd.id], vorher);
 
-  assert.equal(erlaubterPassAnteil('32', 0.9), PERSONNEL['32'].passAnteil + PASSANTEIL_SPIELRAUM);
   assert.equal(erlaubterPassAnteil('00', 1.5), 1, 'über eins geht nichts');
+  assert.equal(erlaubterPassAnteil('32', -0.5), 0, 'unter null auch nicht');
 });
 
 test('die Taktik gilt ab dem nächsten Spieltag', () => {

@@ -389,13 +389,46 @@ Manager verschiebt ihn um bis zu ±0,20:
 
 ### Anteile innerhalb der Blöcke
 
-**Skill-Leiter** — Anteile am Skill-Block, nach der Platzreihenfolge der Gruppierung.
-Im Passspiel wird die Liste nach `WR > SL > TE > RB > FB` sortiert, im Laufspiel nach
-`RB > FB > TE > SL > WR`; dann greift die Leiter:
+**Skill-Leiter** — Anteile am Skill-Block. Zwei Leitern, weil die beiden Spielarten
+verschieden verteilen: im Passspiel trägt der erste Empfänger den Spielzug, im
+Laufspiel blocken alle mit. Beide summieren auf 1.
 
-| Platz | 1 | 2 | 3 | 4 | 5 |
+| Rang | 1 | 2 | 3 | 4 | 5 |
 | --- | --- | --- | --- | --- | --- |
-| Anteil | 30 % | 25 % | 20 % | 15 % | 10 % |
+| Pass (steil) | 38 % | 27 % | 18 % | 11 % | 6 % |
+| Lauf (flach) | 26 % | 23 % | 20 % | 17 % | 14 % |
+
+**Rollenwert** — was eine Position auf ihrem Rang überhaupt darstellen kann. Die
+Sprosse wird damit multipliziert, bevor sie vergeben wird.
+
+| | WR | SL | TE | RB | FB |
+| --- | --- | --- | --- | --- | --- |
+| Pass | 1,00 | 1,00 | 0,82 | 0,62 | 0,45 |
+| Lauf | 0,62 | 0,72 | 0,92 | 1,00 | 1,00 |
+
+Absteigend sortiert ergeben die Zahlen genau die Reihenfolge, nach der der Block
+vorher verteilt wurde — `WR > SL > TE > RB > FB` im Pass, `RB > FB > TE > SL > WR`
+im Lauf. Neu ist nur, dass der Abstand eine Größe hat.
+
+Das ist der Grund, warum die Wahl der Gruppierung etwas kostet. Ohne den Rollenwert
+füllen fünf beliebige Männer die Leiter immer voll auf 1 auf, und dann ist es einerlei,
+ob als dritter Empfänger ein Slotreceiver oder ein zweiter Fullback draußen steht — der
+Fullback wird nach seiner eigenen Passformel bewertet, und die belohnt Blocken.
+
+Die Anteile summieren deshalb **bewusst nicht** auf 1: ihre Summe ist der Blockfaktor
+der Gruppierung, normiert auf das Standard-Personnel:
+
+| | Pass | Lauf | | | Pass | Lauf |
+| --- | --- | --- | --- | --- | --- | --- |
+| 00 Empty | 1,044 | 0,853 | | 12 Double Tight | 0,966 | 1,050 |
+| 01 Empty mit TE | 1,033 | 0,917 | | 20 Two Back | 0,966 | 1,023 |
+| 10 Spread | 1,021 | 0,943 | | 21 Pro | 0,933 | 1,072 |
+| 11 Standard | 1,000 | 1,000 | | 32 Double Wing | 0,753 | 1,207 |
+
+Daher kommt der Preis dafür, aus schwerem Personal zu werfen, und er braucht keine
+eigene Regel: `vorteil()` legt den Passanteil auf zwei getrennte Werte, also zahlt ihn,
+wer die falsche Mischung wählt. Der Passanteil ist damit **frei wählbar** — der
+Vorschlag der Gruppierung bleibt ein Vorschlag, ein Regler-Spielraum entfällt.
 
 **Offensive Line**
 
@@ -761,7 +794,13 @@ unbemerkt.
    *Nach Inkrement 3 gemessen:* 33,4 % statt der veranschlagten 29,9 %, also noch
    einmal drei Punkte härter als geplant. Die Frage ist damit offen und dringend, aber
    erst zu beantworten, wenn die Aufstellung zeigt, wie oft überhaupt umgestellt wird.
-3. **Passanteile je Gruppierung** (Abschnitt 6) sind ein Vorschlag, keine Entscheidung.
+3. ~~**Passanteile je Gruppierung** (Abschnitt 6) sind ein Vorschlag, keine
+   Entscheidung.~~ **Erledigt.** Sie bleiben ein Vorschlag — und das ist jetzt die
+   Entscheidung, weil der Rollenwert den Preis nennt, statt den Regler zu beschneiden.
+   Gemessen über 200 gepaarte Saisons mit demselben Kader: die richtige Paarung bringt
+   2,40–2,47 Siege (11/0,60 · 32/0,00 · 00/1,00 liegen gleichauf), die falsche 1,86–1,96
+   (32/1,00 · 00/0,00) — rund 0,5 Siege und 20 Punkte Differenz. Keine Gruppierung ist
+   umsonst besser, aber jede lässt sich falsch spielen.
 4. **Verletzungsrate.** `INJURY_CHANCE_PER_GAME` = 0,055 steht seit der Verkürzung auf
    12 Spieltage offen. Der harte Doppeleinsatz-Multiplikator macht die Frage dringender.
 
@@ -792,7 +831,9 @@ Damit nichts zweimal verhandelt wird. Alles darüber stützt sich hierauf.
 | Generierungsprofil | nicht das Mittel der beiden Formeln, sondern nach Blockgewicht × Platzanteil gewichtet |
 | Linebacker | MLB und SAM physisch (Brücke zur Line), WILL athletisch (Brücke zur Secondary); MLB mit `passrush` |
 | Umstellungskosten | Sollwerte in Abschnitt 4: Gruppe 13 %, Einheit 27 %, quer 36 % |
-| Skill-Leiter | 30/25/20/15/10 als Anteile am Skill-Block |
+| Skill-Leiter | zwei Leitern: Pass 38/27/18/11/6 (steil), Lauf 26/23/20/17/14 (flach) |
+| Rollenwert | multipliziert die Sprosse; Summe = Blockfaktor der Gruppierung, normiert auf 11 personnel |
+| Passanteil | frei von 0 bis 1; der Preis steht im Blockfaktor, nicht in einer Schranke |
 | Angriff Pass | QB 0,40 · OL 0,25 · Skill 0,35 |
 | Angriff Lauf | OL 0,40 · Skill 0,40 · QB 0,20 |
 | Defense Lauf | DL 0,40 · LB 0,40 · DB 0,20 |

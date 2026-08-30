@@ -3,18 +3,17 @@
  * Taktikansicht: welches System der Verein spielt, wie weit er es Richtung
  * Lauf oder Pass verschiebt, und was daneben auf dem Feld steht.
  *
- * Entscheidet keine Regel. Was erlaubt ist, sagt `erlaubterPassAnteil()`;
- * wer wo steht, sagt `stelleAuf()`.
+ * Entscheidet keine Regel. Der Regler geht über die ganze Spanne — was eine
+ * Gruppierung nicht kann, verrechnet der Skill-Block, nicht die Ansicht.
+ * Wer wo steht, sagt `stelleAuf()`.
  */
 
 import { el, balken } from './dom.js';
 import { T } from '../i18n.js';
 import { LIGA_MAX_STAERKE } from '../engine/constants.js';
 import { teamStaerken } from '../engine/team.js';
-import {
-  PERSONNEL, PERSONNEL_REIHE, PASSANTEIL_SPIELRAUM,
-} from '../engine/aufstellung.js';
-import { personnelVon, passAnteilVon, erlaubterPassAnteil } from '../engine/saison.js';
+import { PERSONNEL, PERSONNEL_REIHE } from '../engine/aufstellung.js';
+import { personnelVon, passAnteilVon } from '../engine/saison.js';
 
 /**
  * @param {import('../engine/saison.js').SpielStand} stand
@@ -63,16 +62,14 @@ function systemKarte(aktiv, setze) {
  */
 function ausrichtungKarte(personnel, anteil, staerken, setze) {
   const vorschlag = PERSONNEL[personnel].passAnteil;
-  const min = erlaubterPassAnteil(personnel, vorschlag - PASSANTEIL_SPIELRAUM);
-  const max = erlaubterPassAnteil(personnel, vorschlag + PASSANTEIL_SPIELRAUM);
   const prozent = (w) => Math.round(w * 100);
 
   const anzeige = el('span', { class: 'reglerwert', text: `${prozent(anteil)} %` });
 
   const regler = el('input', {
     type: 'range',
-    min: String(prozent(min)),
-    max: String(prozent(max)),
+    min: '0',
+    max: '100',
     step: '5',
     value: String(prozent(anteil)),
     'aria-label': T.taktik.passAnteil,
@@ -93,7 +90,7 @@ function ausrichtungKarte(personnel, anteil, staerken, setze) {
       regler,
       anzeige),
     el('p', { class: 'leise klein', style: { margin: '2px 0 12px' } },
-      `${T.taktik.vorschlag(prozent(vorschlag))}  ·  ${T.taktik.spielraum(prozent(min), prozent(max))}`),
+      `${T.taktik.vorschlag(prozent(vorschlag))}  ·  ${T.taktik.frei}`),
     el('h3', { class: 'klein', text: T.taktik.wirkung }),
     reihe(T.kader.angriffPass, staerken.passAngriff),
     reihe(T.kader.angriffLauf, staerken.laufAngriff),

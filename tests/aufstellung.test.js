@@ -7,7 +7,7 @@ import { macheKader, resetSpielerIds } from '../engine/spieler.js';
 import { PLAETZE } from '../engine/positionen.js';
 import {
   PERSONNEL, PERSONNEL_REIHE, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
-  BLOCK_GEWICHT, PLATZ_ANTEIL, SKILL_LEITER,
+  BLOCK_GEWICHT, PLATZ_ANTEIL, SKILL_LEITER, SKILL_ROLLE, SKILL_NORM,
   stelleAuf, skillAnteile, doppelAbzug, doppelRisiko, doppelEinsaetze, umstellungen,
 } from '../engine/aufstellung.js';
 import { teamStaerken } from '../engine/team.js';
@@ -52,25 +52,72 @@ test('jede Gewichtszeile summiert auf eins', () => {
       assert.ok(Math.abs(summe - 1) < 1e-9, `${block} ${art}: ${summe}`);
     }
   }
-  assert.ok(Math.abs(SKILL_LEITER.reduce((a, b) => a + b, 0) - 1) < 1e-9);
+  for (const art of /** @type {const} */ (['pass', 'lauf'])) {
+    const summe = SKILL_LEITER[art].reduce((a, b) => a + b, 0);
+    assert.ok(Math.abs(summe - 1) < 1e-9, `Leiter ${art}: ${summe}`);
+  }
+});
+
+/** Die Summe der Anteile: der Blockfaktor einer Gruppierung. */
+const faktor = (skill, art) => skillAnteile(skill)[art].reduce((a, b) => a + b, 0);
+
+test('der Rollenwert ergibt genau die alte Reihenfolge', () => {
+  // Die Zahlen sind kein neues Modell, sie machen die bestehende Reihenfolge
+  // nur messbar. Absteigend sortiert muss sie wieder herauskommen.
+  const reihe = (art) => Object.entries(SKILL_ROLLE[art])
+    .sort((a, b) => b[1] - a[1]).map(([pos]) => pos);
+  assert.deepEqual(reihe('pass'), ['WR', 'SL', 'TE', 'RB', 'FB']);
+  assert.deepEqual(reihe('lauf'), ['RB', 'FB', 'TE', 'SL', 'WR']);
 });
 
 test('die Skill-Leiter sortiert im Pass nach vorn, im Lauf nach hinten', () => {
   const anteile = skillAnteile(['RB', 'TE', 'WR', 'WR', 'SL']);
-  // Im Passspiel steht der erste Receiver vorn, im Laufspiel der Runningback.
-  assert.equal(anteile.pass[2], 0.30, 'der erste WR führt das Passspiel an');
-  assert.equal(anteile.lauf[0], 0.30, 'der RB führt das Laufspiel an');
+  const groesster = (a) => a.indexOf(Math.max(...a));
+  assert.equal(groesster(anteile.pass), 2, 'der erste WR führt das Passspiel an');
+  assert.equal(groesster(anteile.lauf), 0, 'der RB führt das Laufspiel an');
   // Zwei Receiver stehen vor ihm, dazu Slot und Tight End: im Passspiel ist
   // der Runningback der fünfte von fünf.
-  assert.equal(anteile.pass[0], 0.10);
-  assert.equal(anteile.lauf[4], 0.20, 'der Slot ist im Laufspiel der dritte');
+  assert.equal(anteile.pass.indexOf(Math.min(...anteile.pass)), 0);
+});
 
-  for (const g of Object.values(PERSONNEL)) {
-    const a = skillAnteile(g.skill);
-    for (const art of /** @type {const} */ (['pass', 'lauf'])) {
-      assert.deepEqual([...a[art]].sort((x, y) => y - x), SKILL_LEITER);
-    }
+test('das Standard-Personnel ist die Normale', () => {
+  // 11 personnel steht in beiden Spielarten bei genau eins — daran misst sich
+  // alles andere.
+  for (const art of /** @type {const} */ (['pass', 'lauf'])) {
+    assert.ok(Math.abs(faktor(PERSONNEL[STANDARD_PERSONNEL].skill, art) - 1) < 1e-9);
+    assert.ok(SKILL_NORM[art] > 0 && SKILL_NORM[art] < 1);
   }
+});
+
+test('schweres Personal kann nicht werfen, luftiges nicht laufen', () => {
+  // Das ist der ganze Punkt des Rollenwerts: die Anteile summieren bewusst
+  // nicht auf eins, ihre Summe ist der Preis der Gruppierung.
+  const dw = PERSONNEL['32'].skill;
+  const empty = PERSONNEL['00'].skill;
+  assert.ok(faktor(dw, 'pass') < 0.80, 'Double Wing wirft schlecht');
+  assert.ok(faktor(dw, 'lauf') > 1.15, 'Double Wing läuft gut');
+  assert.ok(faktor(empty, 'pass') > 1.03, 'Empty wirft gut');
+  assert.ok(faktor(empty, 'lauf') < 0.90, 'Empty läuft schlecht');
+
+  // Und keine Gruppierung ist in beiden Spielarten die beste.
+  for (const g of Object.values(PERSONNEL)) {
+    const p = faktor(g.skill, 'pass');
+    const l = faktor(g.skill, 'lauf');
+    assert.ok(p > 0.7 && p < 1.3, `Passfaktor ${p}`);
+    assert.ok(l > 0.7 && l < 1.3, `Lauffaktor ${l}`);
+    assert.ok(p <= 1 || l <= 1, 'niemand steht in beiden Spielarten über der Normale');
+    assert.ok(p >= 1 || l >= 1, 'und niemand in beiden darunter');
+  }
+
+  // Der Passanteil ist danach eine echte Entscheidung: mit demselben Kader
+  // liegen richtige und falsche Ausrichtung weit auseinander.
+  const k = kader('ausrichtung');
+  const gemischt = (personnel, anteil) => {
+    const s = teamStaerken(k, 1, personnel, anteil);
+    return s.passAngriff * anteil + s.laufAngriff * (1 - anteil);
+  };
+  assert.ok(gemischt('32', 0.1) - gemischt('32', 0.9) > 3, 'Double Wing will laufen');
+  assert.ok(gemischt('00', 0.9) - gemischt('00', 0.1) > 2, 'Empty will werfen');
 });
 
 test('kein Platz bleibt leer, und niemand steht doppelt', () => {
