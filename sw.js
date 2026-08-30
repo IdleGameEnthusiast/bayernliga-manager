@@ -2,6 +2,17 @@
 // Netz zuerst, Cache als Rückfall — siehe die Begründung beim fetch-Handler.
 const CACHE = 'bayernliga-v1';
 
+/**
+ * Alles, was die App zum Starten braucht — in Ladereihenfolge, damit sich
+ * beim Lesen sehen lässt, worauf was aufbaut.
+ *
+ * Die Liste muss **vollständig** sein. `index.html` lädt nur `app.js`, den Rest
+ * zieht der Modulgraph nach; wer hier einen Eintrag vergisst, merkt das online
+ * nie — dort holt der Netz-zuerst-Handler die Datei einfach — und offline
+ * startet die App dann gar nicht. Genau so fehlten hier zeitweise sechs
+ * Dateien, darunter die halbe Taktikansicht. `tests/sw.test.js` vergleicht die
+ * Liste seitdem mit dem, was auf der Platte liegt.
+ */
 const SHELL = [
   './',
   './index.html',
@@ -11,7 +22,9 @@ const SHELL = [
   './manifest.json',
   './engine/constants.js',
   './engine/content.js',
+  './engine/positionen.js',
   './engine/spieler.js',
+  './engine/aufstellung.js',
   './engine/team.js',
   './engine/spielplan.js',
   './engine/spiel.js',
@@ -19,9 +32,13 @@ const SHELL = [
   './engine/saison.js',
   './engine/save.js',
   './ui/dom.js',
+  './ui/frage.js',
+  './ui/intro.js',
   './ui/start.js',
   './ui/tabelle.js',
+  './ui/aufstellung.js',
   './ui/kader.js',
+  './ui/taktik.js',
   './ui/spielplan.js',
   './ui/spielbericht.js',
 ];

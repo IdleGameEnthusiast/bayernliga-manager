@@ -60,6 +60,7 @@ in Millisekunden durchspielen können.
 | `i18n.js` | Alle sichtbaren Texte. Nur Daten |
 | `ui/*.js` | Jeder DOM-Aufruf |
 | `app.js` | Zustand, Ansichten, Verdrahtung |
+| `sw.js` | Service Worker: Netz zuerst, Cache als Rückfall. Seine `SHELL` muss jedes Modul nennen, sonst startet die App offline nicht — `tests/sw.test.js` prüft das gegen die Platte |
 
 **Bezeichner im Code sind englisch, sichtbare Texte deutsch** und stehen
 ausschließlich in `i18n.js`. Die Datei ist UTF-8 ohne BOM und benutzt echte
