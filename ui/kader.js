@@ -82,8 +82,8 @@ let starterZeigen = true;
  * @param {import('../engine/saison.js').SpielStand} stand
  * @param {{ vorgabe: import('../engine/aufstellung.js').Vorgabe | null } | null} entwurf
  * @param {{ setze: (schluessel: string, spielerId: string) => void,
- *           automatisch: () => void, leeren: () => void,
- *           speichern: () => boolean, verwerfen: () => void,
+ *           automatisch: () => void, entferne: (spielerId: string) => void,
+ *           leeren: () => void, speichern: () => boolean, verwerfen: () => void,
  *           neuZeichnen: () => void }} aktionen
  */
 export function zeigeKader(stand, entwurf, aktionen) {
@@ -127,6 +127,10 @@ export function zeigeKader(stand, entwurf, aktionen) {
     vollstaendig: vollstaendig(s.aufstellung),
     speichern: () => { aktionen.speichern(); },
     verwerfen: aktionen.verwerfen,
+    entferne: (spielerId) => {
+      nichtsGewaehlt();
+      aktionen.entferne(spielerId);
+    },
     leeren: () => {
       nichtsGewaehlt();
       aktionen.leeren();

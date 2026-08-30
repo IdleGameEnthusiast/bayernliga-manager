@@ -12,7 +12,7 @@ import { teamById } from './engine/content.js';
 import {
   neuesSpiel, spieleSpieltag, naechsteSaison, saisonVorbei, anzahlSpieltage,
   gruppenTabellen, meineTabelle, setzeTaktik, setzeAufstellung, entwurfSetze,
-  entwurfVollstaendig, eigeneAufstellung, entwurfLeeren,
+  entwurfVollstaendig, eigeneAufstellung, entwurfLeeren, entwurfEntferne,
 } from './engine/saison.js';
 import { partienDerRunde } from './engine/spielplan.js';
 import {
@@ -92,6 +92,7 @@ function zeichne() {
     wurzel.append(zeigeKader(stand, entwurf, {
       setze: beiAufstellung,
       automatisch: beiAutomatisch,
+      entferne: beiEntfernen,
       leeren: beiLeeren,
       speichern: beiSpeichern,
       verwerfen: beiVerwerfen,
@@ -296,6 +297,17 @@ function beiAufstellung(schluessel, spielerId) {
 function beiAutomatisch() {
   if (!stand) return;
   entwurf = stand.aufstellung === null ? null : { vorgabe: null };
+  zeichne();
+}
+
+/**
+ * Einen Mann aus der Elf nehmen. Sein Platz bleibt frei — bis der Manager ihn
+ * besetzt, ist die Aufstellung nicht speicherbar.
+ * @param {string} spielerId
+ */
+function beiEntfernen(spielerId) {
+  if (!stand) return;
+  entwurf = { vorgabe: entwurfEntferne(stand, entwurf && entwurf.vorgabe, spielerId) };
   zeichne();
 }
 

@@ -89,6 +89,10 @@ Die fünf Besten beantworten „wer ist hier der Beste", nicht „was ist fürs 
 am besten". Das zweite ist die Frage von `verteile()` und hat eine andere
 Antwort; unter einem angetippten Platz will darüber niemand nachdenken müssen.
 
+In der Liste steht hinter jedem Namen sein **Alter**. Die Zahl am Zeilenende
+sagt, was er heute auf dem Platz kann; erst zusammen sagen beide, ob er es
+nächstes Jahr noch kann.
+
 Über der Liste steht ein Schalter **Starter**, standardmäßig an. Abgeschaltet
 nimmt er die Elf aus der Liste, und die Überschrift sagt es auch: „Die Besten,
 die noch nicht stehen". Der Grund ist gemessen und nicht theoretisch — auf einem
@@ -107,6 +111,13 @@ müssen. Der zweite Tipp setzt ein.
 
 Dafür muss kein Platz frei sein und keiner vorgemerkt: „wohin mit ihm" ist eine
 Frage an die Elf, nicht an eine Lücke.
+
+Steht der Gewählte schon in der Elf, sagt die Leiste es und bietet **Spieler
+entfernen** an. Sein Platz wird dabei **frei** und nicht nachbesetzt — die
+Automatik stellte sonst genau ihn wieder hin, denn sie nimmt den Stärksten
+seiner Position, und der Knopf sähe aus, als täte er nichts. Frei bleibt der
+Platz sichtbar offen, und die Elf ist so lange nicht speicherbar. Wer doppelt
+steht, geht von beiden Plätzen.
 
 **Der Roster markiert seine Starter** — grüner Balken an der Zeile, dahinter der
 Platz, den der Mann hält. Die Marke beantwortet die Frage rückwärts, wie sie
@@ -221,6 +232,8 @@ retten, nur etwas nachzutragen, und dafür ist die Migration da.
 | Vorschau | im Zielmodus steht an jedem Platz die Zahl des Gewählten neben der des Manns, der dort steht |
 | Rosterzeile | wählt aus; die fünfzehn Werte bekommen einen eigenen Knopf am Zeilenende |
 | Startermarke | grüner Balken plus Platzkürzel — die Frage ist, wer *nicht* steht |
+| Alter | steht in der Kandidatenliste neben dem Wert; die eine Zahl ist ohne die andere nur die halbe Auskunft |
+| Herausnehmen | der Platz wird frei, nicht nachbesetzt — sonst stellte die Automatik denselben Mann sofort wieder hin |
 | Speicherstand | additiv, kein Versionssprung |
 | Bearbeiten | im Entwurf, nicht im Stand; erst „Speichern" schreibt |
 | Speicherbedingung | nur eine vollständige Elf — also enthält eine gespeicherte Vorgabe nie ein `null` |

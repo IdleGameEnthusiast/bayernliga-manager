@@ -23,7 +23,7 @@ import {
 import { simuliereSpiel } from './spiel.js';
 import {
   PERSONNEL, STANDARD_PERSONNEL, stelleAuf, alsVorgabe, setzePlatz, vollstaendig,
-  leereVorgabe,
+  leereVorgabe, entferneSpieler,
 } from './aufstellung.js';
 import { berechneTabelle } from './tabelle.js';
 
@@ -209,6 +209,17 @@ export function entwurfSetze(stand, entwurf, schluessel, spielerId) {
   const basis = entwurf || entwurfVon(stand);
   if (!stand.kader[stand.meinTeam].some((s) => s.id === spielerId)) return basis;
   return setzePlatz(basis, schluessel, spielerId);
+}
+
+/**
+ * Einen Mann aus dem Entwurf nehmen. Sein Platz bleibt frei stehen.
+ * @param {SpielStand} stand
+ * @param {import('./aufstellung.js').Vorgabe | null} entwurf
+ * @param {string} spielerId
+ * @returns {import('./aufstellung.js').Vorgabe}
+ */
+export function entwurfEntferne(stand, entwurf, spielerId) {
+  return entferneSpieler(entwurf || entwurfVon(stand), spielerId);
 }
 
 /**

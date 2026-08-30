@@ -47,6 +47,7 @@ import { platzKuerzel, positionsKuerzel } from '../engine/positionen.js';
  * @property {() => void} speichern
  * @property {() => void} verwerfen
  * @property {() => void} leeren
+ * @property {(spielerId: string) => void} entferne
  */
 
 /** @param {import('../engine/aufstellung.js').Platz} p */
@@ -262,6 +263,10 @@ function kandidatenZeile(a, p, steuerung) {
         onclick: () => steuerung.setze(p.schluessel, spieler.id),
       },
         el('span', { class: 'kandidat-name', text: kurzName(spieler) }),
+        // Das Alter gehört hierher: die Zahl daneben sagt, was er heute kann,
+        // und erst zusammen sagen beide, ob er es nächstes Jahr noch kann.
+        el('span', { class: 'leise klein', title: T.kader.alter,
+          text: T.aufstellung.jahre(spieler.alter) }),
         el('span', { class: 'leise klein', text: positionsKuerzel(spieler) }),
         wo && !hier
           ? el('span', { class: 'marke tausch', text: T.aufstellung.tauscht(platzKuerzel(wo)) })
@@ -286,11 +291,22 @@ export function wechselLeiste(a, steuerung, spieler) {
     // Mann gewählt, Platz noch nicht: die Leiste sagt nur, wer gemeint ist —
     // eingesetzt wird oben in der Aufstellung, an dem Platz, der es sein soll.
     if (!spieler) return null;
+    const steht = stehtAuf(a, spieler.id);
     return el('div', { class: 'wechselleiste' },
       el('div', { class: 'wechseltext' },
         el('strong', { text: kurzName(spieler) }),
-        el('span', { class: 'klein leise', text: T.aufstellung.waehlePlatz })),
+        el('span', { class: 'klein leise',
+          text: steht ? T.aufstellung.stehtAuf(platzKuerzel(steht)) : T.aufstellung.waehlePlatz })),
       el('div', { class: 'wechselknoepfe' },
+        // Herausnehmen statt umstellen: sein Platz bleibt frei stehen, und
+        // damit ist die Elf so lange nicht speicherbar, bis er besetzt wird.
+        steht
+          ? el('button', {
+            class: 'neben klein',
+            title: T.aufstellung.entfernenTitel,
+            onclick: () => steuerung.entferne(spieler.id),
+          }, T.aufstellung.entfernen)
+          : null,
         el('button', { class: 'neben klein', onclick: () => steuerung.waehlePlatz(null) },
           T.aktion.zurueck)));
   }

@@ -729,6 +729,26 @@ export function wertAuf(spieler, platz, passAnteil) {
 }
 
 /**
+ * Einen Mann aus der Aufstellung nehmen. Seine Plätze werden **frei**, nicht
+ * nachbesetzt.
+ *
+ * Nachbesetzen wäre hier wirkungslos: die Automatik stellt auf jeden Platz den
+ * Stärksten seiner Position, und das ist in aller Regel genau der, den der
+ * Manager gerade heruntergenommen hat. Der Knopf sähe aus, als täte er nichts.
+ * Frei bleibt der Platz sichtbar offen — und die Elf so lange nicht speicherbar.
+ *
+ * Steht er doppelt, geht er von beiden Plätzen.
+ * @param {Vorgabe} vorgabe
+ * @param {string} spielerId
+ * @returns {Vorgabe} eine neue Karte
+ */
+export function entferneSpieler(vorgabe, spielerId) {
+  const neu = { ...vorgabe };
+  for (const [platz, id] of Object.entries(neu)) if (id === spielerId) neu[platz] = null;
+  return neu;
+}
+
+/**
  * Die besten Männer für **diesen** Platz, absteigend.
  *
  * Beantwortet „wer ist hier der Beste", nicht „was ist fürs Paar am besten" —

@@ -12,6 +12,7 @@ import {
   BLOCK_GEWICHT, PLATZ_ANTEIL, SKILL_LEITER, SKILL_ROLLE, SKILL_NORM,
   stelleAuf, skillAnteile, doppelAbzug, doppelRisiko, doppelEinsaetze, umstellungen,
   platzStaerke, alsVorgabe, setzePlatz, bestenFuer, wertAuf, vollstaendig, leereVorgabe,
+  entferneSpieler,
 } from '../engine/aufstellung.js';
 import { teamStaerken } from '../engine/team.js';
 
@@ -565,4 +566,28 @@ test('ein freier Platz zählt wie ein leerer Kader, nicht wie ein Mann', () => {
   assert.equal(leer.laufVerteidigung, ERSATZ_STAERKE);
   // Kicker und Punter laufen außerhalb der Elf und bleiben unberührt.
   assert.equal(leer.special, voll.special);
+});
+
+test('einen Mann herausnehmen lässt seinen Platz frei, nicht nachbesetzt', () => {
+  const k = kader('raus');
+  const vorgabe = alsVorgabe(stelleAuf(k, 1, '11'));
+  const qb = vorgabe[QB_PLATZ];
+
+  const ohne = entferneSpieler(vorgabe, qb);
+  assert.equal(ohne[QB_PLATZ], null);
+  assert.equal(vorgabe[QB_PLATZ], qb, 'die übergebene Karte wurde verändert');
+
+  const a = stelleAuf(k, 1, '11', undefined, ohne);
+  const platz = a.offense.find((p) => p.schluessel === QB_PLATZ);
+  assert.equal(platz.spieler, null, 'die Automatik hat den Platz wieder besetzt');
+  assert.equal(platz.frei, true);
+  assert.equal(vollstaendig(a), false, 'so eine Elf gilt als vollständig');
+
+  // Der Rest der Elf steht unberührt.
+  assert.equal([...a.offense, ...a.defense].filter((p) => p.spieler).length, 21);
+});
+
+test('wer doppelt steht, geht von beiden Plätzen', () => {
+  const ohne = entferneSpieler({ QB: 'a', LT: 'b', SS: 'b' }, 'b');
+  assert.deepEqual(ohne, { QB: 'a', LT: null, SS: null });
 });
