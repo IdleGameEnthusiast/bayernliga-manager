@@ -219,7 +219,7 @@ und die Attribute folgen je nach Lernrate verschieden schnell. `teamStaerken()`
 liefert in diesem Stand fünf Zahlen, nicht mehr sieben — die Spalten `angriff`
 und `verteidigung` der Abschnitte darüber gibt es nicht mehr.
 
-**Vorher** (Commit 45d38ab):
+**Vorher** (Commit 8c39304):
 
 | Verein | Kader | Gesamt | passAngriff | laufAngriff | passVerteidigung | laufVerteidigung | special |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
