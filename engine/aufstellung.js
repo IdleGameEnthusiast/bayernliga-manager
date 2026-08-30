@@ -755,17 +755,42 @@ export function entferneSpieler(vorgabe, spielerId) {
  * das zweite ist die Frage von `verteile()` und hat eine andere Antwort. Für
  * die Ansicht ist die erste die richtige: sie steht unter einem angetippten
  * Platz, und dort will niemand über die Nebenplätze nachdenken müssen.
+ *
+ * Zwei Zeilen sind **gesetzt** und stehen auch dann da, wenn die Zahl sie nicht
+ * unter die ersten fünf trägt: der Mann, der dort **steht**, und der Beste,
+ * der dort **zu Hause** ist. Ohne sie beantwortet die Liste auf den dünn
+ * besetzten Plätzen die falsche Frage — unter `C` standen fünf Guards und
+ * Fullbacks, weil die roh stärker sind, aber weder der eigene Center noch der
+ * Mann, der gerade dort spielt. Genau die beiden wollte der Manager
+ * vergleichen. Sie hängen hinten an, in ihrer Wertreihenfolge; die Liste ist
+ * damit bis zu zwei Zeilen länger als `anzahl`.
  * @param {import('./spieler.js').Spieler[]} kader
  * @param {number} spieltag
  * @param {string} platz Platzname, nicht Schlüssel — `TE#2` wird wie `TE` bewertet
  * @param {number} passAnteil
  * @param {number} [anzahl]
+ * @param {string | null} [stehtDort] Id des Manns, der den Platz gerade hält
  * @returns {{ spieler: import('./spieler.js').Spieler, wert: number }[]}
  */
-export function bestenFuer(kader, spieltag, platz, passAnteil, anzahl = 5) {
-  return kader
+export function bestenFuer(kader, spieltag, platz, passAnteil, anzahl = 5, stehtDort = null) {
+  const bewertet = kader
     .filter((s) => istFit(s, spieltag))
     .map((s) => ({ spieler: s, wert: wertAuf(s, platz, passAnteil) }))
-    .sort((a, b) => b.wert - a.wert)
-    .slice(0, anzahl);
+    .sort((a, b) => b.wert - a.wert);
+
+  const liste = bewertet.slice(0, anzahl);
+  const drin = new Set(liste.map((e) => e.spieler.id));
+  const position = PLAETZE[platz].position;
+  const gesetzt = [
+    bewertet.find((e) => e.spieler.id === stehtDort),
+    bewertet.find((e) => hauptPosition(e.spieler) === position),
+  ];
+  for (const eintrag of gesetzt) {
+    if (!eintrag || drin.has(eintrag.spieler.id)) continue;
+    drin.add(eintrag.spieler.id);
+    liste.push(eintrag);
+  }
+  // Die Nachzügler unter sich wieder absteigend — die Liste steht sonst
+  // ausgerechnet an ihrem Ende in der falschen Reihenfolge.
+  return liste.slice(0, anzahl).concat(liste.slice(anzahl).sort((a, b) => b.wert - a.wert));
 }

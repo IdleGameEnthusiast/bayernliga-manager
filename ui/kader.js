@@ -78,6 +78,10 @@ const nichtsGewaehlt = () => { auswahl = { platz: null, spieler: null }; };
  */
 let starterZeigen = true;
 
+/** Wie viele Namen die Kandidatenliste nach der Zahl zeigt. Die gesetzten
+ * Zeilen — wer dort steht, und der Beste, der dort zu Hause ist — kommen dazu. */
+const KANDIDATEN = 5;
+
 /**
  * @param {import('../engine/saison.js').SpielStand} stand
  * @param {{ vorgabe: import('../engine/aufstellung.js').Vorgabe | null } | null} entwurf
@@ -157,9 +161,9 @@ export function zeigeKader(stand, entwurf, aktionen) {
     // Ohne die Starter bleibt die Frage übrig, die der Manager an dieser Stelle
     // meistens hat: wer von denen, die **nicht** stehen, wäre hier der Beste.
     // Die fünf Besten sind sonst fast immer dieselben, die ohnehin schon spielen.
-    kandidaten: (platz) => bestenFuer(
+    kandidaten: (platz, stehtDort) => bestenFuer(
       starterZeigen ? kader : kader.filter((sp) => !starter.has(sp.id)),
-      spieltag, platz, anteil),
+      spieltag, platz, anteil, KANDIDATEN, stehtDort),
   };
 
   // Eine Rosterzeile wählt immer aus — mit offenem Platz für die Bestätigung

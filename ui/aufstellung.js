@@ -37,7 +37,7 @@ import { platzKuerzel, positionsKuerzel } from '../engine/positionen.js';
  * @property {(schluessel: string | null) => void} waehlePlatz
  * @property {(schluessel: string, spielerId: string) => void} setze
  * @property {() => void} automatisch
- * @property {(platz: string) => { spieler: import('../engine/spieler.js').Spieler, wert: number }[]} kandidaten
+ * @property {(platz: string, stehtDort: string | null) => { spieler: import('../engine/spieler.js').Spieler, wert: number }[]} kandidaten
  * @property {(platz: string) => number} wertFuer  Was der gewählte Mann dort brächte
  * @property {string} gewaehlterName
  * @property {boolean} starterZeigen  Ob die Kandidatenliste die Elf mitzeigt
@@ -233,13 +233,19 @@ function platzZeile(p, steuerung) {
  * Der Schalter darüber nimmt die Elf aus der Liste. Ohne ihn stünden dort fast
  * immer dieselben Leute, die ohnehin schon spielen — und die eigentliche Frage,
  * wer von der Bank hier der Beste wäre, bliebe unbeantwortet.
+ *
+ * Zwei Zeilen hängt die Engine hinten an, wenn die Zahl sie nicht unter die
+ * ersten fünf trägt: der Mann, der dort steht, und der Beste, der dort zu Hause
+ * ist. Auf `C` oder `NT` bestünde die Liste sonst aus lauter Nachbarn.
  * @param {import('../engine/aufstellung.js').Aufstellung} a
  * @param {import('../engine/aufstellung.js').Platz} p
  * @param {Steuerung} [steuerung]
  */
 function kandidatenZeile(a, p, steuerung) {
   if (!steuerung || steuerung.platz !== p.schluessel) return null;
-  const liste = steuerung.kandidaten(p.platz);
+  // Wer dort steht, kommt mit — auch wenn die Zahl ihn nicht unter die ersten
+  // fünf trägt. Ohne ihn fehlt der Liste ausgerechnet der Vergleichswert.
+  const liste = steuerung.kandidaten(p.platz, p.spieler ? p.spieler.id : null);
 
   return el('li', { class: 'kandidaten' },
     el('div', { class: 'kandidatenkopf' },

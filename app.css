@@ -300,7 +300,10 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
 .aufstellung li {
   display: flex; align-items: baseline; gap: 8px;
   padding: 5px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, .05);
+  /* Rundum ein Rand, fast überall unsichtbar: der gewählte Platz und sein
+     Kasten färben ihn ein, statt beim Antippen alles um einen Pixel zu rücken. */
+  border: 1px solid transparent;
+  border-bottom-color: rgba(255, 255, 255, .05);
 }
 .aufstellung .platz {
   flex: 0 0 44px;
@@ -336,9 +339,14 @@ button.klein {
   border-radius: 6px;
 }
 .aufstellung li.waehlbar:focus-visible { outline: 2px solid var(--akzent); outline-offset: -2px; }
+/* Der gewählte Platz und die Liste darunter sind ein Stück: ein Kasten in der
+   Akzentfarbe, der sich aus der Reihe der übrigen Starter heraushebt. Die Kante
+   zwischen beiden bleibt offen, damit sie nicht als zwei Zeilen lesen. */
 .aufstellung li.gewaehlt {
   background: rgba(214, 73, 51, .16);
+  border-color: var(--akzent);
   border-bottom-color: transparent;
+  border-radius: 6px 6px 0 0;
 }
 .aufstellung li.gewaehlt .platz { color: var(--akzent-hell); }
 
@@ -351,9 +359,10 @@ button.klein {
   display: block;
   padding: 8px 6px 10px;
   margin: 0 -6px 6px;
-  background: var(--bg-zeile);
+  background: rgba(214, 73, 51, .09);
+  border-color: var(--akzent);
+  border-top-color: transparent;
   border-radius: 0 0 6px 6px;
-  border-bottom: none;
 }
 
 .kandidatenkopf { display: flex; align-items: center; gap: 8px; }

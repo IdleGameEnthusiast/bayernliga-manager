@@ -6,7 +6,9 @@ import { makeRng, ZUSATZ_SPIELER, ERSATZ_STAERKE } from '../engine/constants.js'
 import {
   macheKader, macheSpieler, resetSpielerIds, setzeStaerke, spieleEinsatz, verfalleEinsaetze,
 } from '../engine/spieler.js';
-import { PLAETZE, hauptPlatz, einsaetzeAuf, EINGESPIELT_VOLL } from '../engine/positionen.js';
+import {
+  PLAETZE, hauptPlatz, hauptPosition, einsaetzeAuf, EINGESPIELT_VOLL,
+} from '../engine/positionen.js';
 import {
   PERSONNEL, PERSONNEL_REIHE, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
   BLOCK_GEWICHT, PLATZ_ANTEIL, SKILL_LEITER, SKILL_ROLLE, SKILL_NORM,
@@ -481,6 +483,36 @@ test('die Besten für einen Platz stehen absteigend und sind fit', () => {
   // niemand aus der Secondary.
   assert.ok(!liste.some((e) => ['CB', 'FS', 'SS'].includes(e.spieler.position)),
     'ein Defensive Back steht unter den besten vier Tackles');
+});
+
+test('der eigene Mann und der, der dort steht, fallen nicht unter die Kante', () => {
+  const k = kader('gesetzt');
+
+  // Auf den dünn besetzten Plätzen tragen die Nachbarn die Liste: unter `C`
+  // stehen roh stärkere Guards und Fullbacks. Der Center gehört trotzdem
+  // hinein — sonst beantwortet die Liste nicht die Frage, unter der sie steht.
+  const eigene = k.filter((s) => hauptPosition(s) === 'C');
+  assert.ok(eigene.length > 0, 'der Kader hat gar keinen Center');
+  const liste = bestenFuer(k, 1, 'C', 0.5);
+  assert.ok(liste.some((e) => hauptPosition(e.spieler) === 'C'),
+    'kein einziger Center unter den Besten für C');
+
+  // Und wer dort steht, steht in der Liste — egal, wie weit hinten die Zahl
+  // ihn führt. Er ist der Vergleichswert, gegen den der Manager liest.
+  const schwach = [...k].sort((a, b) => wertAuf(a, 'C', 0.5) - wertAuf(b, 'C', 0.5))[0];
+  const mitIhm = bestenFuer(k, 1, 'C', 0.5, 5, schwach.id);
+  assert.ok(mitIhm.some((e) => e.spieler.id === schwach.id), 'der Mann auf dem Platz fehlt');
+  assert.equal(mitIhm[mitIhm.length - 1].spieler.id, schwach.id, 'er steht nicht hinten an');
+
+  // Die gezählten fünf bleiben, was sie waren: die fünf Besten, absteigend.
+  assert.deepEqual(mitIhm.slice(0, 5).map((e) => e.spieler.id), liste.slice(0, 5)
+    .map((e) => e.spieler.id));
+  for (let i = 1; i < 5; i++) assert.ok(mitIhm[i - 1].wert >= mitIhm[i].wert);
+
+  // Ein Verletzter wird auch dann nicht gesetzt, wenn er den Platz hält.
+  schwach.verletztBis = 5;
+  assert.ok(!bestenFuer(k, 1, 'C', 0.5, 5, schwach.id).some((e) => e.spieler.id === schwach.id),
+    'ein Verletzter steht in der Liste');
 });
 
 test('wertAuf ist dieselbe Zahl wie die der Aufstellung, nur für jeden Platz', () => {

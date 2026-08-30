@@ -89,6 +89,16 @@ Die fünf Besten beantworten „wer ist hier der Beste", nicht „was ist fürs 
 am besten". Das zweite ist die Frage von `verteile()` und hat eine andere
 Antwort; unter einem angetippten Platz will darüber niemand nachdenken müssen.
 
+Zwei Zeilen sind **gesetzt** und hängen hinten an, wenn die Zahl sie nicht unter
+die ersten fünf trägt: der Mann, der dort **steht**, und der Beste, der dort **zu
+Hause** ist. Der Grund ist wieder gemessen: auf den dünn besetzten Plätzen —
+`C`, `NT`, `TE` — tragen die roh stärkeren Nachbarn die ganze Liste. Unter `C`
+standen fünf Guards und Fullbacks, aber weder ein Center noch der Mann, der dort
+gerade spielt, und damit fehlte der Liste ausgerechnet das Paar, das der Manager
+vergleichen wollte. Die Liste ist deshalb bis zu zwei Zeilen länger als fünf.
+Abgeschaltete Starter heben das nicht auf: gefiltert wird der Kader, und wer
+nicht mehr darin steht, wird auch nicht gesetzt.
+
 In der Liste steht hinter jedem Namen sein **Alter**. Die Zahl am Zeilenende
 sagt, was er heute auf dem Platz kann; erst zusammen sagen beide, ob er es
 nächstes Jahr noch kann.
@@ -228,6 +238,7 @@ retten, nur etwas nachzutragen, und dafür ist die Migration da.
 | Bedienung | zwei Tipps, kein Ziehen — Tablet zuerst |
 | Richtung | beide: Platz zuerst *und* Mann zuerst; kein Platz muss frei oder vorgemerkt sein |
 | Kandidatenliste | die fünf Besten **für diesen Platz**, nicht global optimiert |
+| Gesetzte Zeilen | wer dort steht und der Beste, der dort zu Hause ist — sie hängen hinten an, statt unter die Kante zu fallen |
 | Schalter Starter | an als Standard; aus zeigt die fünf Besten, die noch nicht stehen — gefiltert wird der Kader, nicht die Regel |
 | Vorschau | im Zielmodus steht an jedem Platz die Zahl des Gewählten neben der des Manns, der dort steht |
 | Rosterzeile | wählt aus; die fünfzehn Werte bekommen einen eigenen Knopf am Zeilenende |
