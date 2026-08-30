@@ -6,6 +6,7 @@ import {
   makeRng, KADER_FORM, KADER_GROESSE_EIGEN, KADER_GROESSE_FREMD, ZUSATZ_SPIELER,
   ZUSATZ_MAX_JE_POSITION, MAX_RATING, LIGA_MAX_STAERKE, MAX_AGE, PEAK_AGE, POSITIONS,
   POSITION_GRUPPEN, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE, ZUSATZ_GEWICHTE, ATTRIBUTE,
+  ATTRIBUT_DRIFT_JE_SPIEL, LERNRATE,
 } from '../engine/constants.js';
 import {
   macheKader, macheSpieler, saisonWechsel, alterFaktor, berechneStaerke, verfuegbar,
@@ -14,7 +15,7 @@ import {
 } from '../engine/spieler.js';
 import {
   KOERPER_KORRIDOR, generierungsProfil, bewerte, hauptPlatz, einsaetzeAuf,
-  EINSATZ_VERFALL,
+  EINSATZ_VERFALL, eignungGemischt,
 } from '../engine/positionen.js';
 
 test('der Katalog kennt achtzehn Positionen, keinen Kicker und keinen Punter', () => {
@@ -436,16 +437,29 @@ test('ein Einsatz zählt und zieht die Attribute auf den Platz zu', () => {
   }
 });
 
-test('elf Einsätze sind eine Saison und bringen rund fünfzehn Prozent des Wegs', () => {
+test('elf Einsätze sind eine Saison, und Handwerk lernt schneller als Tempo', () => {
   resetSpielerIds();
   const s = macheSpieler(makeRng('saison'), 'WR', 60, { alter: 24 });
   const vorher = { ...s.attribute };
   const soll = sollAttribute('QB', s.staerke, s.gewicht);
   for (let i = 0; i < 11; i++) spieleEinsatz(s, 'QB');
 
-  const weg = soll.werfen - vorher.werfen;
-  const anteil = (s.attribute.werfen - vorher.werfen) / weg;
-  assert.ok(anteil > 0.13 && anteil < 0.17, `nach einer Saison ${(anteil * 100).toFixed(1)} %`);
+  // Welchen Anteil des Wegs eine Saison bringt, hängt allein an der Lernrate.
+  const erwartet = (rate) => 1 - (1 - ATTRIBUT_DRIFT_JE_SPIEL * rate) ** 11;
+  assert.ok(erwartet(1) > 0.13 && erwartet(1) < 0.17,
+    `mit Rate 1 sind es ${(erwartet(1) * 100).toFixed(1)} %`);
+
+  for (const attribut of ['technik', 'werfen', 'schnelligkeit', 'spielverstaendnis']) {
+    const weg = soll[attribut] - vorher[attribut];
+    if (weg === 0) continue;
+    const anteil = (s.attribute[attribut] - vorher[attribut]) / weg;
+    const soll1 = erwartet(LERNRATE[attribut] ?? 1);
+    assert.ok(Math.abs(anteil - soll1) < 0.005,
+      `${attribut}: ${(anteil * 100).toFixed(1)} % statt ${(soll1 * 100).toFixed(1)} %`);
+  }
+
+  assert.ok(erwartet(LERNRATE.technik) > 2 * erwartet(LERNRATE.schnelligkeit),
+    'Handwerk holt er mehr als doppelt so schnell auf wie Tempo');
   assert.equal(einsaetzeAuf(s, 'QB'), 11);
 });
 
@@ -464,16 +478,36 @@ test('geteilte Einsatzzeit zieht anteilig in beide Richtungen', () => {
   assert.equal(einsaetzeAuf(halb, 'WR'), 5);
 });
 
-test('drei Saisons auf einem fremden Platz drehen den Pass', () => {
+test('fünf Saisons als Receiver drehen den Pass eines Cornerbacks', () => {
+  // Wie lange es dauert, hängt am Mann: dieser braucht fünf Saisons, ein
+  // anderer drei. Der Körper ist da (2,5 kg Korridorabstand), das Handwerk
+  // nicht — die Drift muss es holen.
   resetSpielerIds();
-  const s = macheSpieler(makeRng('umschulung'), 'G', 60, { alter: 22, seite: 'L' });
-  assert.equal(hauptPlatz(s), 'LG');
-  for (let saison = 0; saison < 4; saison++) {
-    for (let i = 0; i < 11; i++) spieleEinsatz(s, 'MIKE');
+  const s = macheSpieler(makeRng('umschulung'), 'CB', 60, { alter: 22 });
+  assert.equal(hauptPlatz(s), 'CB');
+  for (let saison = 0; saison < 5; saison++) {
+    for (let i = 0; i < 12; i++) spieleEinsatz(s, 'WR');
     s.einsaetze = verfalleEinsaetze(s.einsaetze);
   }
-  assert.equal(hauptPlatz(s), 'MIKE');
-  assert.equal(s.position, 'G', 'seine Ausbildung steht weiter im Pass');
+  assert.ok(eignungGemischt(s, 'WR', 0.5) > eignungGemischt(s, 'CB1', 0.5),
+    'er ist dort inzwischen der Bessere');
+  assert.equal(hauptPlatz(s), 'WR');
+  assert.equal(s.position, 'CB', 'seine Ausbildung steht weiter im Pass');
+});
+
+test('ein Guard bleibt Guard, so lange man ihn auch Linebacker spielen lässt', () => {
+  // Der Gegenfall: die Einsätze sind da, die Stärke nie. Ein Kadermangel, der
+  // einen Mann acht Saisons auf einen fremden Platz stellt, macht ihn nicht zu
+  // einem — im Roster nicht und in Runde eins der Aufstellung erst recht nicht.
+  resetSpielerIds();
+  const s = macheSpieler(makeRng('umschulung'), 'G', 60, { alter: 22, seite: 'L' });
+  for (let saison = 0; saison < 8; saison++) {
+    for (let i = 0; i < 12; i++) spieleEinsatz(s, 'MIKE');
+    s.einsaetze = verfalleEinsaetze(s.einsaetze);
+  }
+  assert.ok(einsaetzeAuf(s, 'MIKE') > 30, 'die Einsätze allein wären längst genug');
+  assert.ok(eignungGemischt(s, 'MIKE', 0.5) < eignungGemischt(s, 'LG', 0.5));
+  assert.equal(hauptPlatz(s), 'LG');
 });
 
 test('der Verfall frisst jeden Platz und räumt die Reste weg', () => {

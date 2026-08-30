@@ -12,7 +12,7 @@ import {
   KADER_FORM, ZUSATZ_GEWICHTE, ZUSATZ_MAX_JE_POSITION,
   KICK_BASIS, KICK_STREUUNG, KICK_FUSS_ANTEIL, KICK_FUSS_BASIS,
   KICK_FUSS_STREUUNG, KICK_FUSS_AUSSCHLUSS,
-  ATTRIBUTE, PROFIL_SPEZIALISIERUNG, ATTRIBUT_STREUUNG, ATTRIBUT_DRIFT_JE_SPIEL,
+  ATTRIBUTE, PROFIL_SPEZIALISIERUNG, ATTRIBUT_STREUUNG, ATTRIBUT_DRIFT_JE_SPIEL, LERNRATE,
   KOERPER_ANTEIL_DANEBEN, KOERPER_DANEBEN_MIN, KOERPER_DANEBEN_MAX,
   KOERPER_MITTE, KOERPER_SPANNE, KOERPER_KOPPLUNG,
   GROESSE_MIN, GROESSE_MAX, GEWICHT_MIN, GEWICHT_MAX,
@@ -290,6 +290,10 @@ function baueAttribute(position, staerke, gewicht, rauschen) {
  * Profil trägt den Rest. Ohne den Zug bliebe eine Umschulung ein Wort im
  * Roster.
  *
+ * Wie schnell ein einzelner Wert folgt, sagt `LERNRATE`: Hände und Handwerk
+ * ziehen schneller als Kraft und Tempo. Der Körper steckt zweimal darin — im
+ * Sollprofil, das ihn einrechnet, und in der Rate, mit der er erreicht wird.
+ *
  * Gerechnet wird je Spiel und nicht je Saison, damit geteilte Einsatzzeit von
  * selbst anteilig in beide Richtungen zieht. Die Werte bleiben dabei bewusst
  * gebrochen — auf ganze Zahlen gerundet wäre jeder einzelne Schritt kleiner
@@ -306,7 +310,7 @@ export function spieleEinsatz(spieler, platz) {
   for (const attribut of ATTRIBUTE) {
     const ist = spieler.attribute[attribut];
     spieler.attribute[attribut] = clamp(
-      ist + (soll[attribut] - ist) * ATTRIBUT_DRIFT_JE_SPIEL,
+      ist + (soll[attribut] - ist) * ATTRIBUT_DRIFT_JE_SPIEL * (LERNRATE[attribut] ?? 1),
       RATING_UNTERGRENZE, LIGA_MAX_STAERKE,
     );
   }

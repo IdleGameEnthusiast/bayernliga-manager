@@ -9,7 +9,7 @@
  * Docs: docs/umbau-positionsmodell.md, Abschnitte 2 und 3
  */
 
-import { ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE, interpoliere } from './constants.js';
+import { ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE, interpoliere, clamp } from './constants.js';
 
 /**
  * Größe (cm) und Gewicht (kg), in denen eine Position normalerweise steckt.
@@ -229,6 +229,7 @@ export function bewerte(werte, anteile) {
  * @typedef {object} Spielbar
  * @property {string} position          Worauf er ausgebildet wurde
  * @property {'L'|'R'|null} [seite]
+ * @property {number} [gewicht]        Kilo — damit rechnet der Körpermalus
  * @property {Record<string, number>} [einsaetze] Spiele je Platz-Kürzel
  * @property {Record<string, number>} [attribute]
  */
@@ -341,6 +342,15 @@ export const POSITION_JE_KUERZEL = Object.fromEntries(
   Object.entries(PLAETZE).map(([platz, def]) => [platzKuerzel(platz), def.position]),
 );
 
+/**
+ * Ein Platz je Kürzel — der Rückweg. Wo zwei Plätze dasselbe Kürzel tragen,
+ * steht einer von beiden; sie sind per Definition gleichwertig.
+ * @type {Record<string, string>}
+ */
+export const PLATZ_JE_KUERZEL = Object.fromEntries(
+  Object.keys(PLAETZE).map((platz) => [platzKuerzel(platz), platz]),
+);
+
 // --- Eingespieltheit -------------------------------------------------------
 // Docs: docs/umbau-positionsmodell.md, Abschnitt 4
 
@@ -392,12 +402,29 @@ export function eingespieltheit(spieler, platz) {
 }
 
 /**
+ * Nach welchem Passanteil der Hauptplatz entschieden wird: hälftig, für jeden
+ * gleich. Wo ein Verein steht, ist Taktik — wer ein Spieler ist, nicht. Sonst
+ * änderte der Regler im Taktikreiter die Überschriften im Roster.
+ */
+export const HAUPTPLATZ_PASSANTEIL = 0.5;
+
+/**
  * Der Platz, auf dem er zu Hause ist.
  *
  * Nicht gespeichert, sondern abgeleitet — es gibt keinen zweiten Zustand, der
- * mit den Einsätzen auseinanderlaufen könnte. Der ausgebildete Platz zählt
- * dabei mit `EINGESPIELT_VOLL`, sonst schöbe der erste Aushilfseinsatz eines
- * Neulings ihn schon woandershin.
+ * mit den Einsätzen auseinanderlaufen könnte. Zwei Dinge müssen zusammenkommen,
+ * damit ein fremder Platz die Heimat ablöst:
+ *
+ * 1. **Mehr Einsätze**, als der ausgebildete Platz mit `EINGESPIELT_VOLL`
+ *    mitbringt. Sonst schöbe der erste Aushilfseinsatz eines Neulings ihn
+ *    schon woandershin.
+ * 2. **Mindestens so stark** dort wie daheim. Die Einsätze allein sagen nur,
+ *    wo er gestanden hat; ob er dort auch hingehört, sagt die Eignung. Ein
+ *    Linebacker, den der Kadermangel drei Saisons lang auf Cornerback stellt,
+ *    ohne dass er je einer wird, bleibt im Roster ein Linebacker.
+ *
+ * Der zweite Punkt ist nicht kosmetisch: `stelleAuf()` baut daraus in Runde
+ * eins den Bewerberkreis je Position.
  * @param {Spielbar} spieler
  */
 export function hauptPlatz(spieler) {
@@ -408,9 +435,28 @@ export function hauptPlatz(spieler) {
     const punkte = kuerzel === heimat
       ? Math.max(spieler.einsaetze[kuerzel], EINGESPIELT_VOLL)
       : spieler.einsaetze[kuerzel];
-    if (punkte > meiste) { meiste = punkte; bester = kuerzel; }
+    if (punkte > meiste && mindestensSoStark(spieler, kuerzel, heimat)) {
+      meiste = punkte;
+      bester = kuerzel;
+    }
   }
   return bester;
+}
+
+/**
+ * Ob er auf `kuerzel` mindestens so viel wert ist wie auf seinem
+ * Ausbildungsplatz. Ohne Attribute — ein Muster aus zwei Feldern — lässt sich
+ * das nicht beantworten; dann zählen die Einsätze allein.
+ * @param {Spielbar} spieler
+ * @param {string} kuerzel
+ * @param {string} heimat
+ */
+function mindestensSoStark(spieler, kuerzel, heimat) {
+  const dort = PLATZ_JE_KUERZEL[kuerzel];
+  const daheim = PLATZ_JE_KUERZEL[heimat];
+  if (!spieler.attribute || !dort || !daheim) return true;
+  return eignungGemischt(spieler, dort, HAUPTPLATZ_PASSANTEIL)
+    >= eignungGemischt(spieler, daheim, HAUPTPLATZ_PASSANTEIL);
 }
 
 /**
@@ -432,6 +478,12 @@ export const TRANSFER_FREMD = 0.25;     // andere Einheit, Offense gegen Defense
 
 /** Körpermalus: je Kilo Abstand der Korridormitten, gedeckelt. */
 export const KOERPERMALUS_JE_KILO = 0.004;
+/**
+ * Der zweite Satz, auf Kilo mal Kilo: was sein eigener Körper zum Abstand der
+ * Mitten dazutut. Er ist so gewählt, dass ein Mann, der 25 kg neben seiner
+ * Korridormitte steht, den Malus einer mittelweiten Umstellung verdoppelt.
+ */
+export const KOERPERMALUS_JE_KILOQUADRAT = 0.00024;
 export const KOERPERMALUS_DECKEL = 0.20;
 
 /**
@@ -476,15 +528,32 @@ export function leiterTransfer(spieler, platz) {
 
 /**
  * Der zweite Abschlag: die Technik allein reicht nicht. Ein 137-Kilo-Mann kann
- * keinen Cornerback spielen, auch wenn sein Tackling stimmt. Gerechnet wird
- * über den Abstand der beiden Korridormitten — damit fallen die groben
- * Körperbänder der Liga von selbst an, ohne dass sie gepflegt werden müssten.
- * @param {string} vonPosition
+ * keinen Cornerback spielen, auch wenn sein Tackling stimmt.
+ *
+ * Zwei Summanden. Der erste ist der Abstand der beiden **Korridormitten** —
+ * daraus fallen die groben Körperbänder der Liga von selbst an, ohne dass sie
+ * gepflegt werden müssten. Der zweite ist sein **eigenes Gewicht**: wer von
+ * seiner Mitte aus vom Ziel weg gebaut ist, zahlt drauf, wer in die
+ * Zielrichtung gebaut ist, bekommt es gutgeschrieben. Ein 147-Kilo-Guard zahlt
+ * für den Weg zum Linebacker 11,5 %, ein 105-Kilo-Guard 0,4 % — vorher waren
+ * es für beide dieselben 4,4 %.
+ *
+ * Beide Summanden hängen am **Abstand**, nicht am Gewicht allein: bei
+ * Ausbildung gleich Ziel ist der Abstand null und damit der ganze Malus, egal
+ * wie schwer der Mann ist. Ohne das wäre ein Extremkörper auch auf seinem
+ * eigenen Platz belastet, und die tragende Eigenschaft des Modells — auf
+ * seinem Platz ist ein Spieler genau seine Stärke wert — wäre dahin.
+ * @param {{ position: string, gewicht: number }} spieler
  * @param {string} nachPosition
  */
-export function koerperMalus(vonPosition, nachPosition) {
-  const abstand = Math.abs(korridorMitte(vonPosition) - korridorMitte(nachPosition));
-  return Math.min(KOERPERMALUS_DECKEL, abstand * KOERPERMALUS_JE_KILO);
+export function koerperMalus(spieler, nachPosition) {
+  const eigen = korridorMitte(spieler.position);
+  const abstand = eigen - korridorMitte(nachPosition);
+  return clamp(
+    Math.abs(abstand) * KOERPERMALUS_JE_KILO
+      + abstand * (spieler.gewicht - eigen) * KOERPERMALUS_JE_KILOQUADRAT,
+    0, KOERPERMALUS_DECKEL,
+  );
 }
 
 /**
@@ -497,7 +566,8 @@ export function koerperMalus(vonPosition, nachPosition) {
  *
  * Es zählt der Technikanteil der Zielposition, nicht der Ausgangsposition —
  * dem Spieler fehlt das Handwerk des Platzes, auf dem er steht.
- * @param {{ position: string, seite?: 'L'|'R'|null, attribute: Record<string, number> }} spieler
+ * @param {{ position: string, seite?: 'L'|'R'|null, gewicht: number,
+ *   attribute: Record<string, number> }} spieler
  * @param {string} platz Schlüssel aus PLAETZE
  * @param {'pass'|'lauf'} art
  */
@@ -507,7 +577,7 @@ export function eignung(spieler, platz, art) {
   werte.technik = werte.technik * technikTransfer(spieler, platz);
 
   const roh = bewerte(werte, formelAnteile(ziel.position, art));
-  return roh * (1 - koerperMalus(spieler.position, ziel.position));
+  return roh * (1 - koerperMalus(spieler, ziel.position));
 }
 
 /**

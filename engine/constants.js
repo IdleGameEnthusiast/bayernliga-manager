@@ -160,6 +160,34 @@ export const ATTRIBUT_STREUUNG = 6;
 export const ATTRIBUT_DRIFT_JE_SPIEL = 0.0147;
 
 /**
+ * Wie schnell ein einzelnes Attribut dem Sollprofil folgt, als Faktor auf
+ * `ATTRIBUT_DRIFT_JE_SPIEL`.
+ *
+ * Handwerk lernt man, Tempo nicht. Ohne diese Leiter zöge jeder Wert gleich
+ * schnell, und ein 109-Kilo-Linebacker würde auf dem Weg zum Cornerback mehr
+ * Schnelligkeit gewinnen, als er Fangen lernt — der Körper stünde im Sollprofil
+ * zwar richtig, wäre aber genauso schnell erreicht wie eine Fangtechnik.
+ *
+ * Der Schnitt liegt bei 1,0: die Saisonrate von rund 15 % bleibt, sie verteilt
+ * sich nur anders. Was hier fehlt, zieht mit 1.
+ * @type {Record<string, number>}
+ */
+export const LERNRATE = {
+  technik: 1.5,
+  fangen: 1.4,
+  routeRunning: 1.4,
+  ballsicherheit: 1.4,
+  blocken: 1.3,
+  coverage: 1.3,
+  passrush: 1.2,
+  tacklen: 1.2,
+  werfen: 0.6,
+  beweglichkeit: 0.5,
+  kraft: 0.4,
+  schnelligkeit: 0.3,
+};
+
+/**
  * The body. Height and weight are real data, not attributes — but `kraft` and
  * `schnelligkeit` hang off them, which is what makes the 95-kilo tackle a real
  * player rather than a mislabelled one: agile, and weak.

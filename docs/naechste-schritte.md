@@ -308,17 +308,14 @@ Nichts davon blockiert Block 2 oder 3, aber irgendwann muss es fallen:
    gleich — es gibt also nie eine junge Aufsteigermannschaft oder einen
    überalterten Absteiger. Bewusst so entschieden, aber es bleibt ein Hebel.
 5. **Veteranen-Nachschub**, siehe oben.
-6. **Körpermalus am tatsächlichen Körper.** `koerperMalus()` rechnet heute über
-   die beiden **Korridormitten**, nicht über das Gewicht des Mannes: ein
-   147-Kilo-Guard zahlt für den Weg zum Linebacker dieselben 4,4 % wie ein
-   105-Kilo-Guard. Der naheliegende Fix — Abstand vom eigenen Gewicht zur
-   Zielmitte — geht nicht, weil er den Mann auch auf seiner **eigenen**
-   Position belasten würde und damit die tragende Eigenschaft bricht, dass ein
-   Spieler auf seinem Platz genau seine `staerke` wert ist. Wer das reparieren
-   will, braucht einen Term, der bei Ausbildung = Ziel null ist und trotzdem
-   Extremkörper härter trifft — quadratisch im Abstand statt linear. Das ist
-   eine Balance-Änderung mit großem Radius und gehört in einen eigenen Schritt
-   mit eigener Messung, nicht nebenbei.
+6. ~~**Körpermalus am tatsächlichen Körper.**~~ **Erledigt.** Der Malus hat
+   jetzt einen zweiten Summanden, `Abstand x Übergewicht x 0,024 %`, der bei
+   Ausbildung = Ziel für jeden Körper null bleibt. Der 147-Kilo-Guard zahlt für
+   den Weg zum Linebacker 11,5 %, der 105-Kilo-Guard 0,4 % — vorher waren es
+   für beide 4,4 %. Der rein quadratische Term, den dieser Punkt vorgeschlagen
+   hatte, wurde gemessen und verworfen: er macht kurze Wechsel so billig, dass
+   `DT → NT` negative Umstellungskosten bekommt und das Sollwert-Band aus dem
+   Bauplan fällt.
 
 ---
 
@@ -356,8 +353,10 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Speicherstände | vor v3 abgelehnt statt migriert — die alte Ligaform lässt sich nicht retten |
 | Vereinsfarben | drei je Verein, in `farben: { primaer, sekundaer, tertiaer }` |
 | Kürzel | zwei- oder dreistellig, gemischt ist in Ordnung |
-| Eingespieltheit | `spieler.einsaetze` je Platz-Kürzel; die Stufenleiter ist der Startpunkt, die Einsätze schließen die Lücke; voll nach 30 Spielen |
+| Eingespieltheit | `spieler.einsaetze` je Platz-Kürzel; die Stufenleiter ist der Startpunkt, die Einsätze schließen die Lücke; voll nach 30 Spielen; sie wirkt allein über den Technikanteil und ist damit auf rund drei Stärkepunkte gedeckelt |
 | Ausbildung | `position`/`seite` ändern sich **nie** — der Hauptplatz wird aus den Einsätzen abgeleitet, nicht gespeichert |
+| Hauptplatz | kippt nur, wenn **beides** stimmt: mehr Einsätze als `EINGESPIELT_VOLL` **und** dort mindestens so stark wie daheim, gemessen bei Passanteil 0,5 |
 | Attributdrift | 15 % je Saison auf das Sollprofil des gespielten Platzes, gerechnet je Spiel; der Körper geht ins Sollprofil ein und bremst |
+| Lernraten | je Attribut ein Faktor auf die Drift (`LERNRATE`): Technik 1,5 · Hände 1,4 · Kraft 0,4 · Tempo 0,3, im Schnitt 1,0 — Handwerk lernt man, Tempo nicht |
 | Einsatzverfall | 7 % je Saison auf **jedem** Platz, auch dem gespielten |
 | Umschulung | soll den geborenen Spieler nie einholen — 15 % ist die Rate, bei der Skill→Skill nach fünf Jahren trägt und Line→Linebacker erst am Karriereende |

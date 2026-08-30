@@ -210,3 +210,62 @@ acht Gruppierungen. Vorher lag er zwischen 40,0 und 41,5 — eine Spanne von
 anderthalb Punkten, also nichts. Jetzt reicht er von 36,8 (Double Wing, voll
 auf Pass) bis 44,0 (Double Wing, voll auf Lauf). Über 200 gepaarte Saisons
 schlägt das mit rund einem halben Sieg durch.
+
+## Nach Körpermalus, Hauptplatz-Bedingung und Lernraten
+
+Drei Änderungen in einem Schritt: der Körpermalus rechnet mit dem tatsächlichen
+Gewicht, der Hauptplatz kippt nur noch, wenn der Mann dort auch stärker ist,
+und die Attribute folgen je nach Lernrate verschieden schnell. `teamStaerken()`
+liefert in diesem Stand fünf Zahlen, nicht mehr sieben — die Spalten `angriff`
+und `verteidigung` der Abschnitte darüber gibt es nicht mehr.
+
+**Vorher** (Commit 45d38ab):
+
+| Verein | Kader | Gesamt | passAngriff | laufAngriff | passVerteidigung | laufVerteidigung | special |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ASS Aschaffenburg Stallions | 35 | 59 | 60.8 | 57.7 | 60.9 | 59.6 | 46.4 |
+| GC Gendorf Crusaders | 35 | 56 | 56.1 | 57.9 | 54.2 | 55.3 | 61.2 |
+| ERS Erlangen Sharks | 35 | 54 | 58.9 | 56.0 | 53.5 | 54.6 | 28.8 |
+| KBA Königsbrunn Ants | 35 | 53 | 55.9 | 51.4 | 56.3 | 57.2 | 32.9 |
+| FEL Feldkirchen Lions | 35 | 50 | 48.5 | 49.5 | 50.0 | 47.5 | 57.8 |
+| HR Herzo Rhinos | 35 | 50 | 49.7 | 50.3 | 47.0 | 49.4 | 65.0 |
+| STA Starnberg Argonauts | 35 | 49 | 53.2 | 48.7 | 48.0 | 44.2 | 56.0 |
+| MR München Rangers | 35 | 46 | 44.2 | 44.3 | 45.9 | 46.9 | 58.3 |
+| HEG Hemhofen Gechers | 30 | 44 | 44.0 | 45.4 | 42.1 | 43.4 | 51.5 |
+| FKK Franken Knights | 35 | 44 | 48.6 | 49.0 | 43.5 | 42.3 | 27.6 |
+| BTC Bad Tölz Capricorns | 35 | 44 | 44.0 | 44.9 | 41.6 | 41.7 | 60.0 |
+| PP Passau Pirates | 35 | 42 | 40.8 | 43.0 | 40.0 | 38.6 | 59.0 |
+
+**Nachher:**
+
+| Verein | Kader | Gesamt | passAngriff | laufAngriff | passVerteidigung | laufVerteidigung | special |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ASS Aschaffenburg Stallions | 35 | 59 | 61.2 | 56.8 | 60.9 | 59.6 | 46.4 |
+| GC Gendorf Crusaders | 35 | 56 | 56.1 | 58.0 | 54.2 | 55.3 | 61.2 |
+| ERS Erlangen Sharks | 35 | 54 | 59.0 | 56.3 | 53.5 | 54.6 | 28.8 |
+| KBA Königsbrunn Ants | 35 | 53 | 55.9 | 51.5 | 56.3 | 57.2 | 32.9 |
+| FEL Feldkirchen Lions | 35 | 50 | 48.5 | 49.5 | 50.0 | 47.5 | 57.8 |
+| HR Herzo Rhinos | 35 | 50 | 49.7 | 50.3 | 47.0 | 49.4 | 65.0 |
+| STA Starnberg Argonauts | 35 | 49 | 53.2 | 48.7 | 48.0 | 44.2 | 56.0 |
+| MR München Rangers | 35 | 46 | 44.2 | 44.2 | 45.9 | 46.9 | 58.3 |
+| HEG Hemhofen Gechers | 30 | 44 | 44.0 | 45.4 | 42.1 | 43.4 | 51.5 |
+| FKK Franken Knights | 35 | 44 | 48.6 | 49.0 | 43.5 | 42.3 | 27.6 |
+| BTC Bad Tölz Capricorns | 35 | 44 | 44.0 | 44.9 | 41.6 | 41.7 | 60.0 |
+| PP Passau Pirates | 35 | 42 | 40.8 | 43.0 | 40.0 | 38.6 | 59.0 |
+
+**Keine einzige Gesamtstärke bewegt sich**, sieben von zwölf Vereinen stehen
+auch in den Teilwerten still, die übrigen fünf um höchstens 0,3. Das ist
+erwartet: nur 11 von 264 besetzten Plätzen sind überhaupt Umstellungen, und alle
+elf sind der Tight End, den kein Kader hat. Bei GC, ERS, KBA und MR ändert sich
+nur der Preis — ERS' 92-Kilo-Slot zahlt für den Tight End jetzt 3,5 % statt 9,4 %,
+GCs 116-Kilo-Fullback 0,1 % statt 0,6 %.
+
+Die einzige Aufstellung, die kippt, ist ASS: dort gibt nach dem neuen Malus ein
+88-Kilo-Slot den Tight End besser als ein 96-Kilo-Fullback. Das hebt den
+Passangriff um 0,4 und senkt den Laufangriff um 0,9 — genau das, was der Umbau
+tun soll, und an genau einer Stelle von 264.
+
+Die Lernraten sind hier noch gar nicht zu sehen: sie wirken erst über Saisons.
+Gemessen an einem Musterspieler — 109-Kilo-`SAM`, zehn Jahre ausschließlich auf
+`CB` — gewinnt er jetzt +7,4 Schnelligkeit statt +15,0 und +11,0 Fangen statt
++10,0; sein Wert auf `CB` landet nach zehn Jahren bei 41,1 statt 42,5.

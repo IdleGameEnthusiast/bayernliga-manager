@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {
   POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE,
 } from '../engine/constants.js';
-import { ziehAttribute } from '../engine/spieler.js';
+import { ziehAttribute, spieleEinsatz, verfalleEinsaetze } from '../engine/spieler.js';
 import {
   FORMELN, PROFIL_BEITRAG, KOERPER_KORRIDOR, korridorMitte,
   profilPassAnteil, gemischteFormel, generierungsProfil, bewerte,
@@ -117,7 +117,9 @@ function muster(position, seite = 'L') {
     position,
     seite: SEITEN_POSITIONEN.includes(/** @type {any} */ (position)) ? seite : null,
     gewicht,
+    staerke: 50,
     attribute: ziehAttribute(() => 0.5, position, 50, gewicht),
+    einsaetze: /** @type {Record<string, number>} */ ({}),
   };
 }
 
@@ -141,7 +143,12 @@ function umstellungskosten(von, nach) {
 test('auf dem eigenen Platz kostet die Technik nichts', () => {
   for (const pos of POSITIONS) {
     assert.equal(technikTransfer(muster(pos), HEIMAT[pos]), 1, pos);
-    assert.equal(koerperMalus(pos, pos), 0, pos);
+    assert.equal(koerperMalus(muster(pos), pos), 0, pos);
+    // Und zwar für jeden Körper. Sonst wäre ein Extremkörper auf seinem
+    // eigenen Platz nicht mehr genau seine Stärke wert.
+    const [von, bis] = KOERPER_KORRIDOR[pos].gewicht;
+    assert.equal(koerperMalus({ position: pos, gewicht: von - 25 }, pos), 0, pos);
+    assert.equal(koerperMalus({ position: pos, gewicht: bis + 25 }, pos), 0, pos);
   }
 });
 
@@ -188,13 +195,28 @@ test('die Stufenleiter fällt von der Gruppe über die Einheit nach draußen', (
   assert.equal(technikTransfer(t, 'LE'), 0.25, 'andere Einheit');
 });
 
-test('der Körpermalus wächst mit dem Gewichtsabstand und ist gedeckelt', () => {
-  // 0,4 % je Kilo Abstand der Korridormitten.
-  assert.ok(Math.abs(koerperMalus('T', 'G') - 5 * 0.004) < 1e-9);
-  assert.ok(Math.abs(koerperMalus('CB', 'FS') - 6 * 0.004) < 1e-9);
+test('der Körpermalus wächst mit dem Abstand und mit dem eigenen Körper', () => {
+  /** @param {string} position @param {number} gewicht */
+  const mann = (position, gewicht) => ({ position, gewicht });
+
+  // Wer in seiner Korridormitte steht, zahlt wie eh und je 0,4 % je Kilo
+  // Abstand der beiden Mitten.
+  assert.ok(Math.abs(koerperMalus(mann('T', 125), 'G') - 5 * 0.004) < 1e-9);
+  assert.ok(Math.abs(koerperMalus(mann('CB', 82.5), 'FS') - 6 * 0.004) < 1e-9);
+  assert.ok(Math.abs(koerperMalus(mann('G', 120), 'MIKE') - 11 * 0.004) < 1e-9);
+
+  // Der eigene Körper entscheidet mit: Guard (Mitte 120) auf MIKE (109).
+  // Vorher zahlten beide dieselben 4,4 %.
+  assert.ok(Math.abs(koerperMalus(mann('G', 147), 'MIKE') - 0.11528) < 1e-5,
+    'der schwere Guard zahlt für den Weg nach innen');
+  assert.ok(Math.abs(koerperMalus(mann('G', 105), 'MIKE') - 0.0044) < 1e-5,
+    'der leichte hat den Körper dafür schon');
+  assert.equal(koerperMalus(mann('G', 95), 'MIKE'), 0,
+    'und wer weit darüber hinaus gebaut ist, zahlt nichts — nie unter null');
+
   // NT 137,5 gegen SL 81,5 sind 56 Kilo — der Deckel greift.
-  assert.equal(koerperMalus('NT', 'SL'), 0.20);
-  assert.equal(koerperMalus('SL', 'NT'), 0.20, 'und zwar in beide Richtungen');
+  assert.equal(koerperMalus(mann('NT', 137.5), 'SL'), 0.20);
+  assert.equal(koerperMalus(mann('SL', 81.5), 'NT'), 0.20, 'und zwar in beide Richtungen');
 });
 
 test('ein Tight End spielt Tackle, ein Receiver nicht', () => {
@@ -317,7 +339,7 @@ test('CB1 und CB2 zählen als ein Platz, LG und RG nicht', () => {
   assert.ok(technikTransfer(frisch, 'RG') < 1, 'ohne Einsätze kostet die Seite');
 });
 
-test('der Hauptplatz kippt erst nach drei Saisons', () => {
+test('der Hauptplatz kippt erst, wenn Einsätze und Stärke zusammenkommen', () => {
   const g = muster('G', 'L');
   assert.equal(ausbildungsKuerzel(g), 'LG');
   assert.equal(hauptPlatz(g), 'LG', 'ohne Einsätze zählt die Ausbildung');
@@ -327,12 +349,21 @@ test('der Hauptplatz kippt erst nach drei Saisons', () => {
     'ein Aushilfseinsatz dreht nichts');
   assert.equal(hauptPlatz({ ...g, einsaetze: { MIKE: EINGESPIELT_VOLL } }), 'LG',
     'gleichauf gewinnt die Ausbildung');
+  assert.equal(hauptPlatz({ ...g, einsaetze: { MIKE: 220 } }), 'LG',
+    'und Einsätze allein machen aus einem Guard keinen Linebacker');
 
-  const umgeschult = { ...g, einsaetze: { MIKE: EINGESPIELT_VOLL + 1 } };
-  assert.equal(hauptPlatz(umgeschult), 'MIKE');
-  assert.equal(positionsKuerzel(umgeschult), 'MIKE', 'so steht er auch im Roster');
-  assert.equal(hauptPosition(umgeschult), 'MIKE');
-  assert.equal(umgeschult.position, 'G', 'die Ausbildung bleibt, was sie war');
+  // Wer wirklich umschult, kippt: ein Cornerback, den vier Saisons als Receiver
+  // dorthin gezogen haben, ist auf dem Platz inzwischen der Bessere.
+  const cb = muster('CB');
+  for (let saison = 0; saison < 4; saison++) {
+    for (let spiel = 0; spiel < 12; spiel++) spieleEinsatz(cb, 'WR');
+    cb.einsaetze = verfalleEinsaetze(cb.einsaetze);
+  }
+  assert.ok(eignungGemischt(cb, 'WR', 0.5) > eignungGemischt(cb, 'CB1', 0.5));
+  assert.equal(hauptPlatz(cb), 'WR');
+  assert.equal(positionsKuerzel(cb), 'WR', 'so steht er auch im Roster');
+  assert.equal(hauptPosition(cb), 'WR');
+  assert.equal(cb.position, 'CB', 'die Ausbildung bleibt, was sie war');
 
   // Wer auf seinem eigenen Platz bleibt, kippt nie — auch nach zwanzig Jahren.
   assert.equal(hauptPlatz({ ...g, einsaetze: { LG: 220, MIKE: 3 } }), 'LG');

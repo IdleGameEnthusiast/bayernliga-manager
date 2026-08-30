@@ -259,11 +259,38 @@ Technikkosten = Technikanteil der ZIELformel  x  (1 - Transferfaktor)
 
 Die Technik allein reicht nicht: ein 137-Kilo-Mann kann keinen Cornerback spielen, auch
 wenn sein Tackling stimmt. Deshalb kommt ein zweiter Abschlag dazu, aus dem
-Gewichtsabstand der Korridormitten aus Abschnitt 2:
+Gewichtsabstand der Korridormitten aus Abschnitt 2 **und dem eigenen Gewicht des Manns**:
 
 ```
-Körpermalus = min(20 %, |kg(A) - kg(B)| x 0,4 %)
+Abstand      = kg(A) - kg(B)          vorzeichenbehaftet, A ist die Ausbildung
+Uebergewicht = kg(Mann) - kg(A)       wie weit er neben seiner eigenen Mitte steht
+
+Körpermalus = min(20 %, max(0, |Abstand| x 0,4 %  +  Abstand x Uebergewicht x 0,024 %))
 ```
+
+Der erste Summand ist der Abstand der Mitten, der zweite sein Körper. Bei Ausbildung
+gleich Ziel ist der Abstand null und damit der ganze Malus — für **jeden** Körper. Das
+ist die Bedingung, an der jede andere Bauart scheitert: der naheliegende „Abstand vom
+eigenen Gewicht zur Zielmitte" belastet einen Extremkörper auch auf seinem eigenen Platz
+und bricht damit die tragende Eigenschaft, dass ein Spieler dort genau seine `staerke`
+wert ist.
+
+Was das ändert, am Guard (Mitte 120) auf MIKE (109):
+
+| | vorher | jetzt |
+| --- | ---: | ---: |
+| 147-Kilo-Guard | 4,4 % | **11,5 %** |
+| 120-Kilo-Guard | 4,4 % | 4,4 % |
+| 105-Kilo-Guard | 4,4 % | **0,4 %** |
+| 95-Kilo-Guard | 4,4 % | **0 %** |
+
+Der Satz von 0,024 % je Kilo mal Kilo ist so gewählt, dass 25 kg neben der eigenen Mitte
+den Malus einer mittelweiten Umstellung verdoppeln. Gemessen an der Liga bewegt er die
+Gesamtstärken nicht — nur 4 % aller besetzten Plätze sind überhaupt Umstellungen —, aber
+er entscheidet, **wer** von ihnen sie bekommt: ein 117-Kilo-Fullback spielt Tight End
+jetzt zum Nulltarif, ein 82-Kilo-Runningback zahlt 8,9 % statt 6,0 %.
+
+Die Korridormitten, aus denen der Abstand fällt:
 
 | | | | | | | |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -358,7 +385,21 @@ Attribute gezogen wurden, und bleiben stehen. Wo ein Spieler zu Hause ist, wird
 **abgeleitet**: `hauptPlatz()` nimmt den Platz mit den meisten Einsätzen, wobei der
 ausgebildete von Anfang an mit `EINGESPIELT_VOLL` (30) zählt. Es braucht also drei volle
 Saisons woanders, um den Pass zu drehen, und ein einzelner Aushilfseinsatz dreht nichts.
-Weil nichts gespeichert wird, kann auch nichts auseinanderlaufen. `positionsKuerzel()`,
+Weil nichts gespeichert wird, kann auch nichts auseinanderlaufen.
+
+**Die Einsätze allein reichen nicht.** Dazu muss er auf dem neuen Platz auch mindestens
+so stark sein wie auf seinem alten (`eignungGemischt` bei `HAUPTPLATZ_PASSANTEIL` = 0,5,
+für jeden gleich — sonst verschöbe der Taktikregler die Überschriften im Roster). Die
+Einsätze sagen, wo er **gestanden** hat; ob er dort **hingehört**, sagt die Eignung. Ein
+Linebacker, den der Kadermangel drei Saisons lang auf Cornerback stellt, ohne dass er je
+einer wird, bleibt ein Linebacker; ein Cornerback, der fünf Saisons Receiver spielt und
+dort der Bessere wird, ist einer. Der Unterschied zwischen beiden ist fast nur der
+Körper: 26,5 kg Korridorabstand gegen 2,5.
+
+Das ist keine Kosmetik — `stelleAuf()` baut daraus in Runde eins den Bewerberkreis. Der
+Preis dafür ist bekannt: die Marke ist damit auch das Gedächtnis nicht mehr, das einen
+Umgestellten auf dem neuen Platz hält. Wer nie stark genug wird, wird jede Saison neu
+als das verplant, was er war. `positionsKuerzel()`,
 die Sortierung im Roster und `stelleAuf()` lesen alle den Hauptplatz — wer umgeschult
 ist, wird in Runde eins gegriffen und trägt die Marke „umgestellt" nicht mehr.
 
@@ -379,6 +420,14 @@ Schnelligkeit eines 147-Kilo-Manns.
 Gerechnet wird **je Spiel** (`ATTRIBUT_DRIFT_JE_SPIEL`), nicht je Saison. Elf Einsätze
 machen zusammen rund 15 %, und wer seine Zeit auf zwei Plätze aufteilt, zieht anteilig
 in beide Richtungen — ohne dass es dafür eine eigene Regel bräuchte.
+
+**Nicht jedes Attribut folgt gleich schnell** (`LERNRATE`). Handwerk lernt man, Tempo
+nicht: Technik zieht mit 1,5, Hände und Route Running mit 1,4, Kraft mit 0,4,
+Schnelligkeit mit 0,3. Der Schnitt liegt bei 1,0 — die Saisonrate bleibt, sie verteilt
+sich nur anders. Ohne diese Leiter gewann ein 109-Kilo-Linebacker auf dem Weg zum
+Cornerback in zehn Jahren +15 Schnelligkeit und nur +10 Fangen; jetzt sind es +7 und
++11. Der Körper steckt damit zweimal im Modell: im Sollprofil, das ihn einrechnet, und
+in der Rate, mit der es erreicht wird.
 
 Was dabei herauskommt, mit Talent 72 ab dem 21. Lebensjahr:
 
@@ -1009,7 +1058,7 @@ Damit nichts zweimal verhandelt wird. Alles darüber stützt sich hierauf.
 | `staerke` | bleibt vorerst Führungsgröße, berechnete Stärke später |
 | Körper | Größe und Gewicht als echte Daten, Korridor je Position, ~20 % daneben |
 | Technik | positionsgebunden, trägt den Umstellungsabschlag; Leiter 100/Seite/70/45/25; es zählt der Anteil der Zielposition |
-| Körpermalus | 0,4 % je Kilo Abstand der Korridormitten, gedeckelt bei 20 % — die groben Körperbänder fallen daraus von selbst |
+| Körpermalus | 0,4 % je Kilo Abstand der Korridormitten **plus** 0,024 % je Kilo Abstand mal Kilo eigenem Übergewicht, gedeckelt bei 20 %, nie unter 0 — bei Ausbildung gleich Ziel immer null |
 | Generierungsprofil | nicht das Mittel der beiden Formeln, sondern nach Blockgewicht × Platzanteil gewichtet |
 | Linebacker | MIKE und SAM physisch (Brücke zur Line), WILL athletisch (Brücke zur Secondary); MIKE mit `passrush` |
 | Umstellungskosten | Sollwerte in Abschnitt 4: Gruppe 13 %, Einheit 27 %, quer 36 % |
