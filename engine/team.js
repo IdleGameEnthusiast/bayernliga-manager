@@ -99,11 +99,12 @@ function spreize(pass, lauf, neigung) {
  * @param {number} spieltag
  * @param {string} [personnel]
  * @param {number} [passAnteil]
+ * @param {import('./aufstellung.js').Vorgabe | null} [vorgabe] Die Aufstellung von Hand
  * @returns {Staerken}
  */
-export function teamStaerken(kader, spieltag, personnel = STANDARD_PERSONNEL, passAnteil) {
+export function teamStaerken(kader, spieltag, personnel = STANDARD_PERSONNEL, passAnteil, vorgabe) {
   const gruppierung = PERSONNEL[personnel] || PERSONNEL[STANDARD_PERSONNEL];
-  const aufstellung = stelleAuf(kader, spieltag, personnel, passAnteil);
+  const aufstellung = stelleAuf(kader, spieltag, personnel, passAnteil, vorgabe);
 
   const qb = block(aufstellung.offense, [QB_PLATZ]);
   const ol = block(aufstellung.offense, OL_PLAETZE);

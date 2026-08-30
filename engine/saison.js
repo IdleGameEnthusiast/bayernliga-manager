@@ -21,7 +21,9 @@ import {
   anzahlSpieltage, partienAmSpieltag, partienDerRunde,
 } from './spielplan.js';
 import { simuliereSpiel } from './spiel.js';
-import { PERSONNEL, STANDARD_PERSONNEL } from './aufstellung.js';
+import {
+  PERSONNEL, STANDARD_PERSONNEL, stelleAuf, alsVorgabe, setzePlatz,
+} from './aufstellung.js';
 import { berechneTabelle } from './tabelle.js';
 
 export const SAVE_VERSION = 4;
@@ -37,6 +39,7 @@ export const SAVE_VERSION = 4;
  * @property {import('./spielplan.js').Partie[]} spielplan
  * @property {Record<string, string>} personnel   Personnel-Gruppierung je Verein
  * @property {Record<string, number>} passAnteil  Ausrichtung je Verein, 0..1
+ * @property {import('./aufstellung.js').Vorgabe | null} aufstellung  Von Hand, nur der eigene Verein
  * @property {string[]} verlauf       Log lines, newest last
  * @property {{ jahr: number, meister: string, meinPlatz: number }[]} historie
  */
@@ -145,9 +148,67 @@ export function setzeTaktik(stand, taktik) {
 }
 
 /**
- * Ein Verein, wie ihn die Simulation sehen will: Kader plus Ausrichtung.
+ * Die Aufstellung von Hand — und nur die des eigenen Vereins.
+ *
+ * Ein KI-Verein *kann* keine haben: niemand stellt ihn auf, also stellt er sich
+ * automatisch auf. Das ist keine Auslassung, sondern die Regel, und sie steht
+ * hier, damit sie nicht an elf Stellen einzeln nachgebaut wird.
  * @param {SpielStand} stand
  * @param {string} teamId
+ * @returns {import('./aufstellung.js').Vorgabe | null}
+ */
+export function aufstellungVon(stand, teamId) {
+  return teamId === stand.meinTeam && stand.aufstellung ? stand.aufstellung : null;
+}
+
+/**
+ * Die Aufstellung, die der eigene Verein am nächsten Spieltag stellen würde:
+ * die Vorgabe, repariert um alles, was ihr fehlt.
+ * @param {SpielStand} stand
+ */
+export function eigeneAufstellung(stand) {
+  const id = stand.meinTeam;
+  return stelleAuf(
+    stand.kader[id], stand.spieltag,
+    personnelVon(stand, id), passAnteilVon(stand, id), aufstellungVon(stand, id),
+  );
+}
+
+/**
+ * Einen Spieler auf einen Platz stellen.
+ *
+ * Die Vorgabe wird dabei aus der Aufstellung gewonnen, die gerade steht, nicht
+ * aus der gespeicherten: der Manager sieht die reparierte Elf vor sich und
+ * meint sie auch. Der erste Handgriff friert damit ein, was die Automatik
+ * gestellt hatte — und ändert daran genau einen Platz.
+ * @param {SpielStand} stand
+ * @param {string} schluessel Platz-Schlüssel aus der Aufstellung
+ * @param {string} spielerId
+ */
+export function setzeAufstellung(stand, schluessel, spielerId) {
+  const kader = stand.kader[stand.meinTeam];
+  if (!kader.some((s) => s.id === spielerId)) return stand;
+
+  stand.aufstellung = setzePlatz(alsVorgabe(eigeneAufstellung(stand)), schluessel, spielerId);
+  return stand;
+}
+
+/**
+ * Die Vorgabe fallen lassen. Danach stellt die Automatik wieder alles — der
+ * Knopf „automatisch aufstellen" ist nichts anderes als das Vergessen.
+ * @param {SpielStand} stand
+ */
+export function automatischAufstellen(stand) {
+  stand.aufstellung = null;
+  return stand;
+}
+
+/**
+ * Ein Verein, wie ihn die Simulation sehen will: Kader, Ausrichtung und, beim
+ * eigenen, die Aufstellung von Hand.
+ * @param {SpielStand} stand
+ * @param {string} teamId
+ * @returns {import('./spiel.js').Antritt}
  */
 export function alsGegner(stand, teamId) {
   return {
@@ -155,6 +216,7 @@ export function alsGegner(stand, teamId) {
     kader: stand.kader[teamId],
     personnel: personnelVon(stand, teamId),
     passAnteil: passAnteilVon(stand, teamId),
+    aufstellung: aufstellungVon(stand, teamId),
   };
 }
 
@@ -196,6 +258,7 @@ export function neuesSpiel(meinTeam, seed) {
     kader,
     personnel,
     passAnteil,
+    aufstellung: null,
     spielplan: frischerGruppenplan(rng),
     verlauf: [],
     historie: [],
@@ -209,6 +272,22 @@ export function neuesSpiel(meinTeam, seed) {
  */
 function spieltagRng(stand) {
   return makeRng(`${stand.seed}|${stand.jahr}|${stand.spieltag}`);
+}
+
+/**
+ * Die Vorgabe um die Zurückgetretenen erleichtern.
+ *
+ * Nötig ist das nicht — `stelleAuf()` überliest eine Id, die keinen Spieler
+ * mehr hat. Aber ein Speicherstand, der über zehn Saisons hinweg jede
+ * ausgeschiedene Id mitschleppt, beschreibt am Ende mehr Vergangenheit als
+ * Aufstellung.
+ * @param {import('./aufstellung.js').Vorgabe | null} vorgabe
+ * @param {import('./spieler.js').Spieler[]} kader
+ */
+function ohneAbgaenge(vorgabe, kader) {
+  if (!vorgabe) return null;
+  const da = new Set(kader.map((s) => s.id));
+  return Object.fromEntries(Object.entries(vorgabe).filter(([, id]) => da.has(id)));
 }
 
 /** @param {SpielStand} stand */
@@ -375,6 +454,7 @@ export function naechsteSaison(stand) {
     if (t.id === stand.meinTeam) alleRuecktritte.push(...ruecktritte);
   }
 
+  stand.aufstellung = ohneAbgaenge(stand.aufstellung, stand.kader[stand.meinTeam]);
   stand.jahr++;
   stand.spieltag = 1;
   stand.spielplan = frischerGruppenplan(rng);

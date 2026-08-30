@@ -269,3 +269,14 @@ Die Lernraten sind hier noch gar nicht zu sehen: sie wirken erst über Saisons.
 Gemessen an einem Musterspieler — 109-Kilo-`SAM`, zehn Jahre ausschließlich auf
 `CB` — gewinnt er jetzt +7,4 Schnelligkeit statt +15,0 und +11,0 Fangen statt
 +10,0; sein Wert auf `CB` landet nach zehn Jahren bei 41,1 statt 42,5.
+
+## Nach der Aufstellung von Hand
+
+Nichts. Keine der zwölf Gesamtstärken und kein einziger Teilwert bewegt sich —
+die Tabelle darüber gilt unverändert weiter.
+
+Das ist der Prüfstein des Umbaus und kein Zufall: ohne Vorgabe ist die neue
+Runde null leer, und `stelleAuf()` durchläuft danach exakt dieselben drei
+Runden wie vorher. Der Messlauf sieht zwölf Vereine, von denen keiner eine
+Vorgabe hat — KI-Vereine *können* keine haben. Bewegen kann sich die Liga erst,
+wenn der Manager selbst jemanden umstellt, und dann soll sie es.

@@ -50,7 +50,7 @@ in Millisekunden durchspielen können.
 | `engine/content.js` | Die Kataloge: Vereine, Vor- und Nachnamen |
 | `engine/positionen.js` | Körperkorridore, Positionsformeln, Plätze, die Eignung |
 | `engine/spieler.js` | Spieler erzeugen, Attribute, Alterskurve, Verletzungen, Saisonwechsel |
-| `engine/aufstellung.js` | Personnel, die zweiundzwanzig Plätze, der Doppeleinsatz |
+| `engine/aufstellung.js` | Personnel, die zweiundzwanzig Plätze, der Doppeleinsatz, die Vorgabe des Managers |
 | `engine/team.js` | Aus einer Aufstellung werden Lauf- und Passwerte je Einheit |
 | `engine/spielplan.js` | Gruppenrunde nach dem Kreisverfahren, dazu das Bracket |
 | `engine/spiel.js` | Die Spielsimulation: Endstand, Viertel, Box Score |
@@ -98,8 +98,11 @@ Der Fahrplan mit allen gefallenen Entscheidungen steht in
 
 Gespielt werden kann: Verein wählen, die Ansprache zum Amtsantritt, Spieltage
 simulieren, zwei Gruppentabellen, Kader mit Depth Chart, sortierbaren Spalten
-und Verletzungen, Spielplan, Spielbericht mit Box Score, Halbfinale und Finale,
-Saisonwechsel mit Alterung und Rücktritten, Export und Import.
+und Verletzungen, Taktik mit Personnel und Ausrichtung, **die Aufstellung von
+Hand** (Platz antippen, Mann antippen, einsetzen — siehe
+[`docs/umbau-aufstellung.md`](docs/umbau-aufstellung.md)), Spielplan,
+Spielbericht mit Box Score, Halbfinale und Finale, Saisonwechsel mit Alterung
+und Rücktritten, Export und Import.
 
 ## Wie eine Saison aussieht
 
@@ -121,7 +124,8 @@ werden.
 Verlängerung läuft, bis einer vorn liegt. Absteiger gibt es ebenfalls keine.
 
 Ideen für später:
-- Aufstellung selbst bestimmen statt automatisch nach Stärke und Eignung
+- Verletzungsrate und Umstellungskosten neu eichen, jetzt wo von Hand
+  aufgestellt wird
 - Weitere Defense-Formationen: 4-4, 3-3, 3-4 über denselben Platz-Apparat
 - Berechnete Stärke aus den Attributen statt gezogener
 - Alterskurven je Attribut

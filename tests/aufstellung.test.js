@@ -11,7 +11,7 @@ import {
   PERSONNEL, PERSONNEL_REIHE, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
   BLOCK_GEWICHT, PLATZ_ANTEIL, SKILL_LEITER, SKILL_ROLLE, SKILL_NORM,
   stelleAuf, skillAnteile, doppelAbzug, doppelRisiko, doppelEinsaetze, umstellungen,
-  platzStaerke,
+  platzStaerke, alsVorgabe, setzePlatz, bestenFuer,
 } from '../engine/aufstellung.js';
 import { teamStaerken } from '../engine/team.js';
 
@@ -362,4 +362,122 @@ test('ein Umgeschulter steht auf seinem Hauptplatz und gilt nicht als Umsteller'
   // Der Cornerbackplatz bleibt dem, der noch einer ist.
   const cbs = a.defense.filter((p) => p.platz === 'CB1' || p.platz === 'CB2');
   assert.ok(cbs.some((p) => p.spieler && p.spieler.id === echterCB.id));
+});
+
+// --- Die Vorgabe des Managers ----------------------------------------------
+
+test('jeder Platz trägt einen Schlüssel, und keiner zweimal denselben', () => {
+  for (const personnel of PERSONNEL_REIHE) {
+    const a = stelleAuf(kader(), 1, personnel);
+    const alle = [...a.offense, ...a.defense].map((p) => p.schluessel);
+    assert.equal(new Set(alle).size, alle.length, `${personnel} vergibt einen Schlüssel doppelt`);
+  }
+
+  // 12 personnel stellt zwei Tight Ends auf. Ohne laufende Nummer könnte eine
+  // Vorgabe nicht sagen, welchen von beiden sie meint.
+  const zwei = stelleAuf(kader(), 1, '12').offense.map((p) => p.schluessel);
+  assert.ok(zwei.includes('TE'), 'der erste Tight End heißt wie sein Platz');
+  assert.ok(zwei.includes('TE#2'), 'der zweite bekommt eine Nummer');
+});
+
+test('die Vorgabe steht vor der Automatik', () => {
+  const k = kader('vorgabe');
+  const ohne = stelleAuf(k, 1, '11');
+  const vorher = ohne.offense.find((p) => p.schluessel === 'LT');
+
+  // Ein Cornerback auf dem linken Tackle: das stellt die Automatik nie.
+  const cb = k.find((s) => s.position === 'CB');
+  const a = stelleAuf(k, 1, '11', undefined, { LT: cb.id });
+  const lt = a.offense.find((p) => p.schluessel === 'LT');
+
+  assert.equal(lt.spieler.id, cb.id);
+  assert.equal(lt.umgestellt, true, 'der Umsteller ist nicht als solcher markiert');
+  assert.ok(lt.staerke < vorher.staerke, 'die Umstellung kostet nichts');
+
+  // Und niemand steht deswegen doppelt herum: der verdrängte Tackle rückt auf
+  // einen freien Platz, nicht auf zwei.
+  const besetzt = [...a.offense, ...a.defense].filter((p) => p.spieler);
+  assert.equal(besetzt.length, 22, 'ein Platz ist leer geblieben');
+  const einfach = besetzt.filter((p) => !p.doppel).map((p) => p.spieler.id);
+  assert.equal(new Set(einfach).size, einfach.length, 'jemand steht ungefragt doppelt');
+});
+
+test('eingefroren ändert die Automatik nichts an sich selbst', () => {
+  const k = kader('frost');
+  const a = stelleAuf(k, 1, '21', 0.4);
+  const b = stelleAuf(k, 1, '21', 0.4, alsVorgabe(a));
+
+  const besetzung = (/** @type {any} */ x) => [...x.offense, ...x.defense]
+    .map((p) => `${p.schluessel}:${p.spieler ? p.spieler.id : '-'}:${p.umgestellt}`);
+  assert.deepEqual(besetzung(b), besetzung(a));
+  assert.equal(umstellungen(b), umstellungen(a));
+  assert.deepEqual(doppelEinsaetze(b).sort(), doppelEinsaetze(a).sort());
+});
+
+test('ein Verletzter fällt aus der Elf, nicht aus der Vorgabe', () => {
+  const k = kader('verletzt');
+  const vorgabe = alsVorgabe(stelleAuf(k, 1, '11'));
+  const qb = k.find((s) => s.id === vorgabe[QB_PLATZ]);
+
+  qb.verletztBis = 4;
+  const ohneIhn = stelleAuf(k, 1, '11', undefined, vorgabe);
+  const platz = ohneIhn.offense.find((p) => p.schluessel === QB_PLATZ);
+  assert.ok(platz.spieler, 'der Platz bleibt leer, statt repariert zu werden');
+  assert.notEqual(platz.spieler.id, qb.id);
+  assert.equal(vorgabe[QB_PLATZ], qb.id, 'die Vorgabe wurde angefasst');
+
+  // Zurück aus der Verletzung steht er wieder da, wo er stand.
+  qb.verletztBis = 0;
+  const zurueck = stelleAuf(k, 1, '11', undefined, vorgabe);
+  assert.equal(zurueck.offense.find((p) => p.schluessel === QB_PLATZ).spieler.id, qb.id);
+});
+
+test('eine Vorgabe für einen Platz, den es nicht gibt, wird überlesen', () => {
+  const k = kader('system');
+  const vorgabe = alsVorgabe(stelleAuf(k, 1, '11'));   // 11 hat genau einen TE
+  const te = vorgabe.TE;
+  assert.ok(te, 'die Vorgabe kennt den Tight End');
+
+  // 00 personnel hat keinen. Die Elf steht trotzdem vollständig.
+  const empty = stelleAuf(k, 1, '00', undefined, vorgabe);
+  assert.equal([...empty.offense, ...empty.defense].filter((p) => p.spieler).length, 22);
+  assert.ok(!empty.offense.some((p) => p.platz === 'TE'));
+
+  // Und zurück im alten System steht er wieder auf seinem Platz.
+  assert.equal(stelleAuf(k, 1, '11', undefined, vorgabe).offense
+    .find((p) => p.schluessel === 'TE').spieler.id, te);
+});
+
+test('einsetzen tauscht, statt zu verdrängen', () => {
+  const vorgabe = { LT: 'a', RT: 'b', CB1: 'c' };
+
+  assert.deepEqual(setzePlatz(vorgabe, 'LT', 'b'), { LT: 'b', RT: 'a', CB1: 'c' });
+  // Von der Bank kommt niemand her, also geht der Verdrängte auch nirgendwohin:
+  // sein Platz fällt an die Automatik zurück.
+  assert.deepEqual(setzePlatz(vorgabe, 'LT', 'z'), { LT: 'z', RT: 'b', CB1: 'c' });
+  assert.deepEqual(vorgabe, { LT: 'a', RT: 'b', CB1: 'c' }, 'die Karte wurde verändert');
+});
+
+test('ein Doppeleinsatz vererbt sich beim Tausch nicht weiter', () => {
+  const neu = setzePlatz({ LT: 'a', RT: 'b', CB1: 'b' }, 'LT', 'b');
+  assert.equal(neu.LT, 'b');
+  assert.equal(Object.values(neu).filter((id) => id === 'b').length, 1, 'b steht weiter doppelt');
+  assert.equal(Object.values(neu).filter((id) => id === 'a').length, 1, 'a ist verschwunden');
+});
+
+test('die Besten für einen Platz stehen absteigend und sind fit', () => {
+  const k = kader('beste');
+  k[0].verletztBis = 5;
+
+  const liste = bestenFuer(k, 1, 'LT', 0.5, 4);
+  assert.equal(liste.length, 4);
+  for (let i = 1; i < liste.length; i++) {
+    assert.ok(liste[i - 1].wert >= liste[i].wert, 'die Liste steht nicht absteigend');
+  }
+  assert.ok(!liste.some((e) => e.spieler.id === k[0].id), 'ein Verletzter steht in der Liste');
+
+  // Sie beantwortet „wer ist hier der Beste" — und für einen Tackle ist das
+  // niemand aus der Secondary.
+  assert.ok(!liste.some((e) => ['CB', 'FS', 'SS'].includes(e.spieler.position)),
+    'ein Defensive Back steht unter den besten vier Tackles');
 });

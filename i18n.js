@@ -181,6 +181,21 @@ export const DE = {
     keiner: '—',
   },
 
+  aufstellung: {
+    hinweis: 'Platz antippen, um ihn neu zu besetzen.',
+    vonHand: 'Von Hand gestellt. Verletzte und fehlende Plätze füllt die Automatik.',
+    automatisch: 'Automatisch',
+    platzTitel: (platz) => `${platz} neu besetzen`,
+    beste: 'Die Besten für diesen Platz',
+    oderRoster: 'Oder unten im Roster jemanden auswählen.',
+    rosterWaehlen: 'Wähle den Mann für den offenen Platz.',
+    spielerWaehlen: (name) => `${name} für den offenen Platz auswählen`,
+    waehleSpieler: 'Spieler auswählen',
+    einsetzen: 'Einsetzen',
+    tauscht: (platz) => `tauscht mit ${platz}`,
+    pfeil: '→',
+  },
+
   personnel: {
     '00': 'Empty',
     '01': 'Empty mit TE',

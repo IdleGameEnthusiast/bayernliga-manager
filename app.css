@@ -315,6 +315,75 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
   font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
 }
 
+/* --- Aufstellen ----------------------------------------------------------
+   Zwei Tipps, kein Ziehen: der Platz, dann der Mann. Jede Trefferfläche hält
+   deshalb die 44 Pixel ein, auch innerhalb der engen Aufstellungsliste. */
+
+.kartenkopf { display: flex; align-items: center; gap: 12px; }
+.kartenkopf h2 { flex: 1; margin-bottom: 4px; }
+
+button.klein {
+  min-height: 36px; padding: 0 14px;
+  font-size: 13px; font-weight: 600;
+  flex: 0 0 auto; max-width: none;
+}
+
+.aufstellung li.waehlbar {
+  cursor: pointer;
+  min-height: var(--tap);
+  margin: 0 -6px; padding: 5px 6px;
+  border-radius: 6px;
+}
+.aufstellung li.waehlbar:focus-visible { outline: 2px solid var(--akzent); outline-offset: -2px; }
+.aufstellung li.gewaehlt {
+  background: rgba(214, 73, 51, .16);
+  border-bottom-color: transparent;
+}
+.aufstellung li.gewaehlt .platz { color: var(--akzent-hell); }
+
+.aufstellung li.kandidaten {
+  display: block;
+  padding: 8px 6px 10px;
+  margin: 0 -6px 6px;
+  background: var(--bg-zeile);
+  border-radius: 0 0 6px 6px;
+  border-bottom: none;
+}
+
+.kandidat {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: var(--tap);
+  margin-top: 4px; padding: 0 8px;
+  background: var(--bg-erhoben);
+  color: var(--text);
+  border: 1px solid var(--rand); border-radius: 6px;
+  font: inherit; text-align: left; cursor: pointer;
+}
+.kandidat:active { border-color: var(--akzent); }
+.kandidat:disabled { opacity: .55; cursor: default; }
+.kandidat-name { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
+
+.marke.tausch { background: rgba(255, 255, 255, .08); color: var(--text-leise); }
+
+/* Die Leiste klebt oben, weil der zweite Tipp unten im Roster passiert. */
+.wechselleiste {
+  position: sticky; top: 6px; z-index: 5;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 12px; padding: 8px 12px;
+  background: var(--bg-zeile);
+  border: 1px solid var(--akzent); border-radius: var(--radius);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+}
+.wechseltext { display: flex; align-items: baseline; gap: 8px; flex: 1; min-width: 140px; }
+.wechseltext strong { font-size: 13px; letter-spacing: .04em; }
+.wechselknoepfe { display: flex; gap: 8px; }
+
+tr.spielerzeile.waehlbar td { cursor: pointer; }
+tr.spielerzeile.gewaehlt td {
+  background: rgba(214, 73, 51, .18);
+  font-weight: 600;
+}
+
 /* --- Sterne ---------------------------------------------------------------
    Zwei Reihen übereinander: die gefüllte wird beschnitten. So sitzt der halbe
    Stern exakt in der Mitte, ohne ein Halbstern-Zeichen, das viele Schriften

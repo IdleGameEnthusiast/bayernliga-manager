@@ -311,18 +311,32 @@ export function wuerfelVerletzung(rng, teamId, kader, spieltag, doppelt = []) {
 }
 
 /**
+ * Ein Verein, wie die Simulation ihn braucht. Die Aufstellung von Hand hat nur
+ * der eigene — ein KI-Verein bekommt keine mit und stellt darum immer
+ * automatisch auf.
+ * @typedef {object} Antritt
+ * @property {string} id
+ * @property {import('./spieler.js').Spieler[]} kader
+ * @property {string} [personnel]
+ * @property {number} [passAnteil]
+ * @property {import('./aufstellung.js').Vorgabe | null} [aufstellung]
+ */
+
+/**
  * Play one match.
  * @param {() => number} rng
- * @param {{ id: string, kader: import('./spieler.js').Spieler[], personnel?: string, passAnteil?: number }} heim
- * @param {{ id: string, kader: import('./spieler.js').Spieler[], personnel?: string, passAnteil?: number }} gast
+ * @param {Antritt} heim
+ * @param {Antritt} gast
  * @param {number} spieltag
  * @returns {Ergebnis}
  */
 export function simuliereSpiel(rng, heim, gast, spieltag) {
   const heimAnteil = passAnteilVon(heim);
   const gastAnteil = passAnteilVon(gast);
-  const heimStaerken = teamStaerken(heim.kader, spieltag, heim.personnel, heim.passAnteil);
-  const gastStaerken = teamStaerken(gast.kader, spieltag, gast.personnel, gast.passAnteil);
+  const heimStaerken = teamStaerken(
+    heim.kader, spieltag, heim.personnel, heim.passAnteil, heim.aufstellung);
+  const gastStaerken = teamStaerken(
+    gast.kader, spieltag, gast.personnel, gast.passAnteil, gast.aufstellung);
 
   const heimErwartet = clamp(
     BASE_POINTS

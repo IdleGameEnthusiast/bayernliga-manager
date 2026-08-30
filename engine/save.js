@@ -39,6 +39,14 @@ export function migriere(roh) {
 
   // Fields that arrive after v4 get their default here.
 
+  // Die Aufstellung von Hand. Fehlt sie, hat der Manager nie eine gestellt —
+  // und „keine Vorgabe" ist ein gültiger Zustand, kein Mangel. Deshalb bleibt
+  // es bei v4: es gibt nichts zu retten, nur etwas nachzutragen.
+  if (!stand.aufstellung || typeof stand.aufstellung !== 'object'
+      || Array.isArray(stand.aufstellung)) {
+    stand.aufstellung = null;
+  }
+
   // Taktik: fehlt sie, wird sie aus dem Saatgut nachgezogen statt geraten.
   // Derselbe Stand ergibt dieselben Systeme, also braucht das keine neue
   // Version — nur eine Regel, die zweimal dasselbe tut.

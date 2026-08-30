@@ -5,7 +5,7 @@
  *
  * Entscheidet keine Regel. Der Regler geht über die ganze Spanne — was eine
  * Gruppierung nicht kann, verrechnet der Skill-Block, nicht die Ansicht.
- * Wer wo steht, sagt `stelleAuf()`.
+ * Wer wo steht, sagt `stelleAuf()`, und gezeigt wird es in `ui/aufstellung.js`.
  */
 
 import { el, balken } from './dom.js';
@@ -14,7 +14,6 @@ import { LIGA_MAX_STAERKE } from '../engine/constants.js';
 import { teamStaerken } from '../engine/team.js';
 import { PERSONNEL, PERSONNEL_REIHE } from '../engine/aufstellung.js';
 import { personnelVon, passAnteilVon } from '../engine/saison.js';
-import { platzKuerzel, positionsKuerzel } from '../engine/positionen.js';
 
 /**
  * @param {import('../engine/saison.js').SpielStand} stand
@@ -98,55 +97,6 @@ function ausrichtungKarte(personnel, anteil, staerken, setze) {
     reihe(T.kader.verteidigungPass, staerken.passVerteidigung),
     reihe(T.kader.verteidigungLauf, staerken.laufVerteidigung),
     el('p', { class: 'leise klein', style: { margin: '10px 0 0' }, text: T.taktik.gilt }));
-}
-
-/**
- * Wer wo steht. Ein Umsteller ist markiert, ein Doppeleinsatz auch — beides
- * ist eine Nachricht an den Manager und nicht Dekoration.
- *
- * Die Zeile endet rechtsbündig auf Position und Wert; die Marken stehen davor.
- * So stehen die Zahlen aller zweiundzwanzig Zeilen untereinander, statt von
- * einer Marke aus der Flucht geschoben zu werden.
- *
- * Hinter jedem Namen steht, was er **auf diesem Platz** wert ist, nicht seine
- * gezogene Stärke. Erst damit lässt sich die Marke „umgestellt" beziffern —
- * und auch ein Mann auf seiner eigenen Position steht mal besser, mal
- * schlechter da, je nachdem, wie viel der Verein wirft.
- * @param {import('../engine/aufstellung.js').Aufstellung} a
- */
-export function aufstellungKarte(a) {
-  const name = (/** @type {import('../engine/aufstellung.js').Platz} */ p) => {
-    if (!p.spieler) return T.taktik.keiner;
-    return `${p.spieler.nummer} ${p.spieler.vorname.charAt(0)}. ${p.spieler.nachname}`;
-  };
-
-  const liste = (/** @type {import('../engine/aufstellung.js').Platz[]} */ plaetze) =>
-    el('ul', { class: 'aufstellung' }, plaetze.map((p) => el('li', {},
-      el('span', { class: 'platz', text: platzKuerzel(p.platz) }),
-      el('span', { class: 'platz-name', text: name(p) }),
-      p.umgestellt ? el('span', { class: 'marke um', text: T.taktik.umgestellt }) : null,
-      p.doppel
-        ? el('span', { class: 'marke doppel', title: T.taktik.doppelHinweis, text: T.taktik.doppel })
-        : null,
-      el('span', {
-        class: 'platz-pos leise',
-        text: p.spieler ? positionsKuerzel(p.spieler) : '',
-      }),
-      p.spieler ? el('span', {
-        class: 'platz-stk',
-        title: T.taktik.platzStaerke(Math.round(p.staerke)),
-        text: String(Math.round(p.staerke)),
-      }) : null)));
-
-  return el('div', { class: 'karte' },
-    el('h2', { text: T.taktik.aufstellung }),
-    el('div', { class: 'elfen' },
-      el('div', {}, el('h3', { class: 'klein', text: T.taktik.angriffElf }), liste(a.offense)),
-      el('div', {}, el('h3', { class: 'klein', text: T.taktik.verteidigungElf }), liste(a.defense))),
-    el('p', { class: 'leise klein', style: { margin: '10px 0 0' },
-      text: T.taktik.kickPlaetze(
-        a.k ? a.k.nachname : T.taktik.keiner,
-        a.p ? a.p.nachname : T.taktik.keiner) }));
 }
 
 /** @param {string} beschriftung @param {number} wert */

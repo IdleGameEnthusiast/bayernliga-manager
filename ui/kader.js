@@ -1,5 +1,14 @@
 // @ts-check
-/** Kaderansicht: Mannschaftsteile oben, Depth Chart darunter. */
+/**
+ * Kaderansicht: Mannschaftsteile oben, Aufstellung darunter, Roster zuletzt.
+ *
+ * Sie ist zugleich der Ort, an dem aufgestellt wird. Der Weg dorthin geht über
+ * zwei Tipps und keinen Zug: ein Platz in der Aufstellung, dann ein Mann —
+ * entweder aus den fünf Besten unter dem Platz oder aus dem Roster, wo die
+ * Zeilen währenddessen auswählen statt aufzuklappen. Bestätigt wird oben in der
+ * Wechselleiste. Das ist auf einem Tablet mit dem Daumen bedienbar; Ziehen wäre
+ * es nicht.
+ */
 
 import { el, leere, tabelle as machTabelle, balken, sterne } from './dom.js';
 import { T } from '../i18n.js';
@@ -11,7 +20,9 @@ import {
   LIGA_MAX_STAERKE, POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE,
 } from '../engine/constants.js';
 import { positionsKuerzel, hauptPosition } from '../engine/positionen.js';
-import { aufstellungKarte } from './taktik.js';
+import { bestenFuer } from '../engine/aufstellung.js';
+import { personnelVon, passAnteilVon, aufstellungVon } from '../engine/saison.js';
+import { aufstellungKarte, wechselLeiste } from './aufstellung.js';
 
 /**
  * Eine Spalte des Depth Charts: Beschriftung, Zellinhalt und der Wert, nach
@@ -46,14 +57,64 @@ const SPALTEN = [
 let sortierung = null;
 
 /**
- * @param {import('../engine/spieler.js').Spieler[]} kader
- * @param {number} spieltag
- * @param {string} [personnel]
- * @param {number} [passAnteil]
+ * Der angefangene Wechsel: der Platz, der neu besetzt werden soll, und der
+ * Mann, der dafür vorgemerkt ist. Beides lebt im Modul, damit es eine
+ * Neuzeichnung überlebt — die Auswahl ist eine Absicht des Managers, kein
+ * Zustand des Spielstands, und hat deshalb im Speicherstand nichts zu suchen.
+ * @type {{ platz: string | null, spieler: string | null }}
  */
-export function zeigeKader(kader, spieltag, personnel, passAnteil) {
-  const s = teamStaerken(kader, spieltag, personnel, passAnteil);
+let auswahl = { platz: null, spieler: null };
+
+const nichtsGewaehlt = () => { auswahl = { platz: null, spieler: null }; };
+
+/**
+ * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {{ setze: (schluessel: string, spielerId: string) => void,
+ *           automatisch: () => void, neuZeichnen: () => void }} aktionen
+ */
+export function zeigeKader(stand, aktionen) {
+  const kader = stand.kader[stand.meinTeam];
+  const spieltag = stand.spieltag;
+  const personnel = personnelVon(stand, stand.meinTeam);
+  const anteil = passAnteilVon(stand, stand.meinTeam);
+  const vorgabe = aufstellungVon(stand, stand.meinTeam);
+
+  const s = teamStaerken(kader, spieltag, personnel, anteil, vorgabe);
   const verletzt = verletzte(kader, spieltag);
+
+  // Ein Platz, den es nicht mehr gibt — der Manager hat zwischendurch das
+  // System gewechselt. Ohne diese Zeile bliebe der Roster im Auswahlmodus
+  // stehen, ohne Leiste, die ihn wieder herausließe.
+  const plaetze = [...s.aufstellung.offense, ...s.aufstellung.defense];
+  if (auswahl.platz && !plaetze.some((p) => p.schluessel === auswahl.platz)) nichtsGewaehlt();
+
+  /** @type {import('./aufstellung.js').Steuerung} */
+  const steuerung = {
+    platz: auswahl.platz,
+    spieler: auswahl.spieler,
+    vonHand: !!vorgabe,
+    waehlePlatz: (schluessel) => {
+      auswahl = { platz: schluessel, spieler: null };
+      aktionen.neuZeichnen();
+    },
+    setze: (schluessel, spielerId) => {
+      nichtsGewaehlt();
+      aktionen.setze(schluessel, spielerId);
+    },
+    automatisch: () => {
+      nichtsGewaehlt();
+      aktionen.automatisch();
+    },
+    kandidaten: (platz) => bestenFuer(kader, spieltag, platz, anteil),
+  };
+
+  const gewaehlterSpieler = kader.find((sp) => sp.id === auswahl.spieler) || null;
+  const waehleSpieler = auswahl.platz
+    ? (/** @type {string} */ id) => {
+      auswahl = { platz: auswahl.platz, spieler: auswahl.spieler === id ? null : id };
+      aktionen.neuZeichnen();
+    }
+    : null;
 
   // Drei Zahlen, nicht fünf. Der Roster sagt, was die Mannschaft ist — Lauf und
   // Pass hälftig, ungeachtet der Ausrichtung. Wie sich die Taktik darauf
@@ -76,16 +137,22 @@ export function zeigeKader(kader, spieltag, personnel, passAnteil) {
     halter.append(machTabelle(
       SPALTEN.map((sp) => kopfzelle(sp, male)),
       liste.flatMap((spieler, i) => [
-        zeile(spieler, spieltag, male, trennerVor(liste, i)),
-        offeneWerte.has(spieler.id) ? werteZeile(spieler) : null,
+        zeile(spieler, spieltag, male, trennerVor(liste, i), waehleSpieler, auswahl.spieler),
+        offeneWerte.has(spieler.id) && !auswahl.platz ? werteZeile(spieler) : null,
       ].filter(Boolean))));
   };
   male();
 
   return el('div', {},
+    wechselLeiste(s.aufstellung, steuerung, gewaehlterSpieler),
     einheiten,
-    aufstellungKarte(s.aufstellung),
-    el('div', { class: 'karte' }, el('h2', { text: T.nav.kader }), halter));
+    aufstellungKarte(s.aufstellung, steuerung),
+    el('div', { class: 'karte' },
+      el('h2', { text: T.nav.kader }),
+      auswahl.platz
+        ? el('p', { class: 'klein', style: { margin: '0 0 6px' }, text: T.aufstellung.rosterWaehlen })
+        : null,
+      halter));
 }
 
 /**
@@ -171,25 +238,40 @@ function trennerVor(liste, i) {
 const offeneWerte = new Set();
 
 /**
+ * Eine Kaderzeile.
+ *
+ * Sie tut zweierlei, aber nie beides zugleich: solange kein Platz gewählt ist,
+ * klappt ein Tipp die fünfzehn Werte auf; ist einer gewählt, wählt derselbe
+ * Tipp den Mann dafür aus. Zwei Trefferflächen nebeneinander wären auf einem
+ * Tablet die schlechtere Antwort — die Zeile ist schon knapp.
  * @param {import('../engine/spieler.js').Spieler} sp
  * @param {number} spieltag
  * @param {() => void} male
  * @param {string} [trenner] Zusatzklasse für die Linie über der Zeile
+ * @param {((id: string) => void) | null} [waehle] Gesetzt, solange ein Platz offen ist
+ * @param {string | null} [gewaehlt] Die Id des vorgemerkten Manns
  */
-function zeile(sp, spieltag, male, trenner) {
+function zeile(sp, spieltag, male, trenner, waehle, gewaehlt) {
   const fit = istFit(sp, spieltag);
   const offen = offeneWerte.has(sp.id);
+  const markiert = waehle && gewaehlt === sp.id;
   const umschalten = () => {
+    if (waehle) { waehle(sp.id); return; }
     if (offen) offeneWerte.delete(sp.id); else offeneWerte.add(sp.id);
     male();
   };
 
   return el('tr', {
-    class: 'spielerzeile' + (offen ? ' offen' : '') + (trenner ? ' ' + trenner : ''),
+    class: 'spielerzeile' + (offen && !waehle ? ' offen' : '')
+      + (waehle ? ' waehlbar' : '') + (markiert ? ' gewaehlt' : '')
+      + (trenner ? ' ' + trenner : ''),
     role: 'button',
     tabindex: '0',
-    'aria-expanded': String(offen),
-    title: offen ? T.kader.werteVerbergen : T.kader.werteZeigen,
+    'aria-expanded': waehle ? undefined : String(offen),
+    'aria-pressed': waehle ? String(!!markiert) : undefined,
+    title: waehle
+      ? T.aufstellung.spielerWaehlen(sp.nachname)
+      : offen ? T.kader.werteVerbergen : T.kader.werteZeigen,
     onclick: umschalten,
     onkeydown: (/** @type {KeyboardEvent} */ e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;

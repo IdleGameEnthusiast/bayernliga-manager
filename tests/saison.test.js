@@ -8,7 +8,8 @@ import {
   neuesSpiel, spieleSpieltag, saisonVorbei, naechsteSaison, anzahlSpieltage,
   vereinsBasen, gruppenTabelle, gruppenTabellen, meineTabelle, meister,
   gruppenSpieltage, losePersonnel, personnelVon, passAnteilVon, setzeTaktik,
-  erlaubterPassAnteil, alsGegner,
+  erlaubterPassAnteil, alsGegner, eigeneAufstellung, aufstellungVon,
+  setzeAufstellung, automatischAufstellen,
 } from '../engine/saison.js';
 import { PERSONNEL } from '../engine/aufstellung.js';
 import { partienDerRunde, sieger } from '../engine/spielplan.js';
@@ -409,4 +410,89 @@ test('Export und Import nehmen die Taktik mit', () => {
   assert.deepEqual(zurueck.passAnteil, stand.passAnteil);
   assert.equal(zurueck.personnel.heg, '21');
   assert.equal(zurueck.passAnteil.heg, 0.35);
+});
+
+test('der erste Handgriff friert die Aufstellung ein und tauscht einen Platz', () => {
+  const stand = neuesSpiel('heg', 'hand');
+  assert.equal(stand.aufstellung, null, 'ein neuer Stand hat keine Vorgabe');
+
+  const vorher = eigeneAufstellung(stand);
+  const skill = vorher.offense[1];                      // der erste Skill-Platz
+  const cb = vorher.defense.find((p) => p.schluessel === 'CB1');
+
+  setzeAufstellung(stand, skill.schluessel, cb.spieler.id);
+  assert.ok(stand.aufstellung, 'die Vorgabe steht nicht im Stand');
+
+  const nachher = eigeneAufstellung(stand);
+  assert.equal(nachher.offense[1].spieler.id, cb.spieler.id, 'er steht nicht auf dem Platz');
+  assert.equal(nachher.defense.find((p) => p.schluessel === 'CB1').spieler.id,
+    skill.spieler.id, 'der Verdrängte ist nicht auf den freien Platz gerückt');
+
+  // Alles andere steht, wie es stand: ein Handgriff bewegt zwei Plätze, nicht elf.
+  const bewegt = [...nachher.offense, ...nachher.defense].filter((p, i) => {
+    const alt = [...vorher.offense, ...vorher.defense][i];
+    return alt.spieler?.id !== p.spieler?.id;
+  });
+  assert.equal(bewegt.length, 2, `${bewegt.length} Plätze haben sich bewegt`);
+});
+
+test('ein unbekannter Spieler wird nicht aufgestellt', () => {
+  const stand = neuesSpiel('heg', 'fremd');
+  setzeAufstellung(stand, 'QB', 'gibtesnicht');
+  assert.equal(stand.aufstellung, null);
+});
+
+test('automatisch aufstellen vergisst die Vorgabe', () => {
+  const stand = neuesSpiel('heg', 'auto');
+  const cb = eigeneAufstellung(stand).defense[0].spieler;
+  setzeAufstellung(stand, 'QB', cb.id);
+  assert.equal(eigeneAufstellung(stand).offense[0].spieler.id, cb.id);
+
+  automatischAufstellen(stand);
+  assert.equal(stand.aufstellung, null);
+  assert.notEqual(eigeneAufstellung(stand).offense[0].spieler.id, cb.id);
+});
+
+test('nur der eigene Verein bekommt eine Aufstellung mit', () => {
+  const stand = neuesSpiel('heg', 'nurmeiner');
+  setzeAufstellung(stand, 'QB', stand.kader.heg[0].id);
+
+  assert.ok(alsGegner(stand, 'heg').aufstellung, 'der eigene Verein steht ohne Vorgabe da');
+  for (const t of TEAMS) {
+    if (t.id === 'heg') continue;
+    assert.equal(alsGegner(stand, t.id).aufstellung, null, `${t.kurz} stellt von Hand auf`);
+    assert.equal(aufstellungVon(stand, t.id), null, t.kurz);
+  }
+});
+
+test('der Saisonwechsel wirft die Abgänge aus der Vorgabe', () => {
+  const stand = neuesSpiel('heg', 'abgang');
+  stand.aufstellung = null;
+  setzeAufstellung(stand, 'QB', stand.kader.heg[0].id);
+  const vorher = Object.keys(stand.aufstellung).length;
+
+  while (!saisonVorbei(stand)) spieleSpieltag(stand);
+  const { ruecktritte } = naechsteSaison(stand);
+
+  const da = new Set(stand.kader.heg.map((s) => s.id));
+  for (const id of Object.values(stand.aufstellung)) {
+    assert.ok(da.has(id), `${id} steht in der Vorgabe, aber nicht mehr im Kader`);
+  }
+  assert.ok(Object.keys(stand.aufstellung).length <= vorher, 'die Vorgabe ist gewachsen');
+  assert.ok(ruecktritte.every((s) => !Object.values(stand.aufstellung).includes(s.id)),
+    'ein Zurückgetretener steht noch in der Aufstellung');
+});
+
+test('Export, Import und Migration nehmen die Aufstellung mit', () => {
+  const stand = neuesSpiel('heg', 'aufstellung-export');
+  setzeAufstellung(stand, 'QB', stand.kader.heg[0].id);
+
+  const zurueck = importiere(exportiere(stand));
+  assert.deepEqual(zurueck.aufstellung, stand.aufstellung);
+
+  // Ein Stand ohne das Feld ist ein Stand ohne Vorgabe — kein Mangel, sondern
+  // ein Manager, der nie eingegriffen hat.
+  const alt = { ...stand };
+  delete alt.aufstellung;
+  assert.equal(migriere(alt).aufstellung, null);
 });

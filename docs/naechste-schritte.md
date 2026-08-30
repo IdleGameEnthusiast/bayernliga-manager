@@ -6,7 +6,9 @@ nirgends stehen — der Code sagt, *was* passiert, hier steht, *warum* und *was
 als Nächstes*.
 
 Reihenfolge: Block 1, Block 2 und Block 3 sind fertig, ebenso die Kick-Vorstufe
-aus 2c. Block 4 setzt auf allen dreien auf.
+aus 2c. Block 4 setzt auf allen dreien auf; aus Block 5 ist die Aufstellung von
+Hand vorgezogen und umgesetzt, weil die beiden offenen Balancefragen daran
+hängen — siehe [`umbau-aufstellung.md`](umbau-aufstellung.md).
 
 ---
 
@@ -239,8 +241,10 @@ Setzt auf 2 und 3 auf:
   darunter eine Playoff-Karte, der Spielplan benennt Halbfinale und Finale
   statt „Spieltag 11/12", und die Kopfzeile tut dasselbe. Was fehlt, ist eine
   richtige Bracket-*Grafik*; im Moment sind es drei Zeilen.
-- **Formation im Kaderscreen** — welches Personnel der Verein spielt, wer auf
-  welchem Slot steht, wer umgestellt wurde.
+- ~~**Formation im Kaderscreen** — welches Personnel der Verein spielt, wer auf
+  welchem Slot steht, wer umgestellt wurde.~~ **Erledigt** — die
+  Aufstellungskarte steht im Roster, mit Marken für Umsteller und
+  Doppeleinsatz, und ist seit dem Aufstellungsumbau bedienbar.
 - ~~**Positionswerte anzeigen**, sobald 2c steht.~~ **Erledigt** — hinter jedem
   Namen in der Aufstellung steht, was er *auf diesem Platz* wert ist (gemischt
   nach dem Passanteil, Doppeleinsatz abgezogen). Damit hat die Marke
@@ -277,18 +281,14 @@ Setzt auf 2 und 3 auf:
   einstellige Nummer wechseln. Das kommt als **Anfrage an den Manager** und
   muss genehmigt werden. Braucht ein Postfach/Genehmigungs-Konzept, das es noch
   nicht gibt. Datenfeld wäre `nummerWunsch` neben `nummer`.
-- **Aufstellung selbst bestimmen** statt Depth Chart nach Stärke. Der Plan
-  steht: die volle Aufstellung liegt als `{ personnel, plaetze }` im Stand,
-  `stelleAuf()` bekommt sie als Runde null vorgesetzt und behält die Runden 1–3
-  als **Reparaturweg** für Verletzte, Verkaufte und Plätze, die es nach einem
-  Systemwechsel nicht mehr gibt. Ein Knopf „Automatisch aufstellen" ist
-  `stelleAuf()` ohne Vorgabe. KI-Vereine bekommen über `alsGegner()` gar keine
-  Vorgabe mit — sie *können* keine haben. Dazu zwei Wege in der Ansicht: Klick
-  auf einen Platz zeigt die besten fünf für **diesen** Platz (nach
-  `eignungGemischt` auf ihn, nicht global optimiert — die Liste beantwortet
-  „wer ist hier der Beste", `verteile()` beantwortet „was ist fürs Paar am
-  besten"), und Ziehen legt jeden Spieler auf jeden Platz, mit Tausch, wenn er
-  schon irgendwo steht.
+- ~~**Aufstellung selbst bestimmen** statt Depth Chart nach Stärke.~~
+  **Erledigt**, dokumentiert in [`umbau-aufstellung.md`](umbau-aufstellung.md).
+  Umgesetzt wie geplant — Runde null, die Runden 1–3 als Reparaturweg, keine
+  Vorgabe für die KI, die besten fünf **für diesen Platz** unter dem angetippten
+  Platz. Zwei Abweichungen: die Vorgabe ist eine flache Karte Platz → Spieler-Id
+  ohne `personnel` (das hat schon einen Ort), und **gezogen wird nichts** —
+  statt Drag-and-drop wählt ein Tipp im Roster aus und ein Knopf in der
+  Wechselleiste oben setzt ein. Das Spiel läuft auf einem iPad.
 - **Auf- und Abstieg**, zweite Liga darüber. `MAX_RATING` steht deshalb noch
   auf 99, obwohl die Bayernliga bei 79 gedeckelt ist.
 - Transfers und Verträge, Play-by-Play, Finanzen.
@@ -304,11 +304,15 @@ Nichts davon blockiert Block 2 oder 3, aber irgendwann muss es fallen:
 2. **Kostet ein Doppeleinsatz etwas?** (Kondition, Verletzungsrisiko)
 3. **Verletzungsrate** nach der Verkürzung auf 12 Spieltage. Steht seit dem
    Umbau ausdrücklich offen — die Rate wurde nicht mit verkürzt.
-4. **Altersverteilung.** Der Zug ist gleichverteilt 18–36, für jeden Verein
+4. ~~**Verletzungsrate und Deckel auf die Umstellungskosten.**~~ Beide hingen
+   daran, dass niemand von Hand umstellt. Seit die Aufstellung bedienbar ist,
+   sind sie messbar — und damit die nächste Aufgabe, nicht mehr eine offene
+   Frage. Siehe Punkt 2 in `umbau-aufstellung.md`.
+5. **Altersverteilung.** Der Zug ist gleichverteilt 18–36, für jeden Verein
    gleich — es gibt also nie eine junge Aufsteigermannschaft oder einen
    überalterten Absteiger. Bewusst so entschieden, aber es bleibt ein Hebel.
-5. **Veteranen-Nachschub**, siehe oben.
-6. ~~**Körpermalus am tatsächlichen Körper.**~~ **Erledigt.** Der Malus hat
+6. **Veteranen-Nachschub**, siehe oben.
+7. ~~**Körpermalus am tatsächlichen Körper.**~~ **Erledigt.** Der Malus hat
    jetzt einen zweiten Summanden, `Abstand x Übergewicht x 0,024 %`, der bei
    Ausbildung = Ziel für jeden Körper null bleibt. Der 147-Kilo-Guard zahlt für
    den Weg zum Linebacker 11,5 %, der 105-Kilo-Guard 0,4 % — vorher waren es
@@ -360,3 +364,8 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Lernraten | je Attribut ein Faktor auf die Drift (`LERNRATE`): Technik 1,5 · Hände 1,4 · Kraft 0,4 · Tempo 0,3, im Schnitt 1,0 — Handwerk lernt man, Tempo nicht |
 | Einsatzverfall | 7 % je Saison auf **jedem** Platz, auch dem gespielten |
 | Umschulung | soll den geborenen Spieler nie einholen — 15 % ist die Rate, bei der Skill→Skill nach fünf Jahren trägt und Line→Linebacker erst am Karriereende |
+| Aufstellung von Hand | flache Karte Platz-Schlüssel → Spieler-Id in `stand.aufstellung`, nur der eigene Verein; alles Abgeleitete rechnet `stelleAuf()` neu |
+| Doppelte Plätze | laufende Nummer ab dem zweiten: `TE`, `TE#2` — sonst könnte eine Vorgabe die beiden Tight Ends von 12 personnel nicht unterscheiden |
+| Reparatur | eine Vorgabe darf lückenhaft und zu weit sein; Verletzte und fremde Plätze werden überlesen, nicht gelöscht |
+| Einsetzen | Tausch statt Verdrängung |
+| Bedienung | zwei Tipps statt Ziehen, weil das Spiel auf einem iPad läuft |

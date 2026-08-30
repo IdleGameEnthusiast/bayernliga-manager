@@ -1,0 +1,145 @@
+# Aufstellung von Hand
+
+Die Aufstellung war bis hierher eine Rechnung: `stelleAuf()` hat aus Stärke und
+Eignung zweiundzwanzig Plätze besetzt, und der Manager durfte zusehen. Er konnte
+die Gruppierung wählen und den Regler schieben — *wer* spielt, hat er nie
+entschieden.
+
+Jetzt entscheidet er es. Was er nicht entscheidet, entscheidet weiter die
+Automatik, und zwar mit denselben Regeln wie vorher.
+
+Gehört zu Block 5 aus [`naechste-schritte.md`](naechste-schritte.md); das
+Positionsmodell darunter steht in [`umbau-positionsmodell.md`](umbau-positionsmodell.md).
+
+---
+
+## 1 — Die Vorgabe
+
+Der Speicherstand hält **eine dünne Karte**: Platz-Schlüssel auf Spieler-Id,
+unter `stand.aufstellung`, und nur für den eigenen Verein.
+
+```js
+{ QB: 'p17', LT: 'p4', CB1: 'p22' }
+```
+
+Mehr steht nicht darin, und das ist Absicht. Sie hält die *Entscheidung* fest —
+wer wo steht — und nichts, was daraus folgt: ob er dort umgestellt ist, ob er
+doppelt spielt, was er auf dem Platz wert ist, rechnet `stelleAuf()` bei jedem
+Aufruf neu. Eine Karte ohne abgeleitete Werte kann nicht veralten.
+
+Sie darf **lückenhaft** sein und sie darf **zu weit** sein:
+
+- Ein Platz ohne Eintrag wird von der Automatik gefüllt.
+- Ein Eintrag auf einen Platz, den die aktuelle Gruppierung nicht hat, wird
+  überlesen — und steht wieder, sobald der Manager das System zurückstellt.
+- Eine Id ohne Spieler (verletzt, verkauft, zurückgetreten) wird überlesen, aber
+  **nicht gelöscht**: der Mann kommt aus der Verletzung zurück auf seinen Platz.
+  Erst der Saisonwechsel wirft die Zurückgetretenen aus der Karte, damit ein
+  Stand nach zehn Jahren nicht mehr Vergangenheit als Aufstellung enthält.
+
+### Warum Plätze Schlüssel brauchen
+
+Der Platzname allein reicht nicht: 12 personnel stellt **zwei** Tight Ends auf,
+00 personnel drei Slotreceiver. Der erste behält den nackten Namen, der zweite
+heißt `TE#2`, der dritte `TE#3`. Damit heißt in 11 personnel jeder Platz genau
+so, wie er auf dem Feld heißt, und eine Vorgabe verschiebt sich nicht, wenn der
+Verein das System wechselt.
+
+## 2 — Runde null
+
+`stelleAuf()` hat drei Runden gehabt: eigene Position, Umsteller, Doppeleinsatz.
+Davor steht jetzt **Runde null**, und sie fragt nichts nach: wer in der Vorgabe
+steht, steht auf dem Platz.
+
+Die drei alten Runden sind damit unverändert und zugleich etwas Neues — der
+**Reparaturweg**. Sie füllen, was die Vorgabe offen lässt: den Verletzten, den
+Abgang, den Platz, den es im neuen System vorher nicht gab. Es braucht dafür
+keine zweite Regel; es ist dieselbe.
+
+Ohne Vorgabe ist Runde null leer, und es bleibt bei den drei Runden von vorher.
+Die Liga hat sich durch den Umbau um keinen Punkt bewegt: die
+Automatik-Aufstellung, wieder als Vorgabe eingefroren, ergibt Platz für Platz
+dieselbe Elf.
+
+## 3 — Tauschen statt Verdrängen
+
+Wer auf einen besetzten Platz gestellt wird, schickt den, der dort stand, auf
+seinen eigenen alten. Sonst wäre jeder Zug zwei Züge, und der Manager müsste
+nach jedem Handgriff den Verdrängten suchen.
+
+Kommt der Neue von der Bank, geht der Alte auch nirgendwohin: sein Platz fällt
+an die Automatik zurück. Und stand der Neue doppelt, erbt nur seine *erste*
+Stelle den Verdrängten — ein Doppeleinsatz ist ein Notnagel und soll sich nicht
+durch die Aufstellung weitervererben.
+
+## 4 — Zwei Tipps, kein Ziehen
+
+Die Ansicht ist für den Daumen gebaut. Gezogen wird nichts:
+
+1. **Platz antippen.** Er wird markiert, darunter klappen die **fünf Besten für
+   diesen Platz** auf, jeder mit dem Wert, den er *dort* hätte, und mit der
+   Marke, mit wem der Wechsel ein Tausch wäre. Einer davon angetippt — fertig.
+2. **Oder jemand anderes:** solange ein Platz offen ist, wählen die Zeilen des
+   Rosters aus, statt die Attribute aufzuklappen. Bestätigt wird oben in der
+   **Wechselleiste**, die am Bildschirmrand klebt — der zweite Tipp passiert
+   weit unten, und ohne sie müsste man für jeden Wechsel zweimal scrollen.
+
+Die fünf Besten beantworten „wer ist hier der Beste", nicht „was ist fürs Ganze
+am besten". Das zweite ist die Frage von `verteile()` und hat eine andere
+Antwort; unter einem angetippten Platz will darüber niemand nachdenken müssen.
+
+Ein Knopf **Automatisch** wirft die Vorgabe weg. Er steht nur da, wenn es eine
+gibt — er *ist* das Vergessen, keine zweite Aufstellungslogik.
+
+## 5 — Was das im Code angefasst hat
+
+| Datei | Was |
+| --- | --- |
+| `engine/aufstellung.js` | `schluessel` am Platz, Runde null, `alsVorgabe()`, `setzePlatz()`, `bestenFuer()` |
+| `engine/team.js`, `engine/spiel.js` | die Vorgabe durchgereicht; ein `Antritt` hat jetzt eine |
+| `engine/saison.js` | `stand.aufstellung`, `eigeneAufstellung()`, `setzeAufstellung()`, `automatischAufstellen()`, `aufstellungVon()` |
+| `engine/save.js` | das Feld nachgetragen — additiv, ohne Versionssprung |
+| `ui/aufstellung.js` | neu: die Karte, die Kandidaten, die Wechselleiste (aus `ui/taktik.js` ausgezogen) |
+| `ui/kader.js` | die Auswahl, der Roster im Auswahlmodus |
+| `app.js` | zwei Handler |
+
+**Kein Versionssprung.** Ein Stand ohne das Feld ist ein Stand ohne Vorgabe —
+kein Mangel, sondern ein Manager, der nie eingegriffen hat. Es gibt nichts zu
+retten, nur etwas nachzutragen, und dafür ist die Migration da.
+
+## 6 — Offene Punkte
+
+1. **Die KI stellt weiter automatisch auf.** Ein fremder Verein *kann* keine
+   Vorgabe haben — niemand stellt ihn auf. Das ist entschieden, aber es heißt
+   auch: der Manager spielt gegen elf Mannschaften, die immer optimal stehen.
+2. **Umstellungshäufigkeit neu messen.** Bisher waren 11 von 264 Plätzen
+   Umstellungen, und alle elf derselbe fehlende Tight End. Sobald von Hand
+   gestellt wird, entstehen echte. Erst danach lassen sich der Deckel auf die
+   Umstellungskosten (Punkt 2 in `umbau-positionsmodell.md`) und die
+   Verletzungsrate (Punkt 4 dort) entscheiden — sie hängen beide daran.
+3. **Der Doppeleinsatz beim Einfrieren.** Steht ein Mann in beiden Einheiten,
+   trägt den Abzug der Platz, der zuletzt besetzt wurde. Friert man dieselbe
+   Elf als Vorgabe ein, kann das der andere der beiden Plätze sein. Dieselben
+   Leute, dieselbe Elf, ein paar Zehntel anders verteilt. Auffällig wird das
+   erst bei vielen Verletzten — und dann ist die Verletzungsrate die Frage,
+   nicht dies.
+4. **Keine Bank, keine Rotation.** Wer nicht in der Elf steht, steht nirgends.
+   Ersatzleute, Wechsel im Spiel und Belastungssteuerung gehören zusammen und
+   gehören nicht hierher.
+
+## 7 — Entscheidungslog
+
+| Thema | Entscheidung |
+| --- | --- |
+| Form der Vorgabe | flache Karte Platz-Schlüssel → Spieler-Id, keine zweite Aufstellung |
+| Ort | `stand.aufstellung`, nur der eigene Verein; KI-Vereine bekommen nie eine |
+| Doppelte Plätze | laufende Nummer ab dem zweiten: `TE`, `TE#2`, `TE#3` |
+| Reihenfolge | Runde null vor allem anderen; die drei alten Runden reparieren |
+| Fehlender Spieler | überlesen, nicht gelöscht — er kommt zurück |
+| Fremder Platz | überlesen, nicht gelöscht — das System kann zurückgestellt werden |
+| Saisonwechsel | Zurückgetretene fallen aus der Karte |
+| Einsetzen | Tausch, nicht Verdrängung; von der Bank fällt der Alte an die Automatik |
+| Bedienung | zwei Tipps, kein Ziehen — Tablet zuerst |
+| Kandidatenliste | die fünf Besten **für diesen Platz**, nicht global optimiert |
+| Roster im Auswahlmodus | dieselbe Zeile, andere Bedeutung — zwei Trefferflächen wären enger |
+| Speicherstand | additiv, kein Versionssprung |

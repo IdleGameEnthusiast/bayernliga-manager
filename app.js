@@ -11,7 +11,7 @@ import { T } from './i18n.js';
 import { teamById } from './engine/content.js';
 import {
   neuesSpiel, spieleSpieltag, naechsteSaison, saisonVorbei, anzahlSpieltage,
-  gruppenTabellen, meineTabelle, setzeTaktik, personnelVon, passAnteilVon,
+  gruppenTabellen, meineTabelle, setzeTaktik, setzeAufstellung, automatischAufstellen,
 } from './engine/saison.js';
 import { partienDerRunde } from './engine/spielplan.js';
 import {
@@ -73,9 +73,11 @@ function zeichne() {
   if (ansicht === 'tabelle') {
     wurzel.append(zeigeTabelle(gruppenTabellen(stand), stand.meinTeam, playoffPartien(stand)));
   } else if (ansicht === 'kader') {
-    wurzel.append(zeigeKader(
-      stand.kader[stand.meinTeam], stand.spieltag,
-      personnelVon(stand, stand.meinTeam), passAnteilVon(stand, stand.meinTeam)));
+    wurzel.append(zeigeKader(stand, {
+      setze: beiAufstellung,
+      automatisch: beiAutomatisch,
+      neuZeichnen: zeichne,
+    }));
   } else if (ansicht === 'taktik') {
     wurzel.append(zeigeTaktik(stand, beiTaktik));
   } else if (ansicht === 'spielplan') {
@@ -250,6 +252,26 @@ function beiSpieltag() {
 function beiTaktik(taktik) {
   if (!stand) return;
   setzeTaktik(stand, taktik);
+  speichere(stand);
+  zeichne();
+}
+
+/**
+ * Einen Spieler auf einen Platz stellen. Wer dabei wohin rutscht, entscheidet
+ * die Engine — hier wird gespeichert und neu gezeichnet.
+ * @param {string} schluessel @param {string} spielerId
+ */
+function beiAufstellung(schluessel, spielerId) {
+  if (!stand) return;
+  setzeAufstellung(stand, schluessel, spielerId);
+  speichere(stand);
+  zeichne();
+}
+
+/** Die Vorgabe fallen lassen und wieder automatisch aufstellen. */
+function beiAutomatisch() {
+  if (!stand) return;
+  automatischAufstellen(stand);
   speichere(stand);
   zeichne();
 }

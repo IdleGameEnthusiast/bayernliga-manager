@@ -181,6 +181,7 @@ export function doppelRisiko(robustheit) {
 /**
  * @typedef {object} Platz
  * @property {string} platz        Schlüssel aus PLAETZE
+ * @property {string} schluessel   Eindeutig in dieser Aufstellung, siehe `plaetzeMit()`
  * @property {string} position     Die Position, die dort eigentlich steht
  * @property {import('./spieler.js').Spieler | null} spieler
  * @property {boolean} umgestellt  Er ist woanders ausgebildet
@@ -194,6 +195,21 @@ export function doppelRisiko(robustheit) {
  * @property {Platz[]} defense
  * @property {import('./spieler.js').Spieler | null} k
  * @property {import('./spieler.js').Spieler | null} p
+ */
+
+/**
+ * Was der Manager vorgegeben hat: Platz-Schlüssel auf Spieler-Id.
+ *
+ * Absichtlich eine dünne Karte und keine zweite Aufstellung. Sie hält nur die
+ * Entscheidung fest — wer wo steht —, und alles andere daran (Umsteller,
+ * Doppeleinsatz, Stärke auf dem Platz) rechnet `stelleAuf()` daraus neu. So
+ * kann eine Vorgabe nicht veralten: sie kennt keinen Wert, der veralten könnte.
+ *
+ * Sie darf lückenhaft und sie darf zu weit sein. Ein Platz ohne Eintrag wird
+ * von den Runden darunter gefüllt, ein Eintrag auf einen Platz, den die
+ * Gruppierung gerade nicht hat, wird stumm überlesen — und steht wieder da,
+ * sobald der Manager das System zurückstellt.
+ * @typedef {Record<string, string>} Vorgabe
  */
 
 /**
@@ -359,30 +375,58 @@ function verteile(kandidaten, plaetze, passAnteil) {
   return ergebnis;
 }
 
-/** @param {string} platz */
-function leererPlatz(platz) {
+/** @param {string} platz @param {string} schluessel */
+function leererPlatz(platz, schluessel) {
   return /** @type {Platz} */ ({
-    platz, position: PLAETZE[platz].position, spieler: null,
+    platz, schluessel, position: PLAETZE[platz].position, spieler: null,
     umgestellt: false, doppel: false, staerke: ERSATZ_STAERKE,
+  });
+}
+
+/**
+ * Plätze aus ihren Namen, jeder mit einem eindeutigen Schlüssel.
+ *
+ * Der Name allein reicht dafür nicht: 12 personnel stellt **zwei** Tight Ends
+ * auf und 00 personnel drei Slotreceiver. Eine Vorgabe muss sagen können,
+ * welchen von beiden sie meint, also bekommt der zweite `TE#2`, der dritte
+ * `TE#3`. Der erste behält den nackten Namen — damit heißt in 11 personnel
+ * jeder Platz genau so, wie er auf dem Feld heißt, und eine Vorgabe überlebt
+ * den Wechsel zwischen den Gruppierungen, statt sich zu verschieben.
+ * @param {readonly string[]} namen
+ * @param {Map<string, number>} zaehler über beide Einheiten hinweg geführt
+ */
+function plaetzeMit(namen, zaehler) {
+  return namen.map((platz) => {
+    const n = (zaehler.get(platz) || 0) + 1;
+    zaehler.set(platz, n);
+    return leererPlatz(platz, n === 1 ? platz : `${platz}#${n}`);
   });
 }
 
 /**
  * Beide Einheiten in einem Durchgang besetzen.
  *
- * Drei Runden. Erst bekommt jeder Platz den stärksten fitten Spieler seiner
- * eigenen Position: die Stärke sagt, **wer** von ihnen spielt, die Eignung
- * danach nur noch, **wo** — sonst stünde die Seite nach der Reihenfolge der
- * Liste statt nach der Ausbildung. Dann rücken auf die noch leeren Plätze die
- * besten Umsteller nach, angefangen beim teuersten Platz. Bleibt danach noch
- * etwas leer, greift der Doppeleinsatz — teuer, und deshalb zuletzt.
+ * Vier Runden. Zuerst steht, was der Manager vorgegeben hat — Runde null, und
+ * sie fragt nichts nach: wer dort steht, steht dort. Dann bekommt jeder noch
+ * freie Platz den stärksten fitten Spieler seiner eigenen Position: die Stärke
+ * sagt, **wer** von ihnen spielt, die Eignung danach nur noch, **wo** — sonst
+ * stünde die Seite nach der Reihenfolge der Liste statt nach der Ausbildung.
+ * Dann rücken auf die noch leeren Plätze die besten Umsteller nach, angefangen
+ * beim teuersten Platz. Bleibt danach noch etwas leer, greift der
+ * Doppeleinsatz — teuer, und deshalb zuletzt.
+ *
+ * Ohne Vorgabe ist Runde null leer und es bleibt bei den drei alten Runden.
+ * Mit Vorgabe sind sie der **Reparaturweg**: sie füllen die Verletzten, die
+ * Zurückgetretenen und die Plätze, die es nach einem Systemwechsel vorher
+ * nicht gab. Es braucht dafür keine zweite Regel — es ist dieselbe.
  * @param {import('./spieler.js').Spieler[]} kader
  * @param {number} spieltag
  * @param {string} [personnel]
  * @param {number} [passAnteil]
+ * @param {Vorgabe | null} [vorgabe]
  * @returns {Aufstellung}
  */
-export function stelleAuf(kader, spieltag, personnel = STANDARD_PERSONNEL, passAnteil) {
+export function stelleAuf(kader, spieltag, personnel = STANDARD_PERSONNEL, passAnteil, vorgabe) {
   const gruppierung = PERSONNEL[personnel] || PERSONNEL[STANDARD_PERSONNEL];
   const anteil = passAnteil == null ? gruppierung.passAnteil : clamp(passAnteil, 0, 1);
 
@@ -390,24 +434,44 @@ export function stelleAuf(kader, spieltag, personnel = STANDARD_PERSONNEL, passA
   // zuletzt: der Bogen liest sich von dem, der den Ball hat, nach außen.
   // Die Anzeige hängt daran, die Rechnung nicht — `teamStaerken()` sucht seine
   // Blöcke über die Platzschlüssel.
-  const offense = [QB_PLATZ, ...gruppierung.skill, ...OL_PLAETZE].map(leererPlatz);
-  const defense = DEFENSE_PLAETZE.map(leererPlatz);
+  /** @type {Map<string, number>} */
+  const zaehler = new Map();
+  const offense = plaetzeMit([QB_PLATZ, ...gruppierung.skill, ...OL_PLAETZE], zaehler);
+  const defense = plaetzeMit(DEFENSE_PLAETZE, zaehler);
   const alle = [...offense, ...defense];
 
   const fit = kader.filter((s) => istFit(s, spieltag));
   /** @type {Set<string>} */
   const benutzt = new Set();
 
+  // Runde null: die Vorgabe des Managers. Wer verletzt, verkauft oder
+  // zurückgetreten ist, steht nicht mehr im fitten Kader und wird überlesen —
+  // sein Platz fällt damit an die Runden darunter und ist danach wieder seiner,
+  // sobald er zurück ist. Die Vorgabe wird dafür nicht angefasst.
+  if (vorgabe) {
+    const jeId = new Map(fit.map((s) => [s.id, s]));
+    for (const platz of alle) {
+      const spieler = jeId.get(vorgabe[platz.schluessel]);
+      if (!spieler) continue;
+      platz.spieler = spieler;
+      platz.umgestellt = hauptPosition(spieler) !== platz.position;
+      platz.doppel = benutzt.has(spieler.id);
+      benutzt.add(spieler.id);
+    }
+  }
+
   // Runde eins: der stärkste fitte Mann seiner Position — und wo eine Position
   // mehrere Plätze hat, entscheidet danach die Eignung, wer davon welchen nimmt.
   // „Seine Position" ist sein Hauptplatz, nicht seine Ausbildung: wer drei
   // Saisons als MIKE gespielt hat, ist einer und kein Umsteller mehr.
   for (const [position, plaetze] of nachPosition(alle)) {
+    const freie = plaetze.filter((p) => !p.spieler);
+    if (freie.length === 0) continue;
     const eigene = fit
-      .filter((s) => hauptPosition(s) === position)
+      .filter((s) => !benutzt.has(s.id) && hauptPosition(s) === position)
       .sort((a, b) => b.staerke - a.staerke)
-      .slice(0, plaetze.length);
-    for (const [platz, spieler] of verteile(eigene, plaetze, anteil)) {
+      .slice(0, freie.length);
+    for (const [platz, spieler] of verteile(eigene, freie, anteil)) {
       platz.spieler = spieler;
       benutzt.add(spieler.id);
     }
@@ -550,4 +614,81 @@ export function doppelEinsaetze(a) {
 /** Wie viele Plätze mit einem Umsteller besetzt sind. @param {Aufstellung} a */
 export function umstellungen(a) {
   return [...a.offense, ...a.defense].filter((p) => p.umgestellt).length;
+}
+
+// --- Die Vorgabe des Managers ----------------------------------------------
+// Docs: docs/umbau-aufstellung.md
+
+/**
+ * Eine fertige Aufstellung als Vorgabe einfrieren.
+ *
+ * Das ist der erste Schritt jeder Änderung von Hand: der Manager verschiebt nie
+ * einen Platz in einer leeren Aufstellung, sondern immer einen in der, die er
+ * gerade vor sich sieht. Was er nicht anfasst, bleibt damit genau so stehen,
+ * wie die Automatik es gestellt hatte — bis ein Spieler ausfällt.
+ * @param {Aufstellung} a
+ * @returns {Vorgabe}
+ */
+export function alsVorgabe(a) {
+  /** @type {Vorgabe} */
+  const vorgabe = {};
+  for (const platz of [...a.offense, ...a.defense]) {
+    if (platz.spieler) vorgabe[platz.schluessel] = platz.spieler.id;
+  }
+  return vorgabe;
+}
+
+/**
+ * Einen Spieler auf einen Platz setzen — und den, der dort stand, auf dessen
+ * alten.
+ *
+ * Getauscht wird, nicht verdrängt: sonst müsste der Manager nach jedem Zug den
+ * Verdrängten suchen, und ein Zug wäre nie ein Zug, sondern immer zwei. Kam der
+ * Neue von nirgendwo, wird der Alte auch nirgendwohin gesetzt; sein Platz fällt
+ * an die Automatik zurück.
+ *
+ * Steht der Neue doppelt (in beiden Einheiten), erbt nur seine **erste** Stelle
+ * den Verdrängten. Die zweite wird frei und neu besetzt — ein Doppeleinsatz ist
+ * ein Notnagel und soll sich nicht durch die Aufstellung weitervererben.
+ * @param {Vorgabe} vorgabe
+ * @param {string} schluessel Platz-Schlüssel, wie ihn `Platz.schluessel` trägt
+ * @param {string} spielerId
+ * @returns {Vorgabe} eine neue Karte; die übergebene bleibt unberührt
+ */
+export function setzePlatz(vorgabe, schluessel, spielerId) {
+  const neu = { ...vorgabe };
+  const verdraengt = neu[schluessel];
+  const bisher = Object.keys(neu).filter((k) => neu[k] === spielerId && k !== schluessel);
+
+  neu[schluessel] = spielerId;
+  bisher.forEach((k, i) => {
+    if (verdraengt && i === 0) neu[k] = verdraengt;
+    else delete neu[k];
+  });
+  return neu;
+}
+
+/**
+ * Die besten Männer für **diesen** Platz, absteigend.
+ *
+ * Beantwortet „wer ist hier der Beste", nicht „was ist fürs Paar am besten" —
+ * das zweite ist die Frage von `verteile()` und hat eine andere Antwort. Für
+ * die Ansicht ist die erste die richtige: sie steht unter einem angetippten
+ * Platz, und dort will niemand über die Nebenplätze nachdenken müssen.
+ * @param {import('./spieler.js').Spieler[]} kader
+ * @param {number} spieltag
+ * @param {string} platz Platzname, nicht Schlüssel — `TE#2` wird wie `TE` bewertet
+ * @param {number} passAnteil
+ * @param {number} [anzahl]
+ * @returns {{ spieler: import('./spieler.js').Spieler, wert: number }[]}
+ */
+export function bestenFuer(kader, spieltag, platz, passAnteil, anzahl = 5) {
+  return kader
+    .filter((s) => istFit(s, spieltag))
+    .map((s) => ({
+      spieler: s,
+      wert: eignungGemischt(s, platz, bewertungsAnteil(platz, passAnteil)),
+    }))
+    .sort((a, b) => b.wert - a.wert)
+    .slice(0, anzahl);
 }
