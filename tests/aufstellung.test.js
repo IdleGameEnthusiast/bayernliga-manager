@@ -9,6 +9,7 @@ import {
   PERSONNEL, PERSONNEL_REIHE, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
   BLOCK_GEWICHT, PLATZ_ANTEIL, SKILL_LEITER, SKILL_ROLLE, SKILL_NORM,
   stelleAuf, skillAnteile, doppelAbzug, doppelRisiko, doppelEinsaetze, umstellungen,
+  platzStaerke,
 } from '../engine/aufstellung.js';
 import { teamStaerken } from '../engine/team.js';
 
@@ -139,8 +140,53 @@ test('kein Platz bleibt leer, und niemand steht doppelt', () => {
 test('die Aufstellung stellt die Plätze der Formation', () => {
   const a = stelleAuf(kader(), 1, '11');
   assert.deepEqual(a.offense.map((p) => p.platz),
-    [QB_PLATZ, ...OL_PLAETZE, ...PERSONNEL['11'].skill]);
+    [QB_PLATZ, ...PERSONNEL['11'].skill, ...OL_PLAETZE]);
   assert.deepEqual(a.defense.map((p) => p.platz), [...DEFENSE_PLAETZE]);
+});
+
+test('der Quarterback steht vorn, die Linie hinten', () => {
+  for (const personnel of PERSONNEL_REIHE) {
+    const plaetze = stelleAuf(kader(), 1, personnel).offense.map((p) => p.platz);
+    assert.equal(plaetze[0], QB_PLATZ, `${personnel}: der QB steht nicht vorn`);
+    assert.deepEqual(plaetze.slice(-OL_PLAETZE.length), [...OL_PLAETZE],
+      `${personnel}: die Linie steht nicht am Ende`);
+    assert.deepEqual(plaetze.slice(1, 1 + PERSONNEL[personnel].skill.length),
+      PERSONNEL[personnel].skill, `${personnel}: die Skill-Plätze stehen falsch`);
+  }
+});
+
+test('jeder Platz weiß, was sein Mann dort wert ist', () => {
+  const a = stelleAuf(kader(), 1, '11', 0.6);
+  for (const p of [...a.offense, ...a.defense]) {
+    assert.ok(p.staerke > 0, `${p.platz} hat keine Stärke`);
+    assert.ok(p.staerke <= 100, `${p.platz}: ${p.staerke} liegt über der Skala`);
+    assert.equal(p.staerke, platzStaerke(p, 0.6), `${p.platz} rechnet anders als platzStaerke`);
+  }
+});
+
+test('ein Umsteller ist auf seinem Platz weniger wert als daheim', () => {
+  const a = stelleAuf(kader(), 1, '11', 0.6);
+  const um = [...a.offense, ...a.defense].find((p) => p.umgestellt && !p.doppel);
+  if (!um || !um.spieler) return;   // nicht jeder Kader stellt um
+  const daheim = { ...um, platz: eigenerPlatz(um.spieler.position), umgestellt: false };
+  assert.ok(platzStaerke(um, 0.6) < platzStaerke(daheim, 0.6),
+    `${um.platz}: der Umsteller steht dort nicht schlechter da`);
+});
+
+/** Irgendein Platz, auf dem diese Position zu Hause ist. @param {string} position */
+function eigenerPlatz(position) {
+  const treffer = Object.keys(PLAETZE).find((k) => PLAETZE[k].position === position);
+  if (!treffer) throw new Error(`Kein Platz für ${position}`);
+  return treffer;
+}
+
+test('der Doppeleinsatz kostet auch in der angezeigten Stärke', () => {
+  const a = stelleAuf(kader('doppel', 58, 0), 1, '11', 0.6);
+  for (const p of [...a.offense, ...a.defense]) {
+    if (!p.doppel || !p.spieler) continue;
+    assert.ok(p.staerke < platzStaerke({ ...p, doppel: false }, 0.6),
+      `${p.platz}: der zweite Einsatz kostet nichts`);
+  }
 });
 
 test('innerhalb einer Position entscheidet die Stärke', () => {

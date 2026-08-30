@@ -53,6 +53,28 @@ export function balken(wert, max) {
 }
 
 /**
+ * Fünf Sterne, von denen `halbe` halbe gefüllt sind.
+ *
+ * Zwei Reihen übereinander statt eines Halbstern-Zeichens: `\u2bea` und seines-
+ * gleichen fehlen in zu vielen Schriften, und ein Kasten statt eines Sterns wäre
+ * schlimmer als gar keine. Die gefüllte Reihe wird auf die halbe Breite
+ * beschnitten — das trifft die Hälfte in jeder Schrift.
+ * @param {number} halbe 0..10
+ * @param {string} [titel] Was darunter steht, für Maus und Vorleser
+ */
+export function sterne(halbe, titel) {
+  const anteil = Math.max(0, Math.min(10, halbe)) / 10;
+  return el('span', { class: 'sterne', title: titel, role: 'img', 'aria-label': titel },
+    el('span', { class: 'sterne-leer', 'aria-hidden': 'true', text: '\u2605\u2605\u2605\u2605\u2605' }),
+    el('span', {
+      class: 'sterne-voll',
+      'aria-hidden': 'true',
+      style: { width: (anteil * 100).toFixed(0) + '%' },
+      text: '\u2605\u2605\u2605\u2605\u2605',
+    }));
+}
+
+/**
  * Der Vereinstupfer: Primärfarbe oben, Sekundärfarbe unten. Zweifarbig, weil
  * zwei Vereine dieser Liga in Schwarz spielen und sonst nicht zu unterscheiden
  * wären — und weil Schwarz auf dunklem Grund einen Umriss braucht.

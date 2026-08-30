@@ -492,6 +492,19 @@ export function istFit(s, spieltag) {
 }
 
 /**
+ * Talent als halbe Sterne, 1 bis 10 — also ein halber bis fünf.
+ *
+ * Eine Zehnerstufe ist ein halber Stern: unter 10 ein halber, 10 bis 19 einer,
+ * und so weiter bis 90 und darüber, wo die fünf voll sind. Der halbe Stern ganz
+ * unten ist Absicht — kein Talent sieht aus wie ein fehlender Wert.
+ * @param {number} talent
+ * @returns {number} Anzahl halber Sterne, 1..10
+ */
+export function talentSterne(talent) {
+  return clamp(Math.floor(talent / 10) + 1, 1, 10);
+}
+
+/**
  * The fit players at a position, best first.
  * @param {Spieler[]} kader
  * @param {import('./constants.js').Position} position

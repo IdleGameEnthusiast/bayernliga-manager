@@ -83,7 +83,7 @@ export function teamStaerken(kader, spieltag, personnel = STANDARD_PERSONNEL, pa
 
   const qb = block(aufstellung.offense, [QB_PLATZ]);
   const ol = block(aufstellung.offense, OL_PLAETZE);
-  const skill = aufstellung.offense.slice(1 + OL_PLAETZE.length);
+  const skill = aufstellung.offense.slice(1, 1 + gruppierung.skill.length);
   const anteile = skillAnteile(gruppierung.skill);
 
   const dl = block(aufstellung.defense, ['LE', 'RE', 'DT', 'NT']);

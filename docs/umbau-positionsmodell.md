@@ -493,8 +493,19 @@ führt dabei ein `benutzt`-Set, damit ein Doppeleinsatz eine bewusste Ausnahme b
 stelleAuf(kader, personnel, passAnteil, spieltag)
   -> { offense: Platz[], defense: Platz[], k, p }
 
-Platz = { platz: 'LT', position: 'T', spieler, umgestellt: boolean, doppel: boolean }
+Platz = { platz: 'LT', position: 'T', spieler, umgestellt, doppel, staerke }
 ```
+
+Die **Reihenfolge der Offense** ist `QB · Skill-Plätze der Gruppierung · OL` — der
+Bogen liest sich von dem, der den Ball hat, nach außen. Sie trägt keine Rechnung:
+`teamStaerken()` sucht seine Blöcke über die Platzschlüssel, nicht über den Index.
+Die Defense steht in der Reihenfolge von `DEFENSE_PLAETZE`.
+
+`staerke` ist, was der Mann **auf diesem Platz** wert ist: beide Spielarten nach dem
+Passanteil gemischt, der Doppeleinsatz abgezogen. Das ist nicht `spieler.staerke` —
+die ist gezogen und positionsfrei. Erst diese Zahl beziffert die Marke „umgestellt".
+Der Angriff mischt nach dem eigenen Passanteil, die Verteidigung hälftig, genau wie
+`platzGewicht()`: sie steht nicht gegen sich selbst, sondern gegen die Liga.
 
 Regeln:
 

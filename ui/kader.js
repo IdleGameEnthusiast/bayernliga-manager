@@ -1,10 +1,10 @@
 // @ts-check
 /** Kaderansicht: Mannschaftsteile oben, Depth Chart darunter. */
 
-import { el, leere, tabelle as machTabelle, balken } from './dom.js';
+import { el, leere, tabelle as machTabelle, balken, sterne } from './dom.js';
 import { T } from '../i18n.js';
 import { teamStaerken, gesamtStaerke, verletzte } from '../engine/team.js';
-import { istFit } from '../engine/spieler.js';
+import { istFit, talentSterne } from '../engine/spieler.js';
 import {
   LIGA_MAX_STAERKE, POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE,
 } from '../engine/constants.js';
@@ -200,7 +200,7 @@ function zeile(sp, spieltag, male, trenner) {
     el('td', { class: 'leise', text: T.kader.koerperWert(sp.groesse, sp.gewicht) }),
     el('td', { text: String(sp.alter) }),
     el('td', { style: { fontWeight: '600' }, text: String(sp.staerke) }),
-    el('td', { class: 'leise', text: String(sp.talent) }),
+    el('td', {}, sterne(talentSterne(sp.talent), T.kader.talentTitel(sp.talent))),
     el('td', { class: fit ? 'leise' : 'verletzt' },
       fit ? T.kader.fit : T.kader.verletztBis(sp.verletztBis - spieltag)));
 }

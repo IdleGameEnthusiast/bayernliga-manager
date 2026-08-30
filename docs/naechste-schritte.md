@@ -241,7 +241,13 @@ Setzt auf 2 und 3 auf:
   richtige Bracket-*Grafik*; im Moment sind es drei Zeilen.
 - **Formation im Kaderscreen** — welches Personnel der Verein spielt, wer auf
   welchem Slot steht, wer umgestellt wurde.
-- **Positionswerte anzeigen**, sobald 2c steht.
+- ~~**Positionswerte anzeigen**, sobald 2c steht.~~ **Erledigt** — hinter jedem
+  Namen in der Aufstellung steht, was er *auf diesem Platz* wert ist (gemischt
+  nach dem Passanteil, Doppeleinsatz abgezogen). Damit hat die Marke
+  „umgestellt" endlich eine Zahl.
+- **Talent als Sterne** im Roster: eine Zehnerstufe ist ein halber Stern, unter
+  10 bleibt es bei einem halben, ab 90 sind es fünf. Die rohe Zahl steht noch im
+  Tooltip, und sortiert wird weiter numerisch.
 - Der zweifarbige Vereinstupfer ist schon da (`farbtupfer()` in
   [`ui/dom.js`](../ui/dom.js)); die Wappen holen ihre Textfarbe über
   `kontrastFarbe()`.

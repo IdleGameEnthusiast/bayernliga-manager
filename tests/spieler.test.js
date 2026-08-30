@@ -9,7 +9,7 @@ import {
 } from '../engine/constants.js';
 import {
   macheKader, macheSpieler, saisonWechsel, alterFaktor, berechneStaerke, verfuegbar,
-  ziehAttribute, resetSpielerIds,
+  ziehAttribute, resetSpielerIds, talentSterne,
 } from '../engine/spieler.js';
 import {
   KOERPER_KORRIDOR, generierungsProfil, bewerte,
@@ -366,5 +366,27 @@ test('die Attribute wandern mit der Stärke durch den Saisonwechsel', () => {
       assert.ok(nachher.attribute[attribut] < vorher[attribut],
         `${attribut} steht still: ${vorher[attribut]} -> ${nachher.attribute[attribut]}`);
     }
+  }
+});
+
+test('Talent wird zu halben Sternen, eine Zehnerstufe je halber', () => {
+  // Genau die Leiter, wie sie im Roster stehen soll.
+  const erwartet = [
+    [0, 0.5], [9, 0.5], [10, 1], [19, 1], [20, 1.5], [29, 1.5], [30, 2], [39, 2],
+    [40, 2.5], [49, 2.5], [50, 3], [59, 3], [60, 3.5], [69, 3.5], [70, 4], [79, 4],
+    [80, 4.5], [89, 4.5], [90, 5], [99, 5], [100, 5],
+  ];
+  for (const [talent, sterne] of erwartet) {
+    assert.equal(talentSterne(talent) / 2, sterne, `Talent ${talent}`);
+  }
+});
+
+test('die Sternleiter steigt nie und fällt nie zurück', () => {
+  let vorher = 0;
+  for (let talent = 0; talent <= 100; talent++) {
+    const halbe = talentSterne(talent);
+    assert.ok(halbe >= vorher, `Talent ${talent} fällt zurück`);
+    assert.ok(halbe >= 1 && halbe <= 10, `Talent ${talent}: ${halbe} halbe Sterne`);
+    vorher = halbe;
   }
 });

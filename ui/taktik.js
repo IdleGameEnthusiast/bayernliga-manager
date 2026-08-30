@@ -103,6 +103,11 @@ function ausrichtungKarte(personnel, anteil, staerken, setze) {
 /**
  * Wer wo steht. Ein Umsteller ist markiert, ein Doppeleinsatz auch — beides
  * ist eine Nachricht an den Manager und nicht Dekoration.
+ *
+ * Hinter jedem Namen steht, was er **auf diesem Platz** wert ist, nicht seine
+ * gezogene Stärke. Erst damit lässt sich die Marke „umgestellt" beziffern —
+ * und auch ein Mann auf seiner eigenen Position steht mal besser, mal
+ * schlechter da, je nachdem, wie viel der Verein wirft.
  * @param {import('../engine/aufstellung.js').Aufstellung} a
  */
 export function aufstellungKarte(a) {
@@ -119,6 +124,11 @@ export function aufstellungKarte(a) {
         class: 'platz-pos leise',
         text: p.spieler ? positionsKuerzel(p.spieler) : '',
       }),
+      p.spieler ? el('span', {
+        class: 'platz-stk',
+        title: T.taktik.platzStaerke(Math.round(p.staerke)),
+        text: String(Math.round(p.staerke)),
+      }) : null,
       p.umgestellt ? el('span', { class: 'marke um', text: T.taktik.umgestellt }) : null,
       p.doppel
         ? el('span', { class: 'marke doppel', title: T.taktik.doppelHinweis, text: T.taktik.doppel })

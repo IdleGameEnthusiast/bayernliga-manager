@@ -187,6 +187,7 @@ export function doppelRisiko(robustheit) {
  * @property {import('./spieler.js').Spieler | null} spieler
  * @property {boolean} umgestellt  Er ist woanders ausgebildet
  * @property {boolean} doppel      Er steht schon in der anderen Einheit
+ * @property {number} staerke      Was er auf **diesem** Platz wert ist
  */
 
 /**
@@ -295,7 +296,8 @@ export function skillAnteile(skillPlaetze) {
 /** @param {string} platz */
 function leererPlatz(platz) {
   return /** @type {Platz} */ ({
-    platz, position: PLAETZE[platz].position, spieler: null, umgestellt: false, doppel: false,
+    platz, position: PLAETZE[platz].position, spieler: null,
+    umgestellt: false, doppel: false, staerke: ERSATZ_STAERKE,
   });
 }
 
@@ -317,7 +319,11 @@ export function stelleAuf(kader, spieltag, personnel = STANDARD_PERSONNEL, passA
   const gruppierung = PERSONNEL[personnel] || PERSONNEL[STANDARD_PERSONNEL];
   const anteil = passAnteil == null ? gruppierung.passAnteil : clamp(passAnteil, 0, 1);
 
-  const offense = [QB_PLATZ, ...OL_PLAETZE, ...gruppierung.skill].map(leererPlatz);
+  // Der Quarterback zuerst, dann die Skill-Plätze der Gruppierung, die Linie
+  // zuletzt: der Bogen liest sich von dem, der den Ball hat, nach außen.
+  // Die Anzeige hängt daran, die Rechnung nicht — `teamStaerken()` sucht seine
+  // Blöcke über die Platzschlüssel.
+  const offense = [QB_PLATZ, ...gruppierung.skill, ...OL_PLAETZE].map(leererPlatz);
   const defense = DEFENSE_PLAETZE.map(leererPlatz);
   const alle = [...offense, ...defense];
 
@@ -372,7 +378,36 @@ export function stelleAuf(kader, spieltag, personnel = STANDARD_PERSONNEL, passA
     platz.umgestellt = bester.position !== platz.position;
   }
 
+  for (const platz of alle) platz.staerke = platzStaerke(platz, anteil);
+
   return { offense, defense, ...besteFuesse(fit) };
+}
+
+/**
+ * Nach welchem Passanteil ein Platz bewertet wird: der Angriff nach dem
+ * eigenen, die Verteidigung hälftig. Dieselbe Unterscheidung wie in
+ * `platzGewicht()` — die Verteidigung steht nicht gegen sich selbst.
+ * @param {string} platz
+ * @param {number} passAnteil
+ */
+function bewertungsAnteil(platz, passAnteil) {
+  return DEFENSE_PLAETZE.includes(/** @type {any} */ (platz)) ? 0.5 : passAnteil;
+}
+
+/**
+ * Was ein Spieler auf dem Platz wert ist, auf dem er wirklich steht — beide
+ * Spielarten nach dem Passanteil gemischt, der Doppeleinsatz abgezogen.
+ *
+ * Das ist die Zahl, die die Aufstellung anzeigt. Sie ist nicht `spieler.staerke`:
+ * die ist gezogen und positionsfrei, diese hier sagt, was aus ihm **hier**
+ * herauskommt, und fällt bei einem Umsteller entsprechend ab.
+ * @param {Platz} platz
+ * @param {number} passAnteil
+ */
+export function platzStaerke(platz, passAnteil) {
+  if (!platz.spieler) return ERSATZ_STAERKE;
+  const roh = eignungGemischt(platz.spieler, platz.platz, bewertungsAnteil(platz.platz, passAnteil));
+  return platz.doppel ? roh * (1 - doppelAbzug(platz.spieler.attribute.ausdauer)) : roh;
 }
 
 /**
