@@ -3,11 +3,14 @@
  * Kaderansicht: Mannschaftsteile oben, Aufstellung darunter, Roster zuletzt.
  *
  * Sie ist zugleich der Ort, an dem aufgestellt wird. Der Weg dorthin geht über
- * zwei Tipps und keinen Zug: ein Platz in der Aufstellung, dann ein Mann —
- * entweder aus den fünf Besten unter dem Platz oder aus dem Roster, wo die
- * Zeilen währenddessen auswählen statt aufzuklappen. Bestätigt wird oben in der
- * Wechselleiste. Das ist auf einem Tablet mit dem Daumen bedienbar; Ziehen wäre
- * es nicht.
+ * zwei Tipps und keinen Zug — und in beide Richtungen: entweder erst der Platz
+ * und dann der Mann, oder erst der Mann und dann der Platz. Das ist auf einem
+ * Tablet mit dem Daumen bedienbar; Ziehen wäre es nicht.
+ *
+ * Weil eine Rosterzeile damit auswählt, hat das Aufklappen der fünfzehn Werte
+ * einen eigenen Knopf am Zeilenende bekommen. Zwei Bedeutungen auf derselben
+ * Fläche gingen nicht mehr auf: Aufstellen ist die Handlung dieser Ansicht,
+ * Werte nachsehen die Nebensache.
  */
 
 import { el, leere, tabelle as machTabelle, balken, sterne } from './dom.js';
@@ -19,8 +22,8 @@ import { istFit, talentSterne } from '../engine/spieler.js';
 import {
   LIGA_MAX_STAERKE, POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE,
 } from '../engine/constants.js';
-import { positionsKuerzel, hauptPosition } from '../engine/positionen.js';
-import { bestenFuer } from '../engine/aufstellung.js';
+import { positionsKuerzel, hauptPosition, platzKuerzel } from '../engine/positionen.js';
+import { bestenFuer, wertAuf } from '../engine/aufstellung.js';
 import { personnelVon, passAnteilVon, aufstellungVon } from '../engine/saison.js';
 import { aufstellungKarte, wechselLeiste } from './aufstellung.js';
 
@@ -88,11 +91,15 @@ export function zeigeKader(stand, aktionen) {
   const plaetze = [...s.aufstellung.offense, ...s.aufstellung.defense];
   if (auswahl.platz && !plaetze.some((p) => p.schluessel === auswahl.platz)) nichtsGewaehlt();
 
+  const gewaehlterSpieler = kader.find((sp) => sp.id === auswahl.spieler) || null;
+
   /** @type {import('./aufstellung.js').Steuerung} */
   const steuerung = {
     platz: auswahl.platz,
     spieler: auswahl.spieler,
     vonHand: !!vorgabe,
+    wertFuer: (platz) => (gewaehlterSpieler ? wertAuf(gewaehlterSpieler, platz, anteil) : 0),
+    gewaehlterName: gewaehlterSpieler ? gewaehlterSpieler.nachname : '',
     waehlePlatz: (schluessel) => {
       auswahl = { platz: schluessel, spieler: null };
       aktionen.neuZeichnen();
@@ -108,13 +115,23 @@ export function zeigeKader(stand, aktionen) {
     kandidaten: (platz) => bestenFuer(kader, spieltag, platz, anteil),
   };
 
-  const gewaehlterSpieler = kader.find((sp) => sp.id === auswahl.spieler) || null;
-  const waehleSpieler = auswahl.platz
-    ? (/** @type {string} */ id) => {
-      auswahl = { platz: auswahl.platz, spieler: auswahl.spieler === id ? null : id };
-      aktionen.neuZeichnen();
-    }
-    : null;
+  // Eine Rosterzeile wählt immer aus — mit offenem Platz für die Bestätigung
+  // oben, ohne ihn als Frage „wohin mit ihm", die die Aufstellung beantwortet.
+  const waehleSpieler = (/** @type {string} */ id) => {
+    auswahl = { platz: auswahl.platz, spieler: auswahl.spieler === id ? null : id };
+    aktionen.neuZeichnen();
+  };
+
+  // Wer steht, steht wo: der Roster markiert seine Starter mit dem Platz, den
+  // sie halten. Was hier fehlt, ist die Antwort auf „wer ist noch keiner".
+  /** @type {Map<string, string[]>} */
+  const starter = new Map();
+  for (const p of plaetze) {
+    if (!p.spieler) continue;
+    const bisher = starter.get(p.spieler.id);
+    if (bisher) bisher.push(platzKuerzel(p.platz));
+    else starter.set(p.spieler.id, [platzKuerzel(p.platz)]);
+  }
 
   // Drei Zahlen, nicht fünf. Der Roster sagt, was die Mannschaft ist — Lauf und
   // Pass hälftig, ungeachtet der Ausrichtung. Wie sich die Taktik darauf
@@ -135,10 +152,11 @@ export function zeigeKader(stand, aktionen) {
     leere(halter);
     const liste = sortiere(kader, spieltag);
     halter.append(machTabelle(
-      SPALTEN.map((sp) => kopfzelle(sp, male)),
+      [...SPALTEN.map((sp) => kopfzelle(sp, male)), el('th', { 'aria-label': T.kader.werte })],
       liste.flatMap((spieler, i) => [
-        zeile(spieler, spieltag, male, trennerVor(liste, i), waehleSpieler, auswahl.spieler),
-        offeneWerte.has(spieler.id) && !auswahl.platz ? werteZeile(spieler) : null,
+        zeile(spieler, spieltag, male, trennerVor(liste, i),
+          waehleSpieler, auswahl.spieler, starter.get(spieler.id)),
+        offeneWerte.has(spieler.id) ? werteZeile(spieler) : null,
       ].filter(Boolean))));
   };
   male();
@@ -149,9 +167,8 @@ export function zeigeKader(stand, aktionen) {
     aufstellungKarte(s.aufstellung, steuerung),
     el('div', { class: 'karte' },
       el('h2', { text: T.nav.kader }),
-      auswahl.platz
-        ? el('p', { class: 'klein', style: { margin: '0 0 6px' }, text: T.aufstellung.rosterWaehlen })
-        : null,
+      el('p', { class: auswahl.platz ? 'klein' : 'leise klein', style: { margin: '0 0 6px' },
+        text: auswahl.platz ? T.aufstellung.rosterWaehlen : T.aufstellung.rosterHinweis }),
       halter));
 }
 
@@ -240,54 +257,71 @@ const offeneWerte = new Set();
 /**
  * Eine Kaderzeile.
  *
- * Sie tut zweierlei, aber nie beides zugleich: solange kein Platz gewählt ist,
- * klappt ein Tipp die fünfzehn Werte auf; ist einer gewählt, wählt derselbe
- * Tipp den Mann dafür aus. Zwei Trefferflächen nebeneinander wären auf einem
- * Tablet die schlechtere Antwort — die Zeile ist schon knapp.
+ * Der Tipp auf die Zeile wählt den Mann aus — Aufstellen ist die Handlung
+ * dieser Ansicht. Die fünfzehn Werte hängen deshalb am eigenen Knopf am
+ * Zeilenende: zwei Bedeutungen auf derselben Fläche gehen nicht auf, und die
+ * seltenere zieht um.
+ *
+ * Wer in der Elf steht, trägt seinen Platz hinter dem Namen. Die Marke
+ * beantwortet die Frage rückwärts, wie sie gestellt wird: nicht „wer steht",
+ * sondern „wer steht **nicht**".
  * @param {import('../engine/spieler.js').Spieler} sp
  * @param {number} spieltag
  * @param {() => void} male
  * @param {string} [trenner] Zusatzklasse für die Linie über der Zeile
- * @param {((id: string) => void) | null} [waehle] Gesetzt, solange ein Platz offen ist
+ * @param {(id: string) => void} [waehle]
  * @param {string | null} [gewaehlt] Die Id des vorgemerkten Manns
+ * @param {string[]} [plaetze] Die Plätze, die er in der Elf hält
  */
-function zeile(sp, spieltag, male, trenner, waehle, gewaehlt) {
+function zeile(sp, spieltag, male, trenner, waehle, gewaehlt, plaetze) {
   const fit = istFit(sp, spieltag);
   const offen = offeneWerte.has(sp.id);
-  const markiert = waehle && gewaehlt === sp.id;
-  const umschalten = () => {
-    if (waehle) { waehle(sp.id); return; }
+  const markiert = gewaehlt === sp.id;
+  const waehlen = () => waehle && waehle(sp.id);
+  const werte = () => {
     if (offen) offeneWerte.delete(sp.id); else offeneWerte.add(sp.id);
     male();
   };
 
   return el('tr', {
-    class: 'spielerzeile' + (offen && !waehle ? ' offen' : '')
-      + (waehle ? ' waehlbar' : '') + (markiert ? ' gewaehlt' : '')
+    class: 'spielerzeile' + (offen ? ' offen' : '') + (waehle ? ' waehlbar' : '')
+      + (markiert ? ' gewaehlt' : '') + (plaetze ? ' starter' : '')
       + (trenner ? ' ' + trenner : ''),
     role: 'button',
     tabindex: '0',
-    'aria-expanded': waehle ? undefined : String(offen),
-    'aria-pressed': waehle ? String(!!markiert) : undefined,
-    title: waehle
-      ? T.aufstellung.spielerWaehlen(sp.nachname)
-      : offen ? T.kader.werteVerbergen : T.kader.werteZeigen,
-    onclick: umschalten,
+    'aria-pressed': String(!!markiert),
+    title: T.aufstellung.spielerWaehlen(sp.nachname),
+    onclick: waehlen,
     onkeydown: (/** @type {KeyboardEvent} */ e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       e.preventDefault();
-      umschalten();
+      waehlen();
     },
   },
     el('td', { class: 'leise', text: String(sp.nummer) }),
-    el('td', { text: sp.vorname + ' ' + sp.nachname }),
+    el('td', {},
+      sp.vorname + ' ' + sp.nachname,
+      plaetze
+        ? el('span', {
+          class: 'marke starter',
+          title: T.aufstellung.starterTitel(plaetze.join(' · ')),
+          text: plaetze.join(' · '),
+        })
+        : null),
     el('td', { text: positionsKuerzel(sp) }),
     el('td', { class: 'leise', text: T.kader.koerperWert(sp.groesse, sp.gewicht) }),
     el('td', { text: String(sp.alter) }),
     el('td', { style: { fontWeight: '600' }, text: String(sp.staerke) }),
     el('td', {}, sterne(talentSterne(sp.talent), T.kader.talentTitel(sp.talent))),
     el('td', { class: fit ? 'leise' : 'verletzt' },
-      fit ? T.kader.fit : T.kader.verletztBis(sp.verletztBis - spieltag)));
+      fit ? T.kader.fit : T.kader.verletztBis(sp.verletztBis - spieltag)),
+    el('td', { class: 'werteknopf' }, el('button', {
+      class: 'chevron',
+      'aria-expanded': String(offen),
+      title: offen ? T.kader.werteVerbergen : T.kader.werteZeigen,
+      onclick: (/** @type {MouseEvent} */ e) => { e.stopPropagation(); werte(); },
+      onkeydown: (/** @type {KeyboardEvent} */ e) => e.stopPropagation(),
+    }, offen ? T.kader.sortAuf : T.kader.sortAb)));
 }
 
 /**
@@ -296,7 +330,7 @@ function zeile(sp, spieltag, male, trenner, waehle, gewaehlt) {
  */
 function werteZeile(sp) {
   return el('tr', { class: 'wertezeile' },
-    el('td', { colspan: String(SPALTEN.length) },
+    el('td', { colspan: String(SPALTEN.length + 1) },
       el('div', { class: 'werte' },
         ATTRIBUTE.map((attribut) => el('div', { class: 'wert' },
           el('span', { class: 'klein leise', text: T.attribute[attribut] }),

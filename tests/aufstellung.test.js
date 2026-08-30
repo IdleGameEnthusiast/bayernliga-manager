@@ -11,7 +11,7 @@ import {
   PERSONNEL, PERSONNEL_REIHE, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
   BLOCK_GEWICHT, PLATZ_ANTEIL, SKILL_LEITER, SKILL_ROLLE, SKILL_NORM,
   stelleAuf, skillAnteile, doppelAbzug, doppelRisiko, doppelEinsaetze, umstellungen,
-  platzStaerke, alsVorgabe, setzePlatz, bestenFuer,
+  platzStaerke, alsVorgabe, setzePlatz, bestenFuer, wertAuf,
 } from '../engine/aufstellung.js';
 import { teamStaerken } from '../engine/team.js';
 
@@ -480,4 +480,26 @@ test('die Besten für einen Platz stehen absteigend und sind fit', () => {
   // niemand aus der Secondary.
   assert.ok(!liste.some((e) => ['CB', 'FS', 'SS'].includes(e.spieler.position)),
     'ein Defensive Back steht unter den besten vier Tackles');
+});
+
+test('wertAuf ist dieselbe Zahl wie die der Aufstellung, nur für jeden Platz', () => {
+  const k = kader('wertauf');
+  const a = stelleAuf(k, 1, '11', 0.6);
+
+  // Auf dem eigenen Platz muss die Vorschau exakt das sagen, was dort steht —
+  // sonst verspricht die Ansicht etwas anderes, als das Einsetzen einlöst.
+  for (const p of [...a.offense, ...a.defense]) {
+    if (!p.spieler || p.doppel) continue;
+    assert.equal(wertAuf(p.spieler, p.platz, 0.6), p.staerke, p.platz);
+  }
+
+  // Die Kandidatenliste rechnet mit derselben Zahl.
+  const beste = bestenFuer(k, 1, 'LT', 0.6, 3);
+  assert.equal(beste[0].wert, wertAuf(beste[0].spieler, 'LT', 0.6));
+
+  // Und die Verteidigung wird hälftig bewertet, nicht nach dem Passanteil:
+  // sie steht nicht gegen sich selbst.
+  const mann = k[0];
+  assert.equal(wertAuf(mann, 'CB1', 0.9), wertAuf(mann, 'CB1', 0.1));
+  assert.notEqual(wertAuf(mann, 'WR', 0.9), wertAuf(mann, 'WR', 0.1));
 });

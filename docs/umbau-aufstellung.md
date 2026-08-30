@@ -74,19 +74,38 @@ durch die Aufstellung weitervererben.
 
 ## 4 — Zwei Tipps, kein Ziehen
 
-Die Ansicht ist für den Daumen gebaut. Gezogen wird nichts:
+Die Ansicht ist für den Daumen gebaut. Gezogen wird nichts, und der Weg geht in
+**beide Richtungen** — je nachdem, ob der Manager einen Platz vor sich hat oder
+einen Mann.
 
-1. **Platz antippen.** Er wird markiert, darunter klappen die **fünf Besten für
-   diesen Platz** auf, jeder mit dem Wert, den er *dort* hätte, und mit der
-   Marke, mit wem der Wechsel ein Tausch wäre. Einer davon angetippt — fertig.
-2. **Oder jemand anderes:** solange ein Platz offen ist, wählen die Zeilen des
-   Rosters aus, statt die Attribute aufzuklappen. Bestätigt wird oben in der
-   **Wechselleiste**, die am Bildschirmrand klebt — der zweite Tipp passiert
-   weit unten, und ohne sie müsste man für jeden Wechsel zweimal scrollen.
+**Platz zuerst.** Der Platz wird angetippt und markiert, darunter klappen die
+**fünf Besten für ihn** auf, jeder mit dem Wert, den er *dort* hätte, und mit
+der Marke, mit wem der Wechsel ein Tausch wäre. Einer davon angetippt — fertig.
+Wer jemand anderen will, wählt ihn im Roster und bestätigt oben in der
+**Wechselleiste**, die am Bildschirmrand klebt; der zweite Tipp passiert weit
+unten, und ohne sie müsste man für jeden Wechsel zweimal scrollen.
 
 Die fünf Besten beantworten „wer ist hier der Beste", nicht „was ist fürs Ganze
 am besten". Das zweite ist die Frage von `verteile()` und hat eine andere
 Antwort; unter einem angetippten Platz will darüber niemand nachdenken müssen.
+
+**Mann zuerst**, und das ist die häufigere Frage: ein Tipp auf die Rosterzeile,
+und **jeder** der zweiundzwanzig Plätze wird zum Knopf. Rechts stehen dann zwei
+Zahlen — was der bringt, der dort steht, und was der Gewählte dort brächte,
+grün, wo er den Platz verbessert. Damit steht die ganze Entscheidung
+zweiundzwanzigmal nebeneinander, statt Platz für Platz erfragt werden zu
+müssen. Der zweite Tipp setzt ein.
+
+Dafür muss kein Platz frei sein und keiner vorgemerkt: „wohin mit ihm" ist eine
+Frage an die Elf, nicht an eine Lücke.
+
+**Der Roster markiert seine Starter** — grüner Balken an der Zeile, dahinter der
+Platz, den der Mann hält. Die Marke beantwortet die Frage rückwärts, wie sie
+gestellt wird: nicht „wer steht", sondern *wer steht nicht*. Und weil eine
+Rosterzeile jetzt auswählt, hat das Aufklappen der fünfzehn Werte einen eigenen
+Knopf am Zeilenende bekommen. Zwei Bedeutungen auf derselben Fläche gehen nicht
+auf; Aufstellen ist die Handlung dieser Ansicht, Werte nachsehen die
+Nebensache.
 
 Ein Knopf **Automatisch** wirft die Vorgabe weg. Er steht nur da, wenn es eine
 gibt — er *ist* das Vergessen, keine zweite Aufstellungslogik.
@@ -140,6 +159,9 @@ retten, nur etwas nachzutragen, und dafür ist die Migration da.
 | Saisonwechsel | Zurückgetretene fallen aus der Karte |
 | Einsetzen | Tausch, nicht Verdrängung; von der Bank fällt der Alte an die Automatik |
 | Bedienung | zwei Tipps, kein Ziehen — Tablet zuerst |
+| Richtung | beide: Platz zuerst *und* Mann zuerst; kein Platz muss frei oder vorgemerkt sein |
 | Kandidatenliste | die fünf Besten **für diesen Platz**, nicht global optimiert |
-| Roster im Auswahlmodus | dieselbe Zeile, andere Bedeutung — zwei Trefferflächen wären enger |
+| Vorschau | im Zielmodus steht an jedem Platz die Zahl des Gewählten neben der des Manns, der dort steht |
+| Rosterzeile | wählt aus; die fünfzehn Werte bekommen einen eigenen Knopf am Zeilenende |
+| Startermarke | grüner Balken plus Platzkürzel — die Frage ist, wer *nicht* steht |
 | Speicherstand | additiv, kein Versionssprung |

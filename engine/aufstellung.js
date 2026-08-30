@@ -669,6 +669,19 @@ export function setzePlatz(vorgabe, schluessel, spielerId) {
 }
 
 /**
+ * Was ein Spieler auf einem Platz wert wäre — dieselbe Zahl, die die
+ * Aufstellung hinter seinem Namen zeigt, nur für einen Platz, auf dem er (noch)
+ * nicht steht. Der Doppeleinsatz steckt nicht darin: wer irgendwohin gestellt
+ * wird, zieht dorthin um, statt zweimal zu spielen.
+ * @param {import('./spieler.js').Spieler} spieler
+ * @param {string} platz
+ * @param {number} passAnteil
+ */
+export function wertAuf(spieler, platz, passAnteil) {
+  return eignungGemischt(spieler, platz, bewertungsAnteil(platz, passAnteil));
+}
+
+/**
  * Die besten Männer für **diesen** Platz, absteigend.
  *
  * Beantwortet „wer ist hier der Beste", nicht „was ist fürs Paar am besten" —
@@ -685,10 +698,7 @@ export function setzePlatz(vorgabe, schluessel, spielerId) {
 export function bestenFuer(kader, spieltag, platz, passAnteil, anzahl = 5) {
   return kader
     .filter((s) => istFit(s, spieltag))
-    .map((s) => ({
-      spieler: s,
-      wert: eignungGemischt(s, platz, bewertungsAnteil(platz, passAnteil)),
-    }))
+    .map((s) => ({ spieler: s, wert: wertAuf(s, platz, passAnteil) }))
     .sort((a, b) => b.wert - a.wert)
     .slice(0, anzahl);
 }

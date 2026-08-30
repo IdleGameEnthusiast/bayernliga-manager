@@ -365,6 +365,22 @@ button.klein {
 
 .marke.tausch { background: rgba(255, 255, 255, .08); color: var(--text-leise); }
 
+/* Im Zielmodus ist jeder der zweiundzwanzig Plätze ein Knopf, und rechts stehen
+   zwei Zahlen: was der dort steht bringt, und was der Gewählte brächte. */
+.aufstellung li.ziel {
+  background: var(--bg-zeile);
+  border: 1px solid var(--rand);
+  border-bottom-color: var(--rand);
+  margin-bottom: 4px;
+}
+.aufstellung li.ziel:active { border-color: var(--akzent); }
+.aufstellung li.ziel.steht { opacity: .55; }
+.aufstellung .platz-stk.alt { color: var(--text-leise); font-weight: 400; }
+.aufstellung .platz-stk.neu { color: var(--text-leise); font-weight: 700; }
+.aufstellung .platz-stk.neu.besser { color: var(--gruen); }
+
+.marke.steht { background: rgba(255, 255, 255, .08); color: var(--text-leise); }
+
 /* Die Leiste klebt oben, weil der zweite Tipp unten im Roster passiert. */
 .wechselleiste {
   position: sticky; top: 6px; z-index: 5;
@@ -383,6 +399,26 @@ tr.spielerzeile.gewaehlt td {
   background: rgba(214, 73, 51, .18);
   font-weight: 600;
 }
+
+/* Wer in der Elf steht, ist markiert — damit auf einen Blick zu sehen ist, wer
+   es nicht ist. Die Marke nennt gleich den Platz. */
+tr.spielerzeile.starter td:first-child { box-shadow: inset 3px 0 0 var(--gruen); }
+.marke.starter {
+  margin-left: 8px;
+  background: rgba(46, 163, 107, .18); color: var(--gruen);
+  font-weight: 700; letter-spacing: .03em;
+}
+
+/* Der Knopf am Zeilenende: die fünfzehn Werte, seit die Zeile selbst auswählt. */
+td.werteknopf { width: 1%; padding-left: 0; padding-right: 4px; }
+.chevron {
+  min-width: 32px; min-height: 32px;
+  background: transparent; color: var(--text-leise);
+  border: 1px solid var(--rand); border-radius: 6px;
+  font: inherit; line-height: 1; cursor: pointer;
+}
+.chevron:hover { color: var(--text); }
+.chevron:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
 
 /* --- Sterne ---------------------------------------------------------------
    Zwei Reihen übereinander: die gefüllte wird beschnitten. So sitzt der halbe

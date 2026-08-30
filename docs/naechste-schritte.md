@@ -287,8 +287,9 @@ Setzt auf 2 und 3 auf:
   Vorgabe für die KI, die besten fünf **für diesen Platz** unter dem angetippten
   Platz. Zwei Abweichungen: die Vorgabe ist eine flache Karte Platz → Spieler-Id
   ohne `personnel` (das hat schon einen Ort), und **gezogen wird nichts** —
-  statt Drag-and-drop wählt ein Tipp im Roster aus und ein Knopf in der
-  Wechselleiste oben setzt ein. Das Spiel läuft auf einem iPad.
+  statt Drag-and-drop geht es über zwei Tipps, in beide Richtungen: Platz und
+  dann Mann, oder Mann und dann Platz, wobei jeder der zweiundzwanzig Plätze
+  zeigt, was der Gewählte dort brächte. Das Spiel läuft auf einem iPad.
 - **Auf- und Abstieg**, zweite Liga darüber. `MAX_RATING` steht deshalb noch
   auf 99, obwohl die Bayernliga bei 79 gedeckelt ist.
 - Transfers und Verträge, Play-by-Play, Finanzen.
