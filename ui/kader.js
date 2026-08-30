@@ -71,6 +71,14 @@ let auswahl = { platz: null, spieler: null };
 const nichtsGewaehlt = () => { auswahl = { platz: null, spieler: null }; };
 
 /**
+ * Ob die Kandidatenliste unter einem Platz auch die zeigt, die schon in der Elf
+ * stehen. Standard ist ja — abgeschaltet beantwortet die Liste „wer von der
+ * Bank", und das ist die Frage, sobald jemand ausfällt. Lebt wie die Auswahl im
+ * Modul und überlebt damit eine Neuzeichnung.
+ */
+let starterZeigen = true;
+
+/**
  * @param {import('../engine/saison.js').SpielStand} stand
  * @param {{ setze: (schluessel: string, spielerId: string) => void,
  *           automatisch: () => void, neuZeichnen: () => void }} aktionen
@@ -90,6 +98,17 @@ export function zeigeKader(stand, aktionen) {
   // stehen, ohne Leiste, die ihn wieder herausließe.
   const plaetze = [...s.aufstellung.offense, ...s.aufstellung.defense];
   if (auswahl.platz && !plaetze.some((p) => p.schluessel === auswahl.platz)) nichtsGewaehlt();
+
+  // Wer steht, steht wo: der Roster markiert seine Starter mit dem Platz, den
+  // sie halten. Was hier fehlt, ist die Antwort auf „wer ist noch keiner".
+  /** @type {Map<string, string[]>} */
+  const starter = new Map();
+  for (const p of plaetze) {
+    if (!p.spieler) continue;
+    const bisher = starter.get(p.spieler.id);
+    if (bisher) bisher.push(platzKuerzel(p.platz));
+    else starter.set(p.spieler.id, [platzKuerzel(p.platz)]);
+  }
 
   const gewaehlterSpieler = kader.find((sp) => sp.id === auswahl.spieler) || null;
 
@@ -112,7 +131,17 @@ export function zeigeKader(stand, aktionen) {
       nichtsGewaehlt();
       aktionen.automatisch();
     },
-    kandidaten: (platz) => bestenFuer(kader, spieltag, platz, anteil),
+    starterZeigen,
+    zeigeStarter: (an) => {
+      starterZeigen = an;
+      aktionen.neuZeichnen();
+    },
+    // Ohne die Starter bleibt die Frage übrig, die der Manager an dieser Stelle
+    // meistens hat: wer von denen, die **nicht** stehen, wäre hier der Beste.
+    // Die fünf Besten sind sonst fast immer dieselben, die ohnehin schon spielen.
+    kandidaten: (platz) => bestenFuer(
+      starterZeigen ? kader : kader.filter((sp) => !starter.has(sp.id)),
+      spieltag, platz, anteil),
   };
 
   // Eine Rosterzeile wählt immer aus — mit offenem Platz für die Bestätigung
@@ -121,17 +150,6 @@ export function zeigeKader(stand, aktionen) {
     auswahl = { platz: auswahl.platz, spieler: auswahl.spieler === id ? null : id };
     aktionen.neuZeichnen();
   };
-
-  // Wer steht, steht wo: der Roster markiert seine Starter mit dem Platz, den
-  // sie halten. Was hier fehlt, ist die Antwort auf „wer ist noch keiner".
-  /** @type {Map<string, string[]>} */
-  const starter = new Map();
-  for (const p of plaetze) {
-    if (!p.spieler) continue;
-    const bisher = starter.get(p.spieler.id);
-    if (bisher) bisher.push(platzKuerzel(p.platz));
-    else starter.set(p.spieler.id, [platzKuerzel(p.platz)]);
-  }
 
   // Drei Zahlen, nicht fünf. Der Roster sagt, was die Mannschaft ist — Lauf und
   // Pass hälftig, ungeachtet der Ausrichtung. Wie sich die Taktik darauf

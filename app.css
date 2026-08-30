@@ -350,6 +350,24 @@ button.klein {
   border-bottom: none;
 }
 
+.kandidatenkopf { display: flex; align-items: center; gap: 8px; }
+.kandidatenkopf span { flex: 1; }
+
+/* Ein Schalter, kein Knopf: er schaltet eine Sicht um und bleibt so stehen. */
+.schalter {
+  min-height: 30px; padding: 0 10px;
+  background: transparent; color: var(--text-leise);
+  border: 1px solid var(--rand); border-radius: 999px;
+  font: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer;
+}
+.schalter.an {
+  background: rgba(46, 163, 107, .18);
+  border-color: rgba(46, 163, 107, .45);
+  color: var(--gruen);
+}
+.schalter:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
+
 .kandidat {
   display: flex; align-items: center; gap: 8px;
   width: 100%; min-height: var(--tap);

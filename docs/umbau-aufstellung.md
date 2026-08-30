@@ -89,6 +89,15 @@ Die fünf Besten beantworten „wer ist hier der Beste", nicht „was ist fürs 
 am besten". Das zweite ist die Frage von `verteile()` und hat eine andere
 Antwort; unter einem angetippten Platz will darüber niemand nachdenken müssen.
 
+Über der Liste steht ein Schalter **Starter**, standardmäßig an. Abgeschaltet
+nimmt er die Elf aus der Liste, und die Überschrift sagt es auch: „Die Besten,
+die noch nicht stehen". Der Grund ist gemessen und nicht theoretisch — auf einem
+Receiverplatz waren vier der fünf Besten Leute, die ohnehin schon spielen, jeder
+mit der Marke „tauscht mit …". Wer nach einem Ausfall einen Ersatz sucht, sucht
+aber genau die anderen, und die standen unter der Kante. Gefiltert wird in der
+Ansicht, nicht in der Engine: `bestenFuer()` bekommt schlicht einen kürzeren
+Kader.
+
 **Mann zuerst**, und das ist die häufigere Frage: ein Tipp auf die Rosterzeile,
 und **jeder** der zweiundzwanzig Plätze wird zum Knopf. Rechts stehen dann zwei
 Zahlen — was der bringt, der dort steht, und was der Gewählte dort brächte,
@@ -161,6 +170,7 @@ retten, nur etwas nachzutragen, und dafür ist die Migration da.
 | Bedienung | zwei Tipps, kein Ziehen — Tablet zuerst |
 | Richtung | beide: Platz zuerst *und* Mann zuerst; kein Platz muss frei oder vorgemerkt sein |
 | Kandidatenliste | die fünf Besten **für diesen Platz**, nicht global optimiert |
+| Schalter Starter | an als Standard; aus zeigt die fünf Besten, die noch nicht stehen — gefiltert wird der Kader, nicht die Regel |
 | Vorschau | im Zielmodus steht an jedem Platz die Zahl des Gewählten neben der des Manns, der dort steht |
 | Rosterzeile | wählt aus; die fünfzehn Werte bekommen einen eigenen Knopf am Zeilenende |
 | Startermarke | grüner Balken plus Platzkürzel — die Frage ist, wer *nicht* steht |

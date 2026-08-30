@@ -40,6 +40,8 @@ import { platzKuerzel, positionsKuerzel } from '../engine/positionen.js';
  * @property {(platz: string) => { spieler: import('../engine/spieler.js').Spieler, wert: number }[]} kandidaten
  * @property {(platz: string) => number} wertFuer  Was der gewählte Mann dort brächte
  * @property {string} gewaehlterName
+ * @property {boolean} starterZeigen  Ob die Kandidatenliste die Elf mitzeigt
+ * @property {(an: boolean) => void} zeigeStarter
  */
 
 /** @param {import('../engine/aufstellung.js').Platz} p */
@@ -183,16 +185,32 @@ function platzZeile(p, steuerung) {
  * Sie beantworten „wer ist hier der Beste" — nicht, was fürs Ganze am besten
  * wäre. Der Unterschied ist der Grund, warum diese Liste nicht dieselbe
  * Reihenfolge hat wie die Automatik: die stellt Paare, diese einen Platz.
+ *
+ * Der Schalter darüber nimmt die Elf aus der Liste. Ohne ihn stünden dort fast
+ * immer dieselben Leute, die ohnehin schon spielen — und die eigentliche Frage,
+ * wer von der Bank hier der Beste wäre, bliebe unbeantwortet.
  * @param {import('../engine/aufstellung.js').Aufstellung} a
  * @param {import('../engine/aufstellung.js').Platz} p
  * @param {Steuerung} [steuerung]
  */
 function kandidatenZeile(a, p, steuerung) {
   if (!steuerung || steuerung.platz !== p.schluessel) return null;
+  const liste = steuerung.kandidaten(p.platz);
 
   return el('li', { class: 'kandidaten' },
-    el('div', { class: 'klein leise', text: T.aufstellung.beste }),
-    steuerung.kandidaten(p.platz).map(({ spieler, wert }) => {
+    el('div', { class: 'kandidatenkopf' },
+      el('span', { class: 'klein leise',
+        text: steuerung.starterZeigen ? T.aufstellung.beste : T.aufstellung.besteBank }),
+      el('button', {
+        class: steuerung.starterZeigen ? 'schalter an' : 'schalter',
+        'aria-pressed': String(steuerung.starterZeigen),
+        title: T.aufstellung.starterZeigenTitel,
+        onclick: () => steuerung.zeigeStarter(!steuerung.starterZeigen),
+      }, T.aufstellung.starterZeigen)),
+    liste.length === 0
+      ? el('p', { class: 'leise klein', style: { margin: '6px 0 0' }, text: T.aufstellung.keineBank })
+      : null,
+    liste.map(({ spieler, wert }) => {
       const wo = stehtAuf(a, spieler.id);
       const hier = p.spieler && p.spieler.id === spieler.id;
       return el('button', {
