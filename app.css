@@ -323,6 +323,11 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
 tr.spielerzeile { cursor: pointer; }
 tr.spielerzeile:focus-visible { outline: 2px solid var(--akzent); outline-offset: -2px; }
 tr.spielerzeile.offen td { border-bottom-color: transparent; }
+
+/* Der Roster steht nach Positionen sortiert: ein Strich trennt zwei
+   Positionen, ein kräftigerer Offense von Defense. */
+tr.spielerzeile.positionsstart td { border-top: 1px solid rgba(255, 255, 255, .20); }
+tr.spielerzeile.einheitsstart td { border-top: 2px solid var(--text-leise); }
 tr.spielerzeile.offen td:nth-child(2) { font-weight: 600; }
 
 tr.wertezeile td { padding: 0 8px 12px; text-align: left; white-space: normal; }

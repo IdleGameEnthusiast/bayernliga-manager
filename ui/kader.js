@@ -5,7 +5,10 @@ import { el, leere, tabelle as machTabelle, balken } from './dom.js';
 import { T } from '../i18n.js';
 import { teamStaerken, gesamtStaerke, verletzte } from '../engine/team.js';
 import { istFit } from '../engine/spieler.js';
-import { LIGA_MAX_STAERKE, POSITIONS, ATTRIBUTE } from '../engine/constants.js';
+import {
+  LIGA_MAX_STAERKE, POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE,
+} from '../engine/constants.js';
+import { positionsKuerzel } from '../engine/positionen.js';
 import { aufstellungKarte } from './taktik.js';
 
 /**
@@ -66,10 +69,11 @@ export function zeigeKader(kader, spieltag, personnel, passAnteil) {
   const halter = el('div', {});
   const male = () => {
     leere(halter);
+    const liste = sortiere(kader, spieltag);
     halter.append(machTabelle(
       SPALTEN.map((sp) => kopfzelle(sp, male)),
-      sortiere(kader, spieltag).flatMap((spieler) => [
-        zeile(spieler, spieltag, male),
+      liste.flatMap((spieler, i) => [
+        zeile(spieler, spieltag, male, trennerVor(liste, i)),
         offeneWerte.has(spieler.id) ? werteZeile(spieler) : null,
       ].filter(Boolean))));
   };
@@ -135,6 +139,27 @@ function sortiere(kader, spieltag) {
 }
 
 /**
+ * Die Linie über einer Zeile. Der Kader steht standardmäßig in Depth-Chart-
+ * Reihenfolge, und dann sagt ein Strich zwischen zwei Positionen mehr als jede
+ * Zwischenüberschrift: die dünne Linie trennt zwei Positionen, die kräftige
+ * Offense von Defense.
+ *
+ * Sortiert der Manager nach etwas anderem, stehen die Positionen durcheinander
+ * und die Striche zerschnitten die Tabelle willkürlich — dann gibt es keine.
+ * @param {import('../engine/spieler.js').Spieler[]} liste
+ * @param {number} i
+ */
+function trennerVor(liste, i) {
+  if (i === 0) return '';
+  if (sortierung && sortierung.spalte !== 'position') return '';
+  const hier = liste[i].position;
+  const davor = liste[i - 1].position;
+  if (hier === davor) return '';
+  const einheit = (/** @type {string} */ pos) => EINHEIT_JE_GRUPPE[GRUPPE_JE_POSITION[pos]];
+  return einheit(hier) === einheit(davor) ? 'positionsstart' : 'einheitsstart';
+}
+
+/**
  * Welche Spieler ihre Werte gerade offen zeigen. Beim eigenen Kader sind sie
  * einsehbar — bei einem fremden Verein gäbe es nur die Gesamtstärke, und diese
  * Ansicht zeigt nie einen fremden.
@@ -146,8 +171,9 @@ const offeneWerte = new Set();
  * @param {import('../engine/spieler.js').Spieler} sp
  * @param {number} spieltag
  * @param {() => void} male
+ * @param {string} [trenner] Zusatzklasse für die Linie über der Zeile
  */
-function zeile(sp, spieltag, male) {
+function zeile(sp, spieltag, male, trenner) {
   const fit = istFit(sp, spieltag);
   const offen = offeneWerte.has(sp.id);
   const umschalten = () => {
@@ -156,7 +182,7 @@ function zeile(sp, spieltag, male) {
   };
 
   return el('tr', {
-    class: offen ? 'spielerzeile offen' : 'spielerzeile',
+    class: 'spielerzeile' + (offen ? ' offen' : '') + (trenner ? ' ' + trenner : ''),
     role: 'button',
     tabindex: '0',
     'aria-expanded': String(offen),
@@ -170,7 +196,7 @@ function zeile(sp, spieltag, male) {
   },
     el('td', { class: 'leise', text: String(sp.nummer) }),
     el('td', { text: sp.vorname + ' ' + sp.nachname }),
-    el('td', { text: sp.position + (sp.seite || '') }),
+    el('td', { text: positionsKuerzel(sp) }),
     el('td', { class: 'leise', text: T.kader.koerperWert(sp.groesse, sp.gewicht) }),
     el('td', { text: String(sp.alter) }),
     el('td', { style: { fontWeight: '600' }, text: String(sp.staerke) }),

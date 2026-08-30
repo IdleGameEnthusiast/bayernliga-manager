@@ -14,6 +14,7 @@ import { LIGA_MAX_STAERKE } from '../engine/constants.js';
 import { teamStaerken } from '../engine/team.js';
 import { PERSONNEL, PERSONNEL_REIHE } from '../engine/aufstellung.js';
 import { personnelVon, passAnteilVon } from '../engine/saison.js';
+import { platzKuerzel, positionsKuerzel } from '../engine/positionen.js';
 
 /**
  * @param {import('../engine/saison.js').SpielStand} stand
@@ -112,11 +113,11 @@ export function aufstellungKarte(a) {
 
   const liste = (/** @type {import('../engine/aufstellung.js').Platz[]} */ plaetze) =>
     el('ul', { class: 'aufstellung' }, plaetze.map((p) => el('li', {},
-      el('span', { class: 'platz', text: p.platz }),
+      el('span', { class: 'platz', text: platzKuerzel(p.platz) }),
       el('span', { class: 'platz-name', text: name(p) }),
       el('span', {
         class: 'platz-pos leise',
-        text: p.spieler ? p.spieler.position + (p.spieler.seite || '') : '',
+        text: p.spieler ? positionsKuerzel(p.spieler) : '',
       }),
       p.umgestellt ? el('span', { class: 'marke um', text: T.taktik.umgestellt }) : null,
       p.doppel

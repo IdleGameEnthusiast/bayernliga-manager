@@ -218,6 +218,26 @@ test('Migration füllt fehlende Felder auf', () => {
   assert.deepEqual(m.historie, []);
 });
 
+test('ein v4-Stand mit alten Positionsnamen wird umgeschrieben', () => {
+  const stand = migriere({
+    version: 4, seed: 'alt', meinTeam: 'heg',
+    kader: {
+      heg: [
+        { id: 'a', position: 'MLB', seite: null },
+        { id: 'b', position: 'CB', seite: 'L' },
+        { id: 'c', position: 'WR', seite: 'R' },
+        { id: 'd', position: 'T', seite: 'R' },
+      ],
+    },
+  });
+  assert.deepEqual(stand.kader.heg.map((s) => [s.position, s.seite]), [
+    ['MIKE', null],   // umbenannt
+    ['CB', null],     // die Seite gibt es dort nicht mehr
+    ['WR', null],
+    ['T', 'R'],       // und beim Tackle unverändert
+  ]);
+});
+
 test('ein leerer Speicherstand wird abgelehnt', () => {
   assert.throws(() => migriere(null));
 });

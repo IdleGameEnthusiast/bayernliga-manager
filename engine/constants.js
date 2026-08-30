@@ -21,7 +21,7 @@
  */
 export const POSITIONS = /** @type {const} */ ([
   'QB', 'RB', 'FB', 'WR', 'SL', 'TE', 'T', 'G', 'C',
-  'DE', 'DT', 'NT', 'MLB', 'SAM', 'WILL', 'CB', 'FS', 'SS',
+  'DE', 'DT', 'NT', 'MIKE', 'SAM', 'WILL', 'CB', 'FS', 'SS',
 ]);
 
 /** @typedef {typeof POSITIONS[number]} Position */
@@ -39,7 +39,7 @@ export const POSITION_GRUPPEN = /** @type {Record<string, Position[]>} */ ({
   empfaenger: ['WR', 'SL', 'TE'],
   lineOffense: ['T', 'G', 'C'],
   lineDefense: ['DE', 'DT', 'NT'],
-  linebacker: ['MLB', 'SAM', 'WILL'],
+  linebacker: ['MIKE', 'SAM', 'WILL'],
   secondary: ['CB', 'FS', 'SS'],
 });
 
@@ -73,7 +73,7 @@ export const LINEMEN = /** @type {Position[]} */ ([
  */
 export const KADER_FORM = /** @type {Record<Position, number>} */ ({
   QB: 2, RB: 2, FB: 1, WR: 4, SL: 2, TE: 0, T: 2, G: 2, C: 1,
-  DE: 2, DT: 2, NT: 1, MLB: 2, SAM: 1, WILL: 1, CB: 3, FS: 1, SS: 1,
+  DE: 2, DT: 2, NT: 1, MIKE: 2, SAM: 1, WILL: 1, CB: 3, FS: 1, SS: 1,
 });
 
 /** The club the player manages starts thin. */
@@ -93,7 +93,7 @@ export const KADER_GROESSE_FREMD = KADER_GROESSE_EIGEN + ZUSATZ_SPIELER;
  */
 export const ZUSATZ_GEWICHTE = /** @type {Record<Position, number>} */ ({
   QB: 1, RB: 3, FB: 2, WR: 5, SL: 3, TE: 4, T: 5, G: 4, C: 2,
-  DE: 5, DT: 4, NT: 2, MLB: 3, SAM: 3, WILL: 3, CB: 5, FS: 2, SS: 2,
+  DE: 5, DT: 4, NT: 2, MIKE: 3, SAM: 3, WILL: 3, CB: 5, FS: 2, SS: 2,
 });
 
 /** No club may stack more than this many extras on one position. */

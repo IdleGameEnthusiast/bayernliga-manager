@@ -65,6 +65,11 @@ in Millisekunden durchspielen können.
 ausschließlich in `i18n.js`. Die Datei ist UTF-8 ohne BOM und benutzt echte
 Umlaute — bitte so lassen.
 
+Ausgenommen ist die Sprache des Sports selbst: **Offense, Defense, Run, Pass,
+Roster** und die Positionsnamen bleiben, wie sie auf dem Feld gesprochen
+werden. Ein deutsches Wort dafür wäre nur ein zweiter Name für etwas, das der
+Manager schon unter seinem ersten kennt.
+
 Ausnahme von der Richtung „engine kennt kein außen": `engine/saison.js`
 importiert `i18n.js`, weil es die Zeilen für den Verlauf schreibt. Das ist
 zulässig — `i18n.js` sind reine Daten, kein DOM —, und die Alternative wäre,

@@ -10,6 +10,7 @@
 
 import { SAVE_VERSION, losePersonnel } from './saison.js';
 import { PERSONNEL } from './aufstellung.js';
+import { SEITEN_POSITIONEN } from './positionen.js';
 
 export const STORAGE_KEY = 'bayernliga.save.v4';
 
@@ -52,8 +53,34 @@ export function migriere(roh) {
     }
   }
 
+  // Umbenannte Positionen. Ein Stand, in dem noch ein `MLB` steht, beschreibt
+  // dieselbe Liga — nur mit einem Namen, den der Katalog nicht mehr kennt, und
+  // ohne den fiele der Mann aus jeder Formel. Das ist eine Umschrift, keine
+  // neue Version.
+  if (stand.kader && typeof stand.kader === 'object') {
+    for (const kader of Object.values(stand.kader)) {
+      if (Array.isArray(kader)) kader.forEach(benennePositionUm);
+    }
+  }
+
   stand.version = SAVE_VERSION;
   return stand;
+}
+
+/** Wie eine Position früher hieß und wie sie heute heißt. */
+const ALTE_POSITIONEN = { MLB: 'MIKE' };
+
+/**
+ * Einen gespeicherten Spieler auf den heutigen Katalog bringen: der umbenannte
+ * Linebacker, und die Seite, die es bei Cornerback und Receiver nicht mehr
+ * gibt — sie kostete nichts und stand nur in der Anzeige herum.
+ * @param {any} spieler
+ */
+function benennePositionUm(spieler) {
+  if (!spieler || typeof spieler !== 'object') return;
+  const neu = ALTE_POSITIONEN[spieler.position];
+  if (neu) spieler.position = neu;
+  if (spieler.seite && !SEITEN_POSITIONEN.includes(spieler.position)) spieler.seite = null;
 }
 
 /** @param {import('./saison.js').SpielStand} stand */

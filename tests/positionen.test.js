@@ -10,6 +10,7 @@ import {
   FORMELN, PROFIL_BEITRAG, KOERPER_KORRIDOR, korridorMitte,
   profilPassAnteil, gemischteFormel, generierungsProfil, bewerte,
   technikTransfer, koerperMalus, eignung, eignungGemischt,
+  SEITEN_POSITIONEN, PLAETZE, positionsKuerzel, platzKuerzel,
 } from '../engine/positionen.js';
 
 test('jede Position hat beide Formeln, einen Korridor und einen Beitrag', () => {
@@ -50,7 +51,7 @@ test('die Korridormitten ergeben die Körperbänder der Liga', () => {
   assert.equal(korridorMitte('SL'), 81.5);
   assert.equal(korridorMitte('CB'), 82.5);
   assert.equal(korridorMitte('QB'), 92.5);
-  assert.equal(korridorMitte('MLB'), 109);
+  assert.equal(korridorMitte('MIKE'), 109);
   assert.equal(korridorMitte('T'), 125);
   assert.equal(korridorMitte('NT'), 137.5);
 
@@ -113,7 +114,7 @@ function muster(position, seite = 'L') {
   // Vier gleiche Ziehungen ergeben in randNormal exakt null Abweichung.
   return {
     position,
-    seite,
+    seite: SEITEN_POSITIONEN.includes(/** @type {any} */ (position)) ? seite : null,
     gewicht,
     attribute: ziehAttribute(() => 0.5, position, 50, gewicht),
   };
@@ -122,8 +123,8 @@ function muster(position, seite = 'L') {
 /** Der Platz, auf dem ein Musterspieler seiner Position zu Hause ist. */
 const HEIMAT = {
   QB: 'QB', RB: 'RB', FB: 'FB', WR: 'WR', SL: 'SL', TE: 'TE',
-  T: 'LT', G: 'LG', C: 'C', DE: 'LDE', DT: 'DT', NT: 'NT',
-  MLB: 'MLB', SAM: 'SAM', WILL: 'WILL', CB: 'LCB', FS: 'FS', SS: 'SS',
+  T: 'LT', G: 'LG', C: 'C', DE: 'LE', DT: 'DT', NT: 'NT',
+  MIKE: 'MIKE', SAM: 'SAM', WILL: 'WILL', CB: 'CB1', FS: 'FS', SS: 'SS',
 };
 
 /** Was eine Umstellung kostet, gemittelt über Lauf und Pass. */
@@ -144,18 +145,46 @@ test('auf dem eigenen Platz kostet die Technik nichts', () => {
 });
 
 test('die Seite kostet, was die Position sagt', () => {
-  assert.equal(technikTransfer(muster('CB'), 'RCB'), 1, 'beim Cornerback nichts');
-  assert.equal(technikTransfer(muster('DE'), 'RDE'), 0.98);
+  assert.equal(technikTransfer(muster('DE'), 'RE'), 0.98);
   assert.equal(technikTransfer(muster('G'), 'RG'), 0.92);
   assert.equal(technikTransfer(muster('T'), 'RT'), 0.90);
   assert.equal(technikTransfer(muster('T', 'R'), 'RT'), 1, 'auf seiner eigenen Seite nichts');
+});
+
+test('nur wo die Seite etwas kostet, hat eine Position überhaupt eine', () => {
+  // Beim Cornerback und beim Receiver kostete sie nichts, also gibt es sie
+  // nicht mehr — weder am Spieler noch am Platz.
+  assert.deepEqual([...SEITEN_POSITIONEN], ['T', 'G', 'DE']);
+  assert.equal(muster('CB').seite, null);
+  assert.equal(muster('WR').seite, null);
+  for (const platz of ['WR', 'CB1', 'CB2']) {
+    assert.equal(PLAETZE[platz].seite, undefined, platz);
+  }
+  assert.equal(technikTransfer(muster('CB'), 'CB2'), 1, 'und sie kostet weiter nichts');
+});
+
+test('die Kürzel schreiben die Seite vor die Position, sonst nichts', () => {
+  assert.equal(positionsKuerzel(muster('T', 'R')), 'RT');
+  assert.equal(positionsKuerzel(muster('G', 'L')), 'LG');
+  assert.equal(positionsKuerzel(muster('DE', 'R')), 'RE');
+  assert.equal(positionsKuerzel(muster('CB')), 'CB');
+  assert.equal(positionsKuerzel(muster('WR')), 'WR');
+  assert.equal(positionsKuerzel(muster('MIKE')), 'MIKE');
+  // Zwei gleichwertige Plätze tragen denselben Namen.
+  assert.equal(platzKuerzel('CB1'), 'CB');
+  assert.equal(platzKuerzel('CB2'), 'CB');
+  assert.equal(platzKuerzel('LT'), 'LT');
+  // Jedes Kürzel eines Spielers auf seinem Heimatplatz ist der Platzname.
+  for (const pos of POSITIONS) {
+    assert.equal(positionsKuerzel(muster(pos)), platzKuerzel(HEIMAT[pos]), pos);
+  }
 });
 
 test('die Stufenleiter fällt von der Gruppe über die Einheit nach draußen', () => {
   const t = muster('T');
   assert.equal(technikTransfer(t, 'LG'), 0.70, 'Nachbarposition derselben Gruppe');
   assert.equal(technikTransfer(t, 'TE'), 0.45, 'andere Gruppe, dieselbe Einheit');
-  assert.equal(technikTransfer(t, 'LDE'), 0.25, 'andere Einheit');
+  assert.equal(technikTransfer(t, 'LE'), 0.25, 'andere Einheit');
 });
 
 test('der Körpermalus wächst mit dem Gewichtsabstand und ist gedeckelt', () => {

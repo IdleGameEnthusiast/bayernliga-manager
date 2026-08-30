@@ -5,6 +5,11 @@
  * Identifiers stay English throughout the codebase; the German lives here, so
  * a second language would only ever mean a second object in this file.
  * UTF-8 without a BOM, with real umlauts. Keep it that way.
+ *
+ * The game's own vocabulary is not translated: Offense, Defense, Run, Pass,
+ * Roster and the position names stay as they are spoken on the field. A German
+ * word for them would only be a second name for something the manager already
+ * knows by its first.
  */
 
 export const DE = {
@@ -12,7 +17,7 @@ export const DE = {
 
   nav: {
     tabelle: 'Tabelle',
-    kader: 'Kader',
+    kader: 'Roster',
     taktik: 'Taktik',
     spielplan: 'Spielplan',
     verlauf: 'Verlauf',
@@ -83,10 +88,10 @@ export const DE = {
     keineVerletzungen: 'Keine Verletzungen',
     verletztBis: (wochen) => `noch ${wochen} ${wochen === 1 ? 'Spieltag' : 'Spieltage'}`,
     einheiten: 'Mannschaftsteile',
-    angriffPass: 'Angriff Pass',
-    angriffLauf: 'Angriff Lauf',
-    verteidigungPass: 'Verteidigung Pass',
-    verteidigungLauf: 'Verteidigung Lauf',
+    angriffPass: 'Offense Pass',
+    angriffLauf: 'Offense Run',
+    verteidigungPass: 'Defense Pass',
+    verteidigungLauf: 'Defense Run',
     special: 'Special Teams',
     gesamt: 'Gesamt',
     koerper: 'Körper',
@@ -111,9 +116,9 @@ export const DE = {
   spiel: {
     endstand: 'Endstand',
     viertel: 'Viertel',
-    passing: 'Passspiel',
-    rushing: 'Laufspiel',
-    receiving: 'Passempfang',
+    passing: 'Passing',
+    rushing: 'Rushing',
+    receiving: 'Receiving',
     yards: 'Yds',
     touchdowns: 'TD',
     interceptions: 'INT',
@@ -154,15 +159,15 @@ export const DE = {
     ueberschrift: 'Ausrichtung',
     system: 'System',
     systemWaehlen: 'Personnel-Gruppierung',
-    ausrichtung: 'Lauf und Pass',
+    ausrichtung: 'Run und Pass',
     passAnteil: 'Passanteil',
     vorschlag: (wert) => `Vorschlag des Systems: ${wert} %`,
     frei: 'Frei wählbar — was das System nicht kann, kostet Leistung.',
     gilt: 'Die Änderung gilt ab dem nächsten Spieltag.',
     wirkung: 'Was das ausmacht',
     aufstellung: 'Aufstellung',
-    angriffElf: 'Angriff',
-    verteidigungElf: 'Verteidigung',
+    angriffElf: 'Offense',
+    verteidigungElf: 'Defense',
     platz: 'Platz',
     spieler: 'Spieler',
     umgestellt: 'umgestellt',
@@ -214,7 +219,7 @@ export const DE = {
     DE: 'Defensive End',
     DT: 'Defensive Tackle',
     NT: 'Nose Tackle',
-    MLB: 'Middle Linebacker',
+    MIKE: 'Mike Linebacker',
     SAM: 'Outside Linebacker (starke Seite)',
     WILL: 'Outside Linebacker (schwache Seite)',
     CB: 'Cornerback',

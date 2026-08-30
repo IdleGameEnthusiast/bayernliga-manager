@@ -64,9 +64,9 @@ export const STANDARD_PERSONNEL = '11';
  * benutzen denselben Platz-Apparat.
  */
 export const DEFENSE_PLAETZE = /** @type {const} */ ([
-  'LDE', 'DT', 'NT', 'RDE',
-  'MLB', 'SAM', 'WILL',
-  'LCB', 'RCB', 'FS', 'SS',
+  'LE', 'DT', 'NT', 'RE',
+  'MIKE', 'SAM', 'WILL',
+  'CB1', 'CB2', 'FS', 'SS',
 ]);
 
 // --- Gewichte --------------------------------------------------------------
@@ -91,16 +91,16 @@ export const PLATZ_ANTEIL = {
     lauf: { LT: 0.19, RT: 0.19, LG: 0.24, RG: 0.24, C: 0.14 },
   },
   dl: {
-    pass: { LDE: 0.32, RDE: 0.32, DT: 0.20, NT: 0.16 },
-    lauf: { LDE: 0.23, RDE: 0.23, DT: 0.26, NT: 0.28 },
+    pass: { LE: 0.32, RE: 0.32, DT: 0.20, NT: 0.16 },
+    lauf: { LE: 0.23, RE: 0.23, DT: 0.26, NT: 0.28 },
   },
   lb: {
-    pass: { MLB: 0.32, SAM: 0.23, WILL: 0.45 },
-    lauf: { MLB: 0.40, SAM: 0.35, WILL: 0.25 },
+    pass: { MIKE: 0.32, SAM: 0.23, WILL: 0.45 },
+    lauf: { MIKE: 0.40, SAM: 0.35, WILL: 0.25 },
   },
   db: {
-    pass: { LCB: 0.30, RCB: 0.30, FS: 0.25, SS: 0.15 },
-    lauf: { LCB: 0.17, RCB: 0.17, FS: 0.26, SS: 0.40 },
+    pass: { CB1: 0.30, CB2: 0.30, FS: 0.25, SS: 0.15 },
+    lauf: { CB1: 0.17, CB2: 0.17, FS: 0.26, SS: 0.40 },
   },
 };
 

@@ -25,7 +25,7 @@ Tabelle wieder herauszuoperieren.
 | `QB` | Quarterback | `DE` | Defensive End |
 | `RB` | Runningback | `DT` | Defensive Tackle |
 | `FB` | Fullback | `NT` | Nose Tackle |
-| `WR` | Receiver außen | `MLB` | Middle Linebacker |
+| `WR` | Receiver außen | `MIKE` | Middle Linebacker |
 | `SL` | Slot-Receiver | `SAM` | Outside Linebacker, starke Seite |
 | `TE` | Tight End | `WILL` | Outside Linebacker, schwache Seite |
 | `T` | Tackle | `CB` | Cornerback |
@@ -35,12 +35,22 @@ Tabelle wieder herauszuoperieren.
 `K` und `P` entfallen ersatzlos aus dem Katalog — gekickt wird weiter aus dem ganzen
 Kader über `kickStaerke` und `kickGenauigkeit`, wie in der Kick-Vorstufe entschieden.
 
+Die Linebacker heißen nach ihren Rufnamen: `MIKE` in der Mitte, `SAM` auf der starken
+und `WILL` auf der schwachen Seite. Drei Namen aus derselben Sprache statt zwei
+Rufnamen und einer Abkürzung.
+
 ### Die Seite ist ein Platz, keine Position
 
-Links und rechts verdoppeln den Katalog **nicht**. Der Katalog kennt `T`, `G`, `DE`,
-`CB`, `WR`; die Aufstellung kennt die Plätze `LT`, `RT`, `LG`, `RG`, `LDE`, `RDE`,
-`LCB`, `RCB`. Ein Spieler ist auf einem Platz ausgebildet und verliert auf der anderen
-Seite einen Teil seines Technikwerts — mehr dazu in Abschnitt 4.
+Links und rechts verdoppeln den Katalog **nicht**. Der Katalog kennt `T`, `G` und
+`DE`; die Aufstellung kennt die Plätze `LT`, `RT`, `LG`, `RG`, `LE`, `RE`. Ein Spieler
+ist auf einem Platz ausgebildet und verliert auf der anderen Seite einen Teil seines
+Technikwerts — mehr dazu in Abschnitt 4.
+
+**Eine Seite gibt es nur, wo sie etwas kostet.** Beim Cornerback und beim Receiver
+kostete der Wechsel nichts, also trug die Seite dort keine Regel — sie stand nur in der
+Anzeige herum und legte einen Unterschied nahe, den das Modell nicht kennt. Beide haben
+seitdem keine. Die beiden Cornerback-Plätze heißen `CB1` und `CB2`, sind gleichwertig
+und werden beide als `CB` beschriftet.
 
 ---
 
@@ -83,7 +93,7 @@ gebunden. Jede Position hat einen Korridor:
 | `QB` | 1,78–1,95 m | 85–100 kg | | `DE` | 1,85–1,98 m | 100–120 kg |
 | `RB` | 1,72–1,85 m | 82–98 kg | | `DT` | 1,83–1,95 m | 115–140 kg |
 | `FB` | 1,75–1,88 m | 95–112 kg | | `NT` | 1,80–1,93 m | 125–150 kg |
-| `WR` | 1,75–1,90 m | 78–92 kg | | `MLB` | 1,80–1,92 m | 100–118 kg |
+| `WR` | 1,75–1,90 m | 78–92 kg | | `MIKE` | 1,80–1,92 m | 100–118 kg |
 | `SL` | 1,70–1,83 m | 75–88 kg | | `SAM` | 1,83–1,93 m | 100–118 kg |
 | `TE` | 1,85–1,98 m | 95–115 kg | | `WILL` | 1,78–1,88 m | 90–105 kg |
 | `T` | 1,85–2,00 m | 110–140 kg | | `CB` | 1,72–1,85 m | 75–90 kg |
@@ -128,7 +138,7 @@ Receiver würde als Top-Blocker generiert.
 | `DE` | 0,112 | 0,092 | 55 % Pass |
 | `DT` | 0,070 | 0,104 | 60 % Lauf |
 | `NT` | 0,056 | 0,112 | 67 % Lauf |
-| `MLB` | 0,080 | 0,160 | 67 % Lauf |
+| `MIKE` | 0,080 | 0,160 | 67 % Lauf |
 | `SAM` | 0,058 | 0,140 | 71 % Lauf |
 | `WILL` | 0,113 | 0,100 | 53 % Pass |
 | `CB` | 0,120 | 0,034 | 78 % Pass |
@@ -166,7 +176,7 @@ Prozent, jede Spalte summiert auf 100.
 | `DE` | passrush 45 · beweglichkeit 25 · technik 20 · kraft 10 | tacklen 30 · kraft 25 · technik 20 · spielverstaendnis 15 · beweglichkeit 10 |
 | `DT` | passrush 35 · kraft 30 · technik 20 · beweglichkeit 15 | kraft 35 · tacklen 25 · technik 20 · spielverstaendnis 20 |
 | `NT` | kraft 45 · passrush 25 · technik 20 · beweglichkeit 10 | kraft 50 · tacklen 20 · technik 15 · spielverstaendnis 15 |
-| `MLB` | spielverstaendnis 28 · coverage 20 · passrush 14 · technik 15 · kraft 13 · schnelligkeit 10 | tacklen 32 · kraft 28 · spielverstaendnis 25 · technik 15 |
+| `MIKE` | spielverstaendnis 28 · coverage 20 · passrush 14 · technik 15 · kraft 13 · schnelligkeit 10 | tacklen 32 · kraft 28 · spielverstaendnis 25 · technik 15 |
 | `SAM` | passrush 28 · coverage 22 · spielverstaendnis 20 · technik 15 · schnelligkeit 15 | tacklen 33 · kraft 27 · technik 20 · spielverstaendnis 20 |
 | `WILL` | coverage 36 · schnelligkeit 22 · spielverstaendnis 18 · beweglichkeit 14 · technik 10 | tacklen 26 · schnelligkeit 26 · spielverstaendnis 17 · beweglichkeit 16 · technik 15 |
 | `CB` | coverage 32 · schnelligkeit 22 · beweglichkeit 18 · technik 10 · spielverstaendnis 9 · fangen 9 | tacklen 34 · schnelligkeit 21 · spielverstaendnis 17 · technik 15 · kraft 13 |
@@ -177,11 +187,11 @@ Prozent, jede Spalte summiert auf 100.
 sonst fehlen würde, bei den Linemen 20 %. Der Anteil ist der Träger des
 Umstellungsabschlags: ohne ihn kostet eine Umstellung nichts.
 
-**`MLB` und `SAM` sind bewusst physisch geschnitten**, `WILL` bewusst athletisch. Die
-drei Linebacker sollen auseinanderliegen — MLB und SAM als Brücke zur Line, WILL als
+**`MIKE` und `SAM` sind bewusst physisch geschnitten**, `WILL` bewusst athletisch. Die
+drei Linebacker sollen auseinanderliegen — MIKE und SAM als Brücke zur Line, WILL als
 Brücke zur Secondary. Standen alle drei in der Mitte, landete jeder von ihnen bei den
 Safeties, und der Quarterback fand seine beste Alternative als Middle Linebacker. Der
-`passrush 14` beim MLB ist dabei kein Beiwerk: ohne ihn bleibt die DE-Passformel
+`passrush 14` beim MIKE ist dabei kein Beiwerk: ohne ihn bleibt die DE-Passformel
 (45 % Rush) für einen Mike unerreichbar.
 
 ---
@@ -204,13 +214,12 @@ aus dem Modell selbst — es braucht keine Strafe von außen.
 
 ### Seitenwechsel je Position
 
-Nur Positionen mit zwei Seiten. Der Wert ist bewusst positionsabhängig: außen in der
-Line ist die Seite Gewöhnungssache, in der Secondary nicht.
+Nur `T`, `G` und `DE` haben zwei Seiten — der Rest kennt keine. Der Wert ist bewusst
+positionsabhängig: ganz außen in der Line ist die Seite Gewöhnungssache, weiter innen
+nicht.
 
 | Position | Seitenwechsel kostet |
 | --- | --- |
-| `CB` | 100 % — nichts, die beiden Seiten sind gleich |
-| `WR` | 100 % |
 | `DE` | 98 % |
 | `G` | 92 % |
 | `T` | 90 % |
@@ -224,7 +233,7 @@ Line ist die Seite Gewöhnungssache, in der Secondary nicht.
 | Empfänger | `WR` `SL` `TE` |
 | Quarterback | `QB` (allein) |
 | Line Defense | `DE` `DT` `NT` |
-| Linebacker | `MLB` `SAM` `WILL` |
+| Linebacker | `MIKE` `SAM` `WILL` |
 | Secondary | `CB` `FS` `SS` |
 
 Beispiel: ein auf `LT` ausgebildeter Spieler behält auf `RT` 90 % seiner Technik, auf
@@ -259,7 +268,7 @@ Körpermalus = min(20 %, |kg(A) - kg(B)| x 0,4 %)
 | | | | | | | |
 | --- | --- | --- | --- | --- | --- | --- |
 | `SL` 81,5 | `CB` 82,5 | `WR` 85 | `FS` 88,5 | `RB` 90 | `QB` 92,5 | `SS` 95 |
-| `WILL` 97,5 | `FB` 103,5 | `TE` 105 | `MLB` 109 | `SAM` 109 | `DE` 110 | `C` 112,5 |
+| `WILL` 97,5 | `FB` 103,5 | `TE` 105 | `MIKE` 109 | `SAM` 109 | `DE` 110 | `C` 112,5 |
 | `G` 120 | `T` 125 | `DT` 127,5 | `NT` 137,5 | | | |
 
 Damit entstehen die groben Körperbänder von selbst — die Leichten bis 97, die Mitte
@@ -295,15 +304,15 @@ Je Position die fünf billigsten Nebenpositionen:
 | `T` | 33,3 % | G 8,0 | C 12,4 | FB 18,4 | TE 26,6 | NT 31,1 | FS 46,3 |
 | `G` | 34,4 % | T 9,7 | C 10,3 | FB 18,3 | TE 27,7 | NT 28,3 | FS 48,7 |
 | `C` | 31,3 % | G 7,3 | T 11,6 | FB 14,5 | TE 24,8 | NT 30,3 | CB 43,4 |
-| `DE` | 29,6 % | DT 14,0 | NT 17,3 | MLB 19,9 | SAM 20,0 | SS 28,2 | WR 40,5 |
-| `DT` | 30,2 % | NT 5,0 | DE 17,2 | MLB 20,8 | G 23,0 | SAM 24,0 | SL 46,6 |
-| `NT` | 35,0 % | DT 14,5 | G 26,1 | DE 26,3 | MLB 27,7 | C 28,6 | SL 48,3 |
-| `MLB` | 26,7 % | SAM 9,0 | SS 14,0 | DE 19,7 | NT 19,7 | WILL 20,0 | SL 44,7 |
-| `SAM` | 24,9 % | MLB 2,2 | SS 11,5 | DE 15,8 | WILL 17,4 | DT 17,4 | SL 43,3 |
-| `WILL` | 30,4 % | SS 11,6 | FS 12,6 | CB 15,7 | MLB 19,3 | SAM 19,9 | G 45,8 |
+| `DE` | 29,6 % | DT 14,0 | NT 17,3 | MIKE 19,9 | SAM 20,0 | SS 28,2 | WR 40,5 |
+| `DT` | 30,2 % | NT 5,0 | DE 17,2 | MIKE 20,8 | G 23,0 | SAM 24,0 | SL 46,6 |
+| `NT` | 35,0 % | DT 14,5 | G 26,1 | DE 26,3 | MIKE 27,7 | C 28,6 | SL 48,3 |
+| `MIKE` | 26,7 % | SAM 9,0 | SS 14,0 | DE 19,7 | NT 19,7 | WILL 20,0 | SL 44,7 |
+| `SAM` | 24,9 % | MIKE 2,2 | SS 11,5 | DE 15,8 | WILL 17,4 | DT 17,4 | SL 43,3 |
+| `WILL` | 30,4 % | SS 11,6 | FS 12,6 | CB 15,7 | MIKE 19,3 | SAM 19,9 | G 45,8 |
 | `CB` | 28,5 % | FS 6,7 | WILL 9,2 | SS 11,2 | QB 21,8 | SL 22,3 | G 44,1 |
-| `FS` | 31,6 % | SS 9,8 | CB 12,8 | WILL 14,7 | MLB 22,5 | QB 23,7 | T 47,6 |
-| `SS` | 29,5 % | FS 8,6 | WILL 13,9 | CB 14,6 | MLB 16,7 | SAM 19,9 | T 43,9 |
+| `FS` | 31,6 % | SS 9,8 | CB 12,8 | WILL 14,7 | MIKE 22,5 | QB 23,7 | T 47,6 |
+| `SS` | 29,5 % | FS 8,6 | WILL 13,9 | CB 14,6 | MIKE 16,7 | SAM 19,9 | T 43,9 |
 
 Drei Eigenschaften, die das Modell haben soll und hier nachweisbar hat:
 
@@ -345,7 +354,7 @@ Die feste Linie dazu: `LT` `LG` `C` `RG` `RT` und `QB`.
 
 ### Defense: 4-3 als Grundformation
 
-`LDE` `DT` `NT` `RDE` · `MLB` `SAM` `WILL` · `LCB` `RCB` `FS` `SS`
+`LE` `DT` `NT` `RE` · `MIKE` `SAM` `WILL` · `CB1` `CB2` `FS` `SS`
 
 4-4, 3-3 und 3-4 kommen später und benutzen denselben Platz-Apparat.
 
@@ -439,21 +448,21 @@ Vorschlag der Gruppierung bleibt ein Vorschlag, ein Regler-Spielraum entfällt.
 
 **Defensive Line**
 
-| | `LDE` | `RDE` | `DT` | `NT` |
+| | `LE` | `RE` | `DT` | `NT` |
 | --- | --- | --- | --- | --- |
 | Pass | 32 % | 32 % | 20 % | 16 % |
 | Lauf | 23 % | 23 % | 26 % | 28 % |
 
 **Linebacker**
 
-| | `MLB` | `SAM` | `WILL` |
+| | `MIKE` | `SAM` | `WILL` |
 | --- | --- | --- | --- |
 | Pass | 32 % | 23 % | 45 % |
 | Lauf | 40 % | 35 % | 25 % |
 
 **Secondary**
 
-| | `LCB` | `RCB` | `FS` | `SS` |
+| | `CB1` | `CB2` | `FS` | `SS` |
 | --- | --- | --- | --- | --- |
 | Pass | 30 % | 30 % | 25 % | 15 % |
 | Lauf | 17 % | 17 % | 26 % | 40 % |
@@ -529,7 +538,7 @@ Werkzeug — und Kadertiefe wird zum wichtigsten Gut.
 | `QB` | 2 | `DE` | 2 |
 | `RB` | 2 | `DT` | 2 |
 | `FB` | 1 | `NT` | 1 |
-| `WR` | 4 | `MLB` | 2 |
+| `WR` | 4 | `MIKE` | 2 |
 | `SL` | 2 | `SAM` | 1 |
 | `TE` | **0** | `WILL` | 1 |
 | `T` | 2 | `CB` | 3 |
@@ -551,7 +560,7 @@ zusammenkommen — Line, Receiver, Secondary:
 | --- | --- | --- | --- | --- | --- |
 | `QB` 1 | `RB` 3 | `FB` 2 | `WR` 5 | `SL` 3 | `TE` 4 |
 | `T` 5 | `G` 4 | `C` 2 | `DE` 5 | `DT` 4 | `NT` 2 |
-| `MLB` 3 | `SAM` 3 | `WILL` 3 | `CB` 5 | `FS` 2 | `SS` 2 |
+| `MIKE` 3 | `SAM` 3 | `WILL` 3 | `CB` 5 | `FS` 2 | `SS` 2 |
 
 Die `TE` 4 ist Absicht: der eigene Verein hat keinen, die anderen sollen regelmäßig
 einen haben. Der Nachteil ist bezifferbar — ein umgestellter Receiver auf dem TE-Platz
@@ -568,7 +577,7 @@ Prozent Angriffsstärke.
 | `TE` | 40–49, 80–89 |
 | `T` `G` `C` | 50–79, **nie einstellig** |
 | `DE` `DT` `NT` | 50–79, 90–99 |
-| `MLB` `SAM` `WILL` | 40–59, 90–99 |
+| `MIKE` `SAM` `WILL` | 40–59, 90–99 |
 | `CB` `FS` `SS` | 20–49 |
 
 Die Regeln „0–9 sind echte Nummern", „5–9 gehen an die zwölf besten Nicht-Linemen" und
@@ -598,9 +607,13 @@ passAnteil: Record<teamId, number>     // 0..1, Vorschlag aus personnel, vom Man
   Personnel-Gruppierung, Regler für den Passanteil, daneben die Auswirkung auf Lauf-
   und Passstärke. Später kommt hier die Defense-Formation dazu.
 - **Kaderscreen**: Lauf- und Passstärke statt einer Angriffszahl; die Aufstellung mit
-  Platz, Spieler und Umstellungsmarkierung; Größe und Gewicht in der Kaderliste.
+  Platz, Spieler und Umstellungsmarkierung; Größe und Gewicht in der Kaderliste. Der
+  Roster steht nach Positionen sortiert und trennt sie mit einer Linie — eine dünne
+  zwischen zwei Positionen, eine kräftige zwischen Offense und Defense. Sortiert der
+  Manager nach etwas anderem, entfallen die Linien: dann schnitten sie willkürlich.
 - **Attribute**: beim eigenen Kader offen, bei fremden Vereinen nur die Gesamtstärke.
-- Alle Texte nach `i18n.js`, deutsch, UTF-8 ohne BOM.
+- Alle Texte nach `i18n.js`, deutsch, UTF-8 ohne BOM. Nicht übersetzt wird die
+  Sprache des Sports: Offense, Defense, Run, Pass, Roster, die Positionsnamen.
 - `vis.html` bekommt `?v=taktik`.
 
 ---
@@ -647,7 +660,7 @@ Neu: `engine/positionen.js`. Tests.
 
 Die Tabellen aus Abschnitt 3 als Daten, dazu `eignung(spieler, platz, art)` mit dem
 Technik-Transfer **und** dem Körpermalus aus Abschnitt 4. Fertig, wenn ein TE auf `T`
-messbar besser ist als ein WR auf `T`, ein CB die Seite kostenlos wechselt und die
+messbar besser ist als ein WR auf `T`, ein CB ohne Seite auskommt und die
 Kosten der Umstellung ungefähr die Tabelle aus Abschnitt 4 treffen — die ist der
 Sollwert.
 
@@ -822,14 +835,14 @@ Damit nichts zweimal verhandelt wird. Alles darüber stützt sich hierauf.
 | --- | --- |
 | Reihenfolge | Datenmodell zuerst, Offense-Umbau darauf |
 | Positionen | 18, `K`/`P` entfallen aus dem Katalog |
-| Seiten | Platz, nicht Position; Kosten je Position (CB 100 %, WR 100 %, DE 98 %, G 92 %, T 90 %) |
+| Seiten | Platz, nicht Position; nur wo sie etwas kosten (DE 98 %, G 92 %, T 90 %) — `CB` und `WR` haben keine |
 | Attribute | 15 plus die zwei Kickwerte |
 | `staerke` | bleibt vorerst Führungsgröße, berechnete Stärke später |
 | Körper | Größe und Gewicht als echte Daten, Korridor je Position, ~20 % daneben |
 | Technik | positionsgebunden, trägt den Umstellungsabschlag; Leiter 100/Seite/70/45/25; es zählt der Anteil der Zielposition |
 | Körpermalus | 0,4 % je Kilo Abstand der Korridormitten, gedeckelt bei 20 % — die groben Körperbänder fallen daraus von selbst |
 | Generierungsprofil | nicht das Mittel der beiden Formeln, sondern nach Blockgewicht × Platzanteil gewichtet |
-| Linebacker | MLB und SAM physisch (Brücke zur Line), WILL athletisch (Brücke zur Secondary); MLB mit `passrush` |
+| Linebacker | MIKE und SAM physisch (Brücke zur Line), WILL athletisch (Brücke zur Secondary); MIKE mit `passrush` |
 | Umstellungskosten | Sollwerte in Abschnitt 4: Gruppe 13 %, Einheit 27 %, quer 36 % |
 | Skill-Leiter | zwei Leitern: Pass 38/27/18/11/6 (steil), Lauf 26/23/20/17/14 (flach) |
 | Rollenwert | multipliziert die Sprosse; Summe = Blockfaktor der Gruppierung, normiert auf 11 personnel |

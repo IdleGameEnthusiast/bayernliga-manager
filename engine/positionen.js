@@ -30,7 +30,7 @@ export const KOERPER_KORRIDOR = {
   DE:   { groesse: [185, 198], gewicht: [100, 120] },
   DT:   { groesse: [183, 195], gewicht: [115, 140] },
   NT:   { groesse: [180, 193], gewicht: [125, 150] },
-  MLB:  { groesse: [180, 192], gewicht: [100, 118] },
+  MIKE:  { groesse: [180, 192], gewicht: [100, 118] },
   SAM:  { groesse: [183, 193], gewicht: [100, 118] },
   WILL: { groesse: [178, 188], gewicht: [90, 105] },
   CB:   { groesse: [172, 185], gewicht: [75, 90] },
@@ -56,8 +56,8 @@ export function korridorMitte(position) {
  * `technik` steht in jeder einzelnen davon. Der Anteil ist der Träger des
  * Umstellungsabschlags — ohne ihn kostet ein Positionswechsel nichts.
  *
- * MLB und SAM sind bewusst physisch geschnitten, WILL bewusst athletisch: die
- * drei Linebacker sollen auseinanderliegen, MLB und SAM als Brücke zur Line,
+ * MIKE und SAM sind bewusst physisch geschnitten, WILL bewusst athletisch: die
+ * drei Linebacker sollen auseinanderliegen, MIKE und SAM als Brücke zur Line,
  * WILL als Brücke zur Secondary. Ständen alle drei in der Mitte, landete jeder
  * von ihnen bei den Safeties.
  * @type {Record<string, { pass: Record<string, number>, lauf: Record<string, number> }>}
@@ -111,7 +111,7 @@ export const FORMELN = {
     pass: { kraft: 45, passrush: 25, technik: 20, beweglichkeit: 10 },
     lauf: { kraft: 50, tacklen: 20, technik: 15, spielverstaendnis: 15 },
   },
-  MLB: {
+  MIKE: {
     pass: { spielverstaendnis: 28, coverage: 20, passrush: 14, technik: 15, kraft: 13, schnelligkeit: 10 },
     lauf: { tacklen: 32, kraft: 28, spielverstaendnis: 25, technik: 15 },
   },
@@ -157,7 +157,7 @@ export const PROFIL_BEITRAG = {
   DE:   { pass: 0.112, lauf: 0.092 },
   DT:   { pass: 0.070, lauf: 0.104 },
   NT:   { pass: 0.056, lauf: 0.112 },
-  MLB:  { pass: 0.080, lauf: 0.160 },
+  MIKE:  { pass: 0.080, lauf: 0.160 },
   SAM:  { pass: 0.058, lauf: 0.140 },
   WILL: { pass: 0.113, lauf: 0.100 },
   CB:   { pass: 0.120, lauf: 0.034 },
@@ -225,6 +225,10 @@ export function bewerte(werte, anteile) {
 /**
  * Die Plätze, die eine Aufstellung kennt. Links und rechts sind Plätze, keine
  * Positionen: der Katalog kennt `T`, die Formation kennt `LT` und `RT`.
+ *
+ * Wo eine Position keine Seite kennt, tragen ihre Plätze auch keine: `CB1` und
+ * `CB2` sind zwei gleichwertige Plätze, kein linker und kein rechter. Angezeigt
+ * heißen beide `CB` — siehe `platzKuerzel()`.
  * @type {Record<string, { position: string, seite?: 'L'|'R' }>}
  */
 export const PLAETZE = {
@@ -239,15 +243,15 @@ export const PLAETZE = {
   LG: { position: 'G', seite: 'L' },
   RG: { position: 'G', seite: 'R' },
   C: { position: 'C' },
-  LDE: { position: 'DE', seite: 'L' },
-  RDE: { position: 'DE', seite: 'R' },
+  LE: { position: 'DE', seite: 'L' },
+  RE: { position: 'DE', seite: 'R' },
   DT: { position: 'DT' },
   NT: { position: 'NT' },
-  MLB: { position: 'MLB' },
+  MIKE: { position: 'MIKE' },
   SAM: { position: 'SAM' },
   WILL: { position: 'WILL' },
-  LCB: { position: 'CB', seite: 'L' },
-  RCB: { position: 'CB', seite: 'R' },
+  CB1: { position: 'CB' },
+  CB2: { position: 'CB' },
   FS: { position: 'FS' },
   SS: { position: 'SS' },
 };
@@ -255,21 +259,57 @@ export const PLAETZE = {
 /**
  * Die Positionen, auf denen ein Spieler auf einer Seite ausgebildet wird.
  * Für alle anderen ist die Seite keine Größe.
+ *
+ * `CB` und `WR` stehen bewusst nicht mehr darin. Ihr Seitenwechsel kostete
+ * nichts, also trug die Seite dort keine Regel — sie stand nur in der Anzeige
+ * herum und legte einen Unterschied nahe, den das Modell nicht kennt.
  */
-export const SEITEN_POSITIONEN = /** @type {const} */ (['T', 'G', 'DE', 'CB', 'WR']);
+export const SEITEN_POSITIONEN = /** @type {const} */ (['T', 'G', 'DE']);
 
 /**
  * Was ein Seitenwechsel von der Technik übrig lässt. Bewusst positionsabhängig:
- * außen in der Line ist die Seite Gewöhnungssache, in der Secondary nicht.
+ * außen in der Line ist die Seite Gewöhnungssache, weiter innen nicht.
  * @type {Record<string, number>}
  */
 export const SEITENWECHSEL = {
-  CB: 1.00,   // die beiden Seiten sind gleich
-  WR: 1.00,
   DE: 0.98,
   G: 0.92,
   T: 0.90,
 };
+
+/**
+ * Wie eine Position mit Seite geschrieben wird. Der Katalog kennt `T`, `G` und
+ * `DE`; auf dem Feld heißen sie `LT`/`RT`, `LG`/`RG` und `LE`/`RE` — dieselben
+ * Namen, unter denen `PLAETZE` die Plätze führt. Wer keine Seite hat, steht
+ * unter seinem Katalognamen.
+ * @type {Record<string, Record<'L'|'R', string>>}
+ */
+export const SEITEN_KUERZEL = {
+  T: { L: 'LT', R: 'RT' },
+  G: { L: 'LG', R: 'RG' },
+  DE: { L: 'LE', R: 'RE' },
+};
+
+/**
+ * Wie ein Spieler auf dem Bogen steht: `LT`, `RE`, `MIKE`, `CB`.
+ * @param {{ position: string, seite?: 'L'|'R'|null }} spieler
+ */
+export function positionsKuerzel(spieler) {
+  const mitSeite = spieler.seite && SEITEN_KUERZEL[spieler.position];
+  return (mitSeite && mitSeite[spieler.seite]) || spieler.position;
+}
+
+/**
+ * Wie ein Platz beschriftet wird. Fast immer sein eigener Schlüssel — nur wo
+ * zwei gleichwertige Plätze dieselbe Position tragen, fällt die Nummer weg.
+ * @param {string} platz
+ */
+export function platzKuerzel(platz) {
+  return PLATZ_KUERZEL[platz] || platz;
+}
+
+/** @type {Record<string, string>} */
+const PLATZ_KUERZEL = { CB1: 'CB', CB2: 'CB' };
 
 /**
  * Die Stufenleiter des Technik-Transfers: was ein Spieler von seinem Handwerk

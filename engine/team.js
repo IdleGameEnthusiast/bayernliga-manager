@@ -86,9 +86,9 @@ export function teamStaerken(kader, spieltag, personnel = STANDARD_PERSONNEL, pa
   const skill = aufstellung.offense.slice(1 + OL_PLAETZE.length);
   const anteile = skillAnteile(gruppierung.skill);
 
-  const dl = block(aufstellung.defense, ['LDE', 'RDE', 'DT', 'NT']);
-  const lb = block(aufstellung.defense, ['MLB', 'SAM', 'WILL']);
-  const db = block(aufstellung.defense, ['LCB', 'RCB', 'FS', 'SS']);
+  const dl = block(aufstellung.defense, ['LE', 'RE', 'DT', 'NT']);
+  const lb = block(aufstellung.defense, ['MIKE', 'SAM', 'WILL']);
+  const db = block(aufstellung.defense, ['CB1', 'CB2', 'FS', 'SS']);
 
   /** @param {'pass'|'lauf'} art */
   const angriff = (art) => {
@@ -100,9 +100,9 @@ export function teamStaerken(kader, spieltag, personnel = STANDARD_PERSONNEL, pa
   /** @param {'pass'|'lauf'} art */
   const verteidigung = (art) => {
     const g = BLOCK_GEWICHT.verteidigung[art];
-    return blockWert(dl, ['LDE', 'RDE', 'DT', 'NT'].map((p) => PLATZ_ANTEIL.dl[art][p]), art) * g.dl
-      + blockWert(lb, ['MLB', 'SAM', 'WILL'].map((p) => PLATZ_ANTEIL.lb[art][p]), art) * g.lb
-      + blockWert(db, ['LCB', 'RCB', 'FS', 'SS'].map((p) => PLATZ_ANTEIL.db[art][p]), art) * g.db;
+    return blockWert(dl, ['LE', 'RE', 'DT', 'NT'].map((p) => PLATZ_ANTEIL.dl[art][p]), art) * g.dl
+      + blockWert(lb, ['MIKE', 'SAM', 'WILL'].map((p) => PLATZ_ANTEIL.lb[art][p]), art) * g.lb
+      + blockWert(db, ['CB1', 'CB2', 'FS', 'SS'].map((p) => PLATZ_ANTEIL.db[art][p]), art) * g.db;
   };
 
   const passAngriff = angriff('pass');

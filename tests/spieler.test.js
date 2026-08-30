@@ -200,7 +200,7 @@ test('Trikotnummern sind eindeutig und halten sich an ihr Band', () => {
     TE: [[40, 49], [80, 89]],
     T: [[50, 79]], G: [[50, 79]], C: [[50, 79]],
     DE: [[50, 79], [90, 99]], DT: [[50, 79], [90, 99]], NT: [[50, 79], [90, 99]],
-    MLB: [[40, 59], [90, 99]], SAM: [[40, 59], [90, 99]], WILL: [[40, 59], [90, 99]],
+    MIKE: [[40, 59], [90, 99]], SAM: [[40, 59], [90, 99]], WILL: [[40, 59], [90, 99]],
     CB: [[20, 49]], FS: [[20, 49]], SS: [[20, 49]],
   };
 
@@ -339,9 +339,9 @@ test('kein Lineman ist schnell', () => {
 
 test('Körper und Attribute sind beim selben Seed dieselben', () => {
   resetSpielerIds();
-  const a = macheSpieler(makeRng('gleich'), 'MLB', 60);
+  const a = macheSpieler(makeRng('gleich'), 'MIKE', 60);
   resetSpielerIds();
-  const b = macheSpieler(makeRng('gleich'), 'MLB', 60);
+  const b = macheSpieler(makeRng('gleich'), 'MIKE', 60);
   assert.equal(a.groesse, b.groesse);
   assert.equal(a.gewicht, b.gewicht);
   assert.deepEqual(a.attribute, b.attribute);

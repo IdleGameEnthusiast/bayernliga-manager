@@ -19,7 +19,9 @@ Gelten für jeden Block, ohne Ausnahme:
 - **`engine/` fasst kein DOM an, `ui/` entscheidet keine Regel.** `app.js` ist
   der einzige Ort, an dem sich beide begegnen.
 - **Sichtbare Texte nur in `i18n.js`**, deutsch, UTF-8 ohne BOM, echte Umlaute.
-  Bezeichner im Code bleiben englisch.
+  Bezeichner im Code bleiben englisch. Die Sprache des Sports wird nicht
+  übersetzt: Offense, Defense, Run, Pass, Roster und die Positionsnamen bleiben
+  englisch.
 - **Zufall wird injiziert** (`makeRng(seed)`). In Tests nie auf eine Verteilung
   prüfen, ohne den Seed festzunageln.
 - Tests: `node --test tests/*.test.js`. Vor und nach einer Änderung laufen
