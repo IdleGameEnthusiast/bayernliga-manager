@@ -22,7 +22,8 @@ import {
 } from './spielplan.js';
 import { simuliereSpiel } from './spiel.js';
 import {
-  PERSONNEL, STANDARD_PERSONNEL, stelleAuf, alsVorgabe, setzePlatz,
+  PERSONNEL, STANDARD_PERSONNEL, stelleAuf, alsVorgabe, setzePlatz, vollstaendig,
+  leereVorgabe,
 } from './aufstellung.js';
 import { berechneTabelle } from './tabelle.js';
 
@@ -164,38 +165,92 @@ export function aufstellungVon(stand, teamId) {
 /**
  * Die Aufstellung, die der eigene Verein am nächsten Spieltag stellen würde:
  * die Vorgabe, repariert um alles, was ihr fehlt.
+ *
+ * Mit `vorgabe` rechnet sie stattdessen einen **Entwurf** durch, der noch nicht
+ * im Stand steht. Das ist der Weg, auf dem die Ansicht zeigen kann, was eine
+ * Änderung ausmachen *würde*, ohne sie schon zu tun.
  * @param {SpielStand} stand
+ * @param {import('./aufstellung.js').Vorgabe | null} [vorgabe]
  */
-export function eigeneAufstellung(stand) {
+export function eigeneAufstellung(stand, vorgabe) {
   const id = stand.meinTeam;
   return stelleAuf(
-    stand.kader[id], stand.spieltag,
-    personnelVon(stand, id), passAnteilVon(stand, id), aufstellungVon(stand, id),
+    stand.kader[id], stand.spieltag, personnelVon(stand, id), passAnteilVon(stand, id),
+    vorgabe === undefined ? aufstellungVon(stand, id) : vorgabe,
   );
 }
 
 /**
- * Einen Spieler auf einen Platz stellen.
+ * Woran das Bearbeiten anfängt: die Elf, die gerade steht, als Vorgabe.
  *
- * Die Vorgabe wird dabei aus der Aufstellung gewonnen, die gerade steht, nicht
- * aus der gespeicherten: der Manager sieht die reparierte Elf vor sich und
- * meint sie auch. Der erste Handgriff friert damit ein, was die Automatik
- * gestellt hatte — und ändert daran genau einen Platz.
+ * Der Manager sieht die reparierte Aufstellung vor sich und meint sie auch.
+ * Der erste Handgriff friert deshalb ein, was die Automatik gestellt hatte —
+ * und ändert daran genau einen Platz.
  * @param {SpielStand} stand
+ * @param {import('./aufstellung.js').Vorgabe | null} [vorgabe]
+ */
+export function entwurfVon(stand, vorgabe) {
+  return alsVorgabe(eigeneAufstellung(stand, vorgabe));
+}
+
+/**
+ * Einen Spieler auf einen Platz stellen — im Entwurf, nicht im Stand.
+ *
+ * Nichts hiervon berührt den Speicherstand. Erst `setzeAufstellung()` schreibt,
+ * und dazwischen liegt der Knopf „Speichern": eine halb gebaute Aufstellung
+ * soll nicht schon gelten, während sie noch gebaut wird.
+ * @param {SpielStand} stand
+ * @param {import('./aufstellung.js').Vorgabe | null} entwurf Der bisherige, oder null
  * @param {string} schluessel Platz-Schlüssel aus der Aufstellung
  * @param {string} spielerId
+ * @returns {import('./aufstellung.js').Vorgabe} der neue Entwurf
  */
-export function setzeAufstellung(stand, schluessel, spielerId) {
-  const kader = stand.kader[stand.meinTeam];
-  if (!kader.some((s) => s.id === spielerId)) return stand;
+export function entwurfSetze(stand, entwurf, schluessel, spielerId) {
+  const basis = entwurf || entwurfVon(stand);
+  if (!stand.kader[stand.meinTeam].some((s) => s.id === spielerId)) return basis;
+  return setzePlatz(basis, schluessel, spielerId);
+}
 
-  stand.aufstellung = setzePlatz(alsVorgabe(eigeneAufstellung(stand)), schluessel, spielerId);
-  return stand;
+/**
+ * Der Entwurf, in dem niemand steht — der Anfang für eine Elf von Grund auf.
+ *
+ * Er ist ausdrücklich kein Speicherzustand: solange auch nur ein Platz frei
+ * ist, lehnt `setzeAufstellung()` ihn ab. Das Leeren ist ein Arbeitsschritt,
+ * kein Ergebnis.
+ * @param {SpielStand} stand
+ */
+export function entwurfLeeren(stand) {
+  return leereVorgabe(eigeneAufstellung(stand, null));
+}
+
+/**
+ * Ob ein Entwurf eine vollständige Elf ergibt — die Bedingung fürs Speichern.
+ * @param {SpielStand} stand
+ * @param {import('./aufstellung.js').Vorgabe | null} entwurf
+ */
+export function entwurfVollstaendig(stand, entwurf) {
+  return vollstaendig(eigeneAufstellung(stand, entwurf));
+}
+
+/**
+ * Einen Entwurf in den Stand schreiben. `null` heißt: keine Vorgabe mehr,
+ * danach stellt die Automatik wieder alles.
+ *
+ * Eine unvollständige Elf wird abgelehnt statt halb gespeichert. Die Regel steht
+ * hier und nicht in der Ansicht — die fragt sie nur, um ihren Knopf zu sperren.
+ * @param {SpielStand} stand
+ * @param {import('./aufstellung.js').Vorgabe | null} entwurf
+ * @returns {boolean} ob geschrieben wurde
+ */
+export function setzeAufstellung(stand, entwurf) {
+  if (entwurf && !entwurfVollstaendig(stand, entwurf)) return false;
+  stand.aufstellung = entwurf;
+  return true;
 }
 
 /**
  * Die Vorgabe fallen lassen. Danach stellt die Automatik wieder alles — der
- * Knopf „automatisch aufstellen" ist nichts anderes als das Vergessen.
+ * Knopf „Automatisch aufstellen" ist nichts anderes als das Vergessen.
  * @param {SpielStand} stand
  */
 export function automatischAufstellen(stand) {
@@ -287,7 +342,10 @@ function spieltagRng(stand) {
 function ohneAbgaenge(vorgabe, kader) {
   if (!vorgabe) return null;
   const da = new Set(kader.map((s) => s.id));
-  return Object.fromEntries(Object.entries(vorgabe).filter(([, id]) => da.has(id)));
+  // `null` bleibt: ein freigelassener Platz ist eine Entscheidung und kein Mann,
+  // der zurückgetreten sein könnte.
+  return Object.fromEntries(
+    Object.entries(vorgabe).filter(([, id]) => id === null || da.has(id)));
 }
 
 /** @param {SpielStand} stand */

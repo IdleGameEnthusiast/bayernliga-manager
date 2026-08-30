@@ -319,8 +319,9 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
    Zwei Tipps, kein Ziehen: der Platz, dann der Mann. Jede Trefferfläche hält
    deshalb die 44 Pixel ein, auch innerhalb der engen Aufstellungsliste. */
 
-.kartenkopf { display: flex; align-items: center; gap: 12px; }
+.kartenkopf { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .kartenkopf h2 { flex: 1; margin-bottom: 4px; }
+.aufstellungsknoepfe { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
 
 button.klein {
   min-height: 36px; padding: 0 14px;
@@ -340,6 +341,11 @@ button.klein {
   border-bottom-color: transparent;
 }
 .aufstellung li.gewaehlt .platz { color: var(--akzent-hell); }
+
+/* Ein ausdrücklich freier Platz. Er sieht aus wie eine Lücke, weil er eine ist. */
+.aufstellung li.frei .platz,
+.aufstellung li.frei .platz-name { color: var(--text-leise); }
+.aufstellung li.frei .platz-name { font-style: italic; }
 
 .aufstellung li.kandidaten {
   display: block;
@@ -437,6 +443,28 @@ td.werteknopf { width: 1%; padding-left: 0; padding-right: 4px; }
 }
 .chevron:hover { color: var(--text); }
 .chevron:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
+
+/* --- Rückfrage ------------------------------------------------------------
+   Ein Blatt über der Ansicht. Kein confirm(): auf jedem Knopf steht, was er
+   tut, und „speichern" und „verwerfen" sind beide ein Ja. */
+
+.frageschirm {
+  position: fixed; inset: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, .6);
+}
+.frage {
+  width: 100%; max-width: 420px;
+  padding: 18px;
+  background: var(--bg-erhoben);
+  border: 1px solid var(--rand); border-radius: var(--radius);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .5);
+}
+.frage h2 { margin: 0 0 8px; font-size: 16px; }
+.frage p { margin: 0 0 16px; color: var(--text-leise); }
+.fragenknoepfe { display: flex; gap: 8px; flex-wrap: wrap; }
+.fragenknoepfe button { flex: 1 1 140px; max-width: none; }
 
 /* --- Sterne ---------------------------------------------------------------
    Zwei Reihen übereinander: die gefüllte wird beschnitten. So sitzt der halbe

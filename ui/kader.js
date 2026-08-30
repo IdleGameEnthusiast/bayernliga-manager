@@ -23,7 +23,7 @@ import {
   LIGA_MAX_STAERKE, POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE,
 } from '../engine/constants.js';
 import { positionsKuerzel, hauptPosition, platzKuerzel } from '../engine/positionen.js';
-import { bestenFuer, wertAuf } from '../engine/aufstellung.js';
+import { bestenFuer, wertAuf, vollstaendig } from '../engine/aufstellung.js';
 import { personnelVon, passAnteilVon, aufstellungVon } from '../engine/saison.js';
 import { aufstellungKarte, wechselLeiste } from './aufstellung.js';
 
@@ -80,15 +80,21 @@ let starterZeigen = true;
 
 /**
  * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {{ vorgabe: import('../engine/aufstellung.js').Vorgabe | null } | null} entwurf
  * @param {{ setze: (schluessel: string, spielerId: string) => void,
- *           automatisch: () => void, neuZeichnen: () => void }} aktionen
+ *           automatisch: () => void, leeren: () => void,
+ *           speichern: () => boolean, verwerfen: () => void,
+ *           neuZeichnen: () => void }} aktionen
  */
-export function zeigeKader(stand, aktionen) {
+export function zeigeKader(stand, entwurf, aktionen) {
   const kader = stand.kader[stand.meinTeam];
   const spieltag = stand.spieltag;
   const personnel = personnelVon(stand, stand.meinTeam);
   const anteil = passAnteilVon(stand, stand.meinTeam);
-  const vorgabe = aufstellungVon(stand, stand.meinTeam);
+
+  // Der Entwurf schlägt den Stand: die Ansicht zeigt, was gälte, wenn der
+  // Manager jetzt speichert — Mannschaftsteile eingerechnet.
+  const vorgabe = entwurf ? entwurf.vorgabe : aufstellungVon(stand, stand.meinTeam);
 
   const s = teamStaerken(kader, spieltag, personnel, anteil, vorgabe);
   const verletzt = verletzte(kader, spieltag);
@@ -117,6 +123,14 @@ export function zeigeKader(stand, aktionen) {
     platz: auswahl.platz,
     spieler: auswahl.spieler,
     vonHand: !!vorgabe,
+    veraendert: !!entwurf,
+    vollstaendig: vollstaendig(s.aufstellung),
+    speichern: () => { aktionen.speichern(); },
+    verwerfen: aktionen.verwerfen,
+    leeren: () => {
+      nichtsGewaehlt();
+      aktionen.leeren();
+    },
     wertFuer: (platz) => (gewaehlterSpieler ? wertAuf(gewaehlterSpieler, platz, anteil) : 0),
     gewaehlterName: gewaehlterSpieler ? gewaehlterSpieler.nachname : '',
     waehlePlatz: (schluessel) => {

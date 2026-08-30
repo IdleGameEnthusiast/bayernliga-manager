@@ -42,6 +42,11 @@ import { platzKuerzel, positionsKuerzel } from '../engine/positionen.js';
  * @property {string} gewaehlterName
  * @property {boolean} starterZeigen  Ob die Kandidatenliste die Elf mitzeigt
  * @property {(an: boolean) => void} zeigeStarter
+ * @property {boolean} veraendert     Es gibt ungespeicherte Änderungen
+ * @property {boolean} vollstaendig   Jeder der zweiundzwanzig Plätze ist besetzt
+ * @property {() => void} speichern
+ * @property {() => void} verwerfen
+ * @property {() => void} leeren
  */
 
 /** @param {import('../engine/aufstellung.js').Platz} p */
@@ -90,17 +95,9 @@ export function aufstellungKarte(a, steuerung) {
   return el('div', { class: 'karte' },
     el('div', { class: 'kartenkopf' },
       el('h2', { text: T.taktik.aufstellung }),
-      steuerung && steuerung.vonHand
-        ? el('button', { class: 'neben klein', onclick: steuerung.automatisch },
-          T.aufstellung.automatisch)
-        : null),
-    steuerung
-      ? el('p', { class: steuerung.spieler && !steuerung.platz ? 'klein' : 'leise klein',
-        style: { margin: '0 0 6px' } },
-        steuerung.spieler && !steuerung.platz
-          ? T.aufstellung.wohinMit(steuerung.gewaehlterName)
-          : steuerung.vonHand ? T.aufstellung.vonHand : T.aufstellung.hinweis)
-      : null,
+      steuerung ? aktionsknoepfe(steuerung) : null),
+    steuerung ? el('p', { class: hinweisKlasse(steuerung), style: { margin: '0 0 6px' } },
+      hinweisText(steuerung)) : null,
     el('div', { class: 'elfen' },
       el('div', {}, el('h3', { class: 'klein', text: T.taktik.angriffElf }), liste(a.offense)),
       el('div', {}, el('h3', { class: 'klein', text: T.taktik.verteidigungElf }), liste(a.defense))),
@@ -108,6 +105,52 @@ export function aufstellungKarte(a, steuerung) {
       text: T.taktik.kickPlaetze(
         a.k ? a.k.nachname : T.taktik.keiner,
         a.p ? a.p.nachname : T.taktik.keiner) }));
+}
+
+/**
+ * Speichern, verwerfen, automatisch — und nur, was gerade etwas tut.
+ *
+ * Speichern steht da, sobald etwas zu speichern ist, und ist gesperrt, solange
+ * die Elf nicht vollständig ist. Der Knopf sagt damit dasselbe wie die Regel
+ * dahinter, statt sie erst beim Tippen zu verraten.
+ * @param {Steuerung} steuerung
+ */
+function aktionsknoepfe(steuerung) {
+  return el('div', { class: 'aufstellungsknoepfe' },
+    steuerung.veraendert
+      ? el('button', {
+        class: 'haupt klein',
+        disabled: !steuerung.vollstaendig || undefined,
+        title: steuerung.vollstaendig ? undefined : T.aufstellung.speichernGesperrt,
+        onclick: steuerung.speichern,
+      }, T.aufstellung.speichern)
+      : null,
+    steuerung.veraendert
+      ? el('button', { class: 'neben klein', onclick: steuerung.verwerfen }, T.aufstellung.verwerfen)
+      : null,
+    steuerung.vonHand || steuerung.veraendert
+      ? el('button', { class: 'neben klein', onclick: steuerung.automatisch },
+        T.aufstellung.automatisch)
+      : null,
+    el('button', { class: 'neben klein', onclick: steuerung.leeren }, T.aufstellung.loeschen));
+}
+
+/** @param {Steuerung} steuerung */
+function hinweisKlasse(steuerung) {
+  return steuerung.veraendert || (steuerung.spieler && !steuerung.platz) ? 'klein' : 'leise klein';
+}
+
+/**
+ * Was über der Elf steht — der Reihe nach die dringlichste Nachricht: erst das
+ * Ungespeicherte, dann die angefangene Handlung, dann die Bedienung.
+ * @param {Steuerung} steuerung
+ */
+function hinweisText(steuerung) {
+  if (steuerung.veraendert) {
+    return steuerung.vollstaendig ? T.aufstellung.ungespeichert : T.aufstellung.ungespeichertOffen;
+  }
+  if (steuerung.spieler && !steuerung.platz) return T.aufstellung.wohinMit(steuerung.gewaehlterName);
+  return steuerung.vonHand ? T.aufstellung.vonHand : T.aufstellung.hinweis;
 }
 
 /**
@@ -137,7 +180,7 @@ function platzZeile(p, steuerung) {
 
   return el('li', {
     class: (steuerung ? 'waehlbar' : '') + (gewaehlt ? ' gewaehlt' : '')
-      + (ziel ? ' ziel' : '') + (hier ? ' steht' : ''),
+      + (ziel ? ' ziel' : '') + (hier ? ' steht' : '') + (p.frei ? ' frei' : ''),
     ...(steuerung ? {
       role: 'button',
       tabindex: '0',

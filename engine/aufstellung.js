@@ -186,6 +186,7 @@ export function doppelRisiko(robustheit) {
  * @property {import('./spieler.js').Spieler | null} spieler
  * @property {boolean} umgestellt  Er ist woanders ausgebildet
  * @property {boolean} doppel      Er steht schon in der anderen Einheit
+ * @property {boolean} frei        Der Manager lässt ihn ausdrücklich unbesetzt
  * @property {number} staerke      Was er auf **diesem** Platz wert ist
  */
 
@@ -209,7 +210,12 @@ export function doppelRisiko(robustheit) {
  * von den Runden darunter gefüllt, ein Eintrag auf einen Platz, den die
  * Gruppierung gerade nicht hat, wird stumm überlesen — und steht wieder da,
  * sobald der Manager das System zurückstellt.
- * @typedef {Record<string, string>} Vorgabe
+ *
+ * Ein Eintrag mit dem Wert `null` ist etwas anderes als kein Eintrag: er heißt
+ * „hier soll **niemand** stehen". Nur so lässt sich eine Aufstellung von Grund
+ * auf bauen — ohne ihn füllte die Automatik jeden Platz sofort wieder, den der
+ * Manager gerade geräumt hat.
+ * @typedef {Record<string, string | null>} Vorgabe
  */
 
 /**
@@ -379,7 +385,7 @@ function verteile(kandidaten, plaetze, passAnteil) {
 function leererPlatz(platz, schluessel) {
   return /** @type {Platz} */ ({
     platz, schluessel, position: PLAETZE[platz].position, spieler: null,
-    umgestellt: false, doppel: false, staerke: ERSATZ_STAERKE,
+    umgestellt: false, doppel: false, frei: false, staerke: ERSATZ_STAERKE,
   });
 }
 
@@ -451,7 +457,14 @@ export function stelleAuf(kader, spieltag, personnel = STANDARD_PERSONNEL, passA
   if (vorgabe) {
     const jeId = new Map(fit.map((s) => [s.id, s]));
     for (const platz of alle) {
-      const spieler = jeId.get(vorgabe[platz.schluessel]);
+      if (!Object.prototype.hasOwnProperty.call(vorgabe, platz.schluessel)) continue;
+      const gewuenscht = vorgabe[platz.schluessel];
+
+      // Ausdrücklich niemand. Der Platz ist damit vergeben — an keinen —, und
+      // die Reparaturrunden gehen an ihm vorbei.
+      if (gewuenscht === null) { platz.frei = true; continue; }
+
+      const spieler = jeId.get(gewuenscht);
       if (!spieler) continue;
       platz.spieler = spieler;
       platz.umgestellt = hauptPosition(spieler) !== platz.position;
@@ -465,7 +478,7 @@ export function stelleAuf(kader, spieltag, personnel = STANDARD_PERSONNEL, passA
   // „Seine Position" ist sein Hauptplatz, nicht seine Ausbildung: wer drei
   // Saisons als MIKE gespielt hat, ist einer und kein Umsteller mehr.
   for (const [position, plaetze] of nachPosition(alle)) {
-    const freie = plaetze.filter((p) => !p.spieler);
+    const freie = plaetze.filter((p) => !p.spieler && !p.frei);
     if (freie.length === 0) continue;
     const eigene = fit
       .filter((s) => !benutzt.has(s.id) && hauptPosition(s) === position)
@@ -479,7 +492,7 @@ export function stelleAuf(kader, spieltag, personnel = STANDARD_PERSONNEL, passA
 
   // Runde zwei: umstellen, teuerste Plätze zuerst.
   const offen = alle
-    .filter((p) => !p.spieler)
+    .filter((p) => !p.spieler && !p.frei)
     .sort((a, b) =>
       platzGewicht(b.platz, gruppierung.skill, anteil)
       - platzGewicht(a.platz, gruppierung.skill, anteil));
@@ -500,7 +513,7 @@ export function stelleAuf(kader, spieltag, personnel = STANDARD_PERSONNEL, passA
 
   // Runde drei: der Doppeleinsatz. Ein Notnagel, kein Werkzeug.
   for (const platz of alle) {
-    if (platz.spieler) continue;
+    if (platz.spieler || platz.frei) continue;
     let bester = null;
     let bestwert = -Infinity;
     for (const s of fit) {
@@ -611,6 +624,19 @@ export function doppelEinsaetze(a) {
     .map((p) => /** @type {import('./spieler.js').Spieler} */ (p.spieler).id);
 }
 
+/**
+ * Ob die Elf vollständig ist — jeder der zweiundzwanzig Plätze besetzt.
+ *
+ * Von selbst ist sie das immer: die drei Runden lassen keinen Platz leer,
+ * notfalls über den Doppeleinsatz. Die Frage hat erst einen Sinn, seit der
+ * Manager Plätze absichtlich frei lassen kann, und sie ist die Bedingung fürs
+ * Speichern: eine halbe Aufstellung ist keine, mit der man antritt.
+ * @param {Aufstellung} a
+ */
+export function vollstaendig(a) {
+  return [...a.offense, ...a.defense].every((p) => !!p.spieler);
+}
+
 /** Wie viele Plätze mit einem Umsteller besetzt sind. @param {Aufstellung} a */
 export function umstellungen(a) {
   return [...a.offense, ...a.defense].filter((p) => p.umgestellt).length;
@@ -634,7 +660,24 @@ export function alsVorgabe(a) {
   const vorgabe = {};
   for (const platz of [...a.offense, ...a.defense]) {
     if (platz.spieler) vorgabe[platz.schluessel] = platz.spieler.id;
+    else if (platz.frei) vorgabe[platz.schluessel] = null;
   }
+  return vorgabe;
+}
+
+/**
+ * Eine Aufstellung, auf der niemand steht: jeder Platz ausdrücklich frei.
+ *
+ * Der Anfang für den Manager, der seine Elf von Grund auf bauen will. Was
+ * dabei herauskommt, ist so lange nicht speicherbar, bis jeder Platz wieder
+ * besetzt ist — siehe `vollstaendig()`.
+ * @param {Aufstellung} a
+ * @returns {Vorgabe}
+ */
+export function leereVorgabe(a) {
+  /** @type {Vorgabe} */
+  const vorgabe = {};
+  for (const platz of [...a.offense, ...a.defense]) vorgabe[platz.schluessel] = null;
   return vorgabe;
 }
 
@@ -657,12 +700,16 @@ export function alsVorgabe(a) {
  */
 export function setzePlatz(vorgabe, schluessel, spielerId) {
   const neu = { ...vorgabe };
+  const kanntePlatz = Object.prototype.hasOwnProperty.call(vorgabe, schluessel);
   const verdraengt = neu[schluessel];
   const bisher = Object.keys(neu).filter((k) => neu[k] === spielerId && k !== schluessel);
 
   neu[schluessel] = spielerId;
   bisher.forEach((k, i) => {
-    if (verdraengt && i === 0) neu[k] = verdraengt;
+    // Der alte Platz erbt, was am Ziel stand — auch ein `null`. Wer aus einer
+    // leergeräumten Aufstellung heraus umzieht, lässt seinen Platz frei zurück
+    // und nicht der Automatik.
+    if (i === 0 && kanntePlatz) neu[k] = verdraengt;
     else delete neu[k];
   });
   return neu;

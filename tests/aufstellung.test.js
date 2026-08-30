@@ -11,7 +11,7 @@ import {
   PERSONNEL, PERSONNEL_REIHE, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
   BLOCK_GEWICHT, PLATZ_ANTEIL, SKILL_LEITER, SKILL_ROLLE, SKILL_NORM,
   stelleAuf, skillAnteile, doppelAbzug, doppelRisiko, doppelEinsaetze, umstellungen,
-  platzStaerke, alsVorgabe, setzePlatz, bestenFuer, wertAuf,
+  platzStaerke, alsVorgabe, setzePlatz, bestenFuer, wertAuf, vollstaendig, leereVorgabe,
 } from '../engine/aufstellung.js';
 import { teamStaerken } from '../engine/team.js';
 
@@ -502,4 +502,67 @@ test('wertAuf ist dieselbe Zahl wie die der Aufstellung, nur für jeden Platz', 
   const mann = k[0];
   assert.equal(wertAuf(mann, 'CB1', 0.9), wertAuf(mann, 'CB1', 0.1));
   assert.notEqual(wertAuf(mann, 'WR', 0.9), wertAuf(mann, 'WR', 0.1));
+});
+
+// --- Der ausdrücklich freie Platz ------------------------------------------
+
+test('von selbst bleibt kein Platz leer', () => {
+  const a = stelleAuf(kader(), 1, '11');
+  assert.equal(vollstaendig(a), true);
+
+  // Und die Frage merkt es, wenn doch einer leer ist.
+  const luecke = { ...a, offense: a.offense.map((p, i) => (i === 0 ? { ...p, spieler: null } : p)) };
+  assert.equal(vollstaendig(luecke), false);
+});
+
+test('eine leere Vorgabe räumt die Elf und hält sie leer', () => {
+  const k = kader('leer');
+  const leer = leereVorgabe(stelleAuf(k, 1, '11'));
+  const a = stelleAuf(k, 1, '11', undefined, leer);
+
+  const alle = [...a.offense, ...a.defense];
+  assert.equal(alle.filter((p) => p.spieler).length, 0, 'die Automatik hat wieder aufgefüllt');
+  assert.ok(alle.every((p) => p.frei), 'ein Platz ist nur leer, statt frei zu sein');
+  assert.equal(vollstaendig(a), false);
+
+  // Eingefroren bleibt sie leer: alsVorgabe muss die Absicht mitnehmen.
+  assert.deepEqual(alsVorgabe(a), leer);
+});
+
+test('in der leeren Aufstellung besetzt ein Handgriff genau einen Platz', () => {
+  const k = kader('einzeln');
+  const leer = leereVorgabe(stelleAuf(k, 1, '11'));
+  const qb = k.find((s) => s.position === 'QB');
+
+  const a = stelleAuf(k, 1, '11', undefined, setzePlatz(leer, QB_PLATZ, qb.id));
+  const alle = [...a.offense, ...a.defense];
+  assert.equal(alle.filter((p) => p.spieler).length, 1);
+  assert.equal(a.offense[0].spieler.id, qb.id);
+  assert.equal(alle.filter((p) => p.frei).length, alle.length - 1,
+    'die übrigen Plätze sind nicht mehr frei, sondern nachbesetzt');
+});
+
+test('wer aus der leeren Aufstellung umzieht, lässt seinen Platz frei zurück', () => {
+  const leer = { QB: null, LT: null, RT: null };
+  const einer = setzePlatz(leer, 'LT', 'a');
+  assert.deepEqual(einer, { QB: null, LT: 'a', RT: null });
+
+  // Umgezogen: LT wird wieder frei, nicht der Automatik überlassen.
+  const umgezogen = setzePlatz(einer, 'RT', 'a');
+  assert.deepEqual(umgezogen, { QB: null, LT: null, RT: 'a' });
+});
+
+test('ein freier Platz zählt wie ein leerer Kader, nicht wie ein Mann', () => {
+  const k = kader('freiwert');
+  const voll = teamStaerken(k, 1, '11');
+  const leer = teamStaerken(k, 1, '11', undefined, leereVorgabe(stelleAuf(k, 1, '11')));
+
+  assert.ok(leer.passAngriff < voll.passAngriff, 'die leere Elf ist nicht schwächer');
+
+  // Genau die Ersatzstärke, und zwar im Mittel: die Gruppierung kippt Lauf
+  // gegen Pass auch dann noch, wenn niemand dasteht — der Mittelwert bleibt.
+  assert.equal((leer.passAngriff + leer.laufAngriff) / 2, ERSATZ_STAERKE);
+  assert.equal(leer.laufVerteidigung, ERSATZ_STAERKE);
+  // Kicker und Punter laufen außerhalb der Elf und bleiben unberührt.
+  assert.equal(leer.special, voll.special);
 });

@@ -11,7 +11,8 @@ import { T } from './i18n.js';
 import { teamById } from './engine/content.js';
 import {
   neuesSpiel, spieleSpieltag, naechsteSaison, saisonVorbei, anzahlSpieltage,
-  gruppenTabellen, meineTabelle, setzeTaktik, setzeAufstellung, automatischAufstellen,
+  gruppenTabellen, meineTabelle, setzeTaktik, setzeAufstellung, entwurfSetze,
+  entwurfVollstaendig, eigeneAufstellung, entwurfLeeren,
 } from './engine/saison.js';
 import { partienDerRunde } from './engine/spielplan.js';
 import {
@@ -24,6 +25,7 @@ import { zeigeKader } from './ui/kader.js';
 import { zeigeTaktik } from './ui/taktik.js';
 import { zeigeSpielplan } from './ui/spielplan.js';
 import { zeigeSpielbericht } from './ui/spielbericht.js';
+import { zeigeFrage } from './ui/frage.js';
 
 /** @type {import('./engine/saison.js').SpielStand | null} */
 let stand = null;
@@ -36,6 +38,20 @@ let offenePartie = null;
 
 /** @type {string | null} */
 let hinweis = null;
+
+/**
+ * Die Aufstellung, während sie gebaut wird — noch nicht im Spielstand.
+ *
+ * `null` heißt: nichts Ungespeichertes. `{ vorgabe: null }` ist etwas anderes,
+ * nämlich der Entwurf „gar keine Vorgabe, stell automatisch auf". Beides muss
+ * sich unterscheiden lassen, sonst wäre das Zurücknehmen einer Aufstellung
+ * nicht speicherbar.
+ * @type {{ vorgabe: import('./engine/aufstellung.js').Vorgabe | null } | null}
+ */
+let entwurf = null;
+
+/** @type {import('./ui/frage.js').Frage | null} */
+let frage = null;
 
 const wurzel = /** @type {HTMLElement} */ (document.getElementById('app'));
 
@@ -73,9 +89,12 @@ function zeichne() {
   if (ansicht === 'tabelle') {
     wurzel.append(zeigeTabelle(gruppenTabellen(stand), stand.meinTeam, playoffPartien(stand)));
   } else if (ansicht === 'kader') {
-    wurzel.append(zeigeKader(stand, {
+    wurzel.append(zeigeKader(stand, entwurf, {
       setze: beiAufstellung,
       automatisch: beiAutomatisch,
+      leeren: beiLeeren,
+      speichern: beiSpeichern,
+      verwerfen: beiVerwerfen,
       neuZeichnen: zeichne,
     }));
   } else if (ansicht === 'taktik') {
@@ -90,6 +109,7 @@ function zeichne() {
   }
 
   wurzel.append(fussleiste());
+  if (frage) wurzel.append(zeigeFrage(frage));
 }
 
 /** Halbfinale und Finale, in Reihenfolge — leer, solange die Gruppe läuft.
@@ -149,7 +169,7 @@ function reiter() {
     tabs.map(([id, label]) => el('button', {
       role: 'tab',
       'aria-selected': String(ansicht === id),
-      onclick: () => wechsle(/** @type {any} */ (id)),
+      onclick: () => mitEntwurf(() => wechsle(/** @type {any} */ (id))),
     }, label)));
 }
 
@@ -159,8 +179,10 @@ function fussleiste() {
 
   return el('div', { class: 'fuss' },
     fertig
-      ? el('button', { class: 'haupt', onclick: beiNaechsterSaison }, T.aktion.naechsteSaison)
-      : el('button', { class: 'haupt', onclick: beiSpieltag }, T.aktion.spieltagSimulieren));
+      ? el('button', { class: 'haupt', onclick: () => mitEntwurf(beiNaechsterSaison) },
+        T.aktion.naechsteSaison)
+      : el('button', { class: 'haupt', onclick: () => mitEntwurf(beiSpieltag) },
+        T.aktion.spieltagSimulieren));
 }
 
 function verlaufAnsicht() {
@@ -258,22 +280,103 @@ function beiTaktik(taktik) {
 
 /**
  * Einen Spieler auf einen Platz stellen. Wer dabei wohin rutscht, entscheidet
- * die Engine — hier wird gespeichert und neu gezeichnet.
+ * die Engine; hier wächst nur der Entwurf. Geschrieben wird beim Speichern.
  * @param {string} schluessel @param {string} spielerId
  */
 function beiAufstellung(schluessel, spielerId) {
   if (!stand) return;
-  setzeAufstellung(stand, schluessel, spielerId);
-  speichere(stand);
+  entwurf = { vorgabe: entwurfSetze(stand, entwurf && entwurf.vorgabe, schluessel, spielerId) };
   zeichne();
 }
 
-/** Die Vorgabe fallen lassen und wieder automatisch aufstellen. */
+/**
+ * „Automatisch aufstellen": die Vorgabe fällt weg. Steht ohnehin keine im
+ * Stand, ist das keine Änderung und wird auch nicht als eine geführt.
+ */
 function beiAutomatisch() {
   if (!stand) return;
-  automatischAufstellen(stand);
-  speichere(stand);
+  entwurf = stand.aufstellung === null ? null : { vorgabe: null };
   zeichne();
+}
+
+/**
+ * „Aufstellung löschen": ein Entwurf, auf dem niemand steht. Speicherbar ist er
+ * nicht — das ist der Anfang einer Elf, nicht eine.
+ */
+function beiLeeren() {
+  if (!stand) return;
+  entwurf = { vorgabe: entwurfLeeren(stand) };
+  zeichne();
+}
+
+/**
+ * Den Entwurf in den Stand schreiben. Die Engine lehnt eine unvollständige Elf
+ * ab; die Ansicht sperrt ihren Knopf deshalb schon vorher.
+ * @returns {boolean} ob geschrieben wurde
+ */
+function beiSpeichern() {
+  if (!stand || !entwurf) return true;
+  if (!setzeAufstellung(stand, entwurf.vorgabe)) return false;
+
+  speichere(stand);
+  entwurf = null;
+  hinweis = T.aufstellung.gespeichert;
+  zeichne();
+  return true;
+}
+
+/** Den Entwurf wegwerfen. Es stand nie etwas davon im Speicherstand. */
+function beiVerwerfen() {
+  entwurf = null;
+  zeichne();
+}
+
+/**
+ * Der Wächter vor jeder Handlung, die die Kaderansicht verlässt.
+ *
+ * Ohne ihn verschwände eine halb gebaute Aufstellung beim nächsten Reitertipp,
+ * ohne dass es jemand bemerkt hätte. Ist der Entwurf vollständig, ist Speichern
+ * die naheliegende Antwort; ist er es nicht, kann er gar nicht gespeichert
+ * werden, und dann ist Weiterbauen die einzige, die nichts verliert.
+ * @param {() => void} weiter
+ */
+function mitEntwurf(weiter) {
+  if (!entwurf || !stand) { weiter(); return; }
+
+  const vollstaendig = entwurfVollstaendig(stand, entwurf.vorgabe);
+  const offen = offenePlaetze(stand, entwurf.vorgabe);
+  frage = {
+    titel: T.aufstellung.ungesichert,
+    text: vollstaendig ? T.aufstellung.ungesichertText : T.aufstellung.unvollstaendigText(offen),
+    knoepfe: [
+      vollstaendig
+        ? {
+          label: T.aufstellung.speichern,
+          klasse: 'haupt',
+          wirkung: () => { frage = null; if (beiSpeichern()) weiter(); },
+        }
+        : {
+          label: T.aufstellung.weiterBearbeiten,
+          klasse: 'haupt',
+          wirkung: () => { frage = null; zeichne(); },
+        },
+      {
+        label: T.aufstellung.verwerfen,
+        wirkung: () => { frage = null; entwurf = null; weiter(); },
+      },
+    ],
+  };
+  zeichne();
+}
+
+/**
+ * Wie viele Plätze der Entwurf frei lässt — nur für den Satz in der Rückfrage.
+ * @param {import('./engine/saison.js').SpielStand} s
+ * @param {import('./engine/aufstellung.js').Vorgabe | null} vorgabe
+ */
+function offenePlaetze(s, vorgabe) {
+  const a = eigeneAufstellung(s, vorgabe);
+  return [...a.offense, ...a.defense].filter((p) => !p.spieler).length;
 }
 
 function beiNaechsterSaison() {

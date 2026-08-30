@@ -100,7 +100,9 @@ Gespielt werden kann: Verein wählen, die Ansprache zum Amtsantritt, Spieltage
 simulieren, zwei Gruppentabellen, Kader mit Depth Chart, sortierbaren Spalten
 und Verletzungen, Taktik mit Personnel und Ausrichtung, **die Aufstellung von
 Hand** — Platz antippen und aus den fünf Besten wählen, oder einen Spieler
-antippen und sehen, was er auf jedem der zweiundzwanzig Plätze brächte (siehe
+antippen und sehen, was er auf jedem der zweiundzwanzig Plätze brächte; die
+Elf lässt sich auch ganz leeren und von Grund auf bauen, gespeichert wird sie
+erst, wenn jeder Platz besetzt ist (siehe
 [`docs/umbau-aufstellung.md`](docs/umbau-aufstellung.md)), Spielplan,
 Spielbericht mit Box Score, Halbfinale und Finale, Saisonwechsel mit Alterung
 und Rücktritten, Export und Import.

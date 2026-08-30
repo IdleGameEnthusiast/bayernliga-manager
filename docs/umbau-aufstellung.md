@@ -119,6 +119,52 @@ Nebensache.
 Ein Knopf **Automatisch** wirft die Vorgabe weg. Er steht nur da, wenn es eine
 gibt — er *ist* das Vergessen, keine zweite Aufstellungslogik.
 
+## 4a — Entwurf, Speichern, Rückfrage
+
+Bearbeitet wird nicht mehr im Spielstand. Jeder Handgriff wächst in einem
+**Entwurf**, den nur die Ansicht kennt; erst der Knopf **Speichern** schreibt
+ihn in `stand.aufstellung` und in den `localStorage`.
+
+Der Grund ist die halb gebaute Elf. Wer seine Aufstellung von Grund auf stellt,
+hat zwischendurch elf Löcher — und die dürfen nicht schon gelten, nur weil er
+noch nicht fertig ist. Nebenbei wird die Ansicht dadurch ehrlich: sie rechnet
+den Entwurf durch, Mannschaftsteile eingerechnet, und zeigt, was gälte.
+
+- **Gespeichert wird nur eine vollständige Elf.** `setzeAufstellung()` lehnt
+  alles andere ab, und der Knopf ist so lange gesperrt. Daraus folgt eine
+  Eigenschaft, auf die sich alles Übrige verlassen kann: **eine gespeicherte
+  Vorgabe enthält nie ein `null`.** Der freie Platz existiert nur im Entwurf.
+  Die Migration streicht ein `null` deshalb beim Laden weg — im Spiel entsteht
+  es nie, nur in einer von Hand bearbeiteten Datei.
+- **Verwerfen** wirft den Entwurf weg. Es stand nie etwas davon im
+  Speicherstand, also ist das nichts weiter als Vergessen.
+- **Wer die Ansicht verlässt, wird gefragt.** Reitertipp, Spieltag simulieren,
+  nächste Saison — alles, was von der Aufstellung wegführt, geht durch einen
+  Wächter. Ist der Entwurf vollständig, heißen die Antworten *Speichern* und
+  *Verwerfen*; ist er es nicht, kann er gar nicht gespeichert werden, und dann
+  heißt die erste *Weiter bearbeiten*, weil sonst nur die Wahl zwischen Verlust
+  und Verlust bliebe.
+
+Kein `confirm()` dafür: das kennt zwei Antworten, und die heißen OK und
+Abbrechen. „Speichern" und „Verwerfen" sind aber beide ein Ja. Die Rückfrage
+steht deshalb als eigenes Blatt in `ui/frage.js`, mit einem Knopf je Antwort.
+
+### Der ausdrücklich freie Platz
+
+**Aufstellung löschen** räumt alle zweiundzwanzig Plätze. Dafür kann eine
+Vorgabe seit diesem Schritt mehr als „hier steht der und der" sagen: ein
+Eintrag mit dem Wert `null` heißt **hier soll niemand stehen**, und daran gehen
+die Reparaturrunden vorbei. Ohne diesen Unterschied wäre das Leeren wirkungslos
+— die Automatik füllte jeden geräumten Platz sofort wieder auf.
+
+Das ist die eine Stelle, an der die alte Regel „kein Platz bleibt je leer"
+nicht mehr gilt. Sie gilt weiter für alles, was gespeichert werden kann; sie
+gilt nicht mehr für das, was gerade gebaut wird.
+
+Wer aus einer geräumten Aufstellung heraus umzieht, lässt seinen Platz **frei**
+zurück statt der Automatik: `setzePlatz()` vererbt, was am Ziel stand, und das
+ist dort eben ein `null`.
+
 ## 5 — Was das im Code angefasst hat
 
 | Datei | Was |
@@ -128,8 +174,9 @@ gibt — er *ist* das Vergessen, keine zweite Aufstellungslogik.
 | `engine/saison.js` | `stand.aufstellung`, `eigeneAufstellung()`, `setzeAufstellung()`, `automatischAufstellen()`, `aufstellungVon()` |
 | `engine/save.js` | das Feld nachgetragen — additiv, ohne Versionssprung |
 | `ui/aufstellung.js` | neu: die Karte, die Kandidaten, die Wechselleiste (aus `ui/taktik.js` ausgezogen) |
-| `ui/kader.js` | die Auswahl, der Roster im Auswahlmodus |
-| `app.js` | zwei Handler |
+| `ui/kader.js` | die Auswahl, der Roster im Auswahlmodus, der Entwurf statt des Stands |
+| `ui/frage.js` | neu: die Rückfrage, ein Knopf je Antwort |
+| `app.js` | der Entwurf, die Handler, der Wächter vor jedem Weg aus der Ansicht |
 
 **Kein Versionssprung.** Ein Stand ohne das Feld ist ein Stand ohne Vorgabe —
 kein Mangel, sondern ein Manager, der nie eingegriffen hat. Es gibt nichts zu
@@ -175,3 +222,8 @@ retten, nur etwas nachzutragen, und dafür ist die Migration da.
 | Rosterzeile | wählt aus; die fünfzehn Werte bekommen einen eigenen Knopf am Zeilenende |
 | Startermarke | grüner Balken plus Platzkürzel — die Frage ist, wer *nicht* steht |
 | Speicherstand | additiv, kein Versionssprung |
+| Bearbeiten | im Entwurf, nicht im Stand; erst „Speichern" schreibt |
+| Speicherbedingung | nur eine vollständige Elf — also enthält eine gespeicherte Vorgabe nie ein `null` |
+| Freier Platz | `null` als Wert, nur im Entwurf; die Reparaturrunden gehen daran vorbei |
+| Verlassen der Ansicht | Rückfrage; unvollständig heißt „Weiter bearbeiten" statt „Speichern" |
+| Rückfrage | eigenes Blatt statt `confirm()` — beide Antworten sind ein Ja |

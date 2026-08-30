@@ -9,7 +9,8 @@ import {
   vereinsBasen, gruppenTabelle, gruppenTabellen, meineTabelle, meister,
   gruppenSpieltage, losePersonnel, personnelVon, passAnteilVon, setzeTaktik,
   erlaubterPassAnteil, alsGegner, eigeneAufstellung, aufstellungVon,
-  setzeAufstellung, automatischAufstellen,
+  setzeAufstellung, automatischAufstellen, entwurfSetze, entwurfVon,
+  entwurfVollstaendig, entwurfLeeren,
 } from '../engine/saison.js';
 import { PERSONNEL } from '../engine/aufstellung.js';
 import { partienDerRunde, sieger } from '../engine/spielplan.js';
@@ -412,6 +413,14 @@ test('Export und Import nehmen die Taktik mit', () => {
   assert.equal(zurueck.passAnteil.heg, 0.35);
 });
 
+/**
+ * Der Weg, den die Ansicht geht: einen Platz im Entwurf setzen und speichern.
+ * @param {any} stand @param {string} schluessel @param {string} spielerId
+ */
+function stelleVonHand(stand, schluessel, spielerId) {
+  return setzeAufstellung(stand, entwurfSetze(stand, stand.aufstellung, schluessel, spielerId));
+}
+
 test('der erste Handgriff friert die Aufstellung ein und tauscht einen Platz', () => {
   const stand = neuesSpiel('heg', 'hand');
   assert.equal(stand.aufstellung, null, 'ein neuer Stand hat keine Vorgabe');
@@ -420,7 +429,7 @@ test('der erste Handgriff friert die Aufstellung ein und tauscht einen Platz', (
   const skill = vorher.offense[1];                      // der erste Skill-Platz
   const cb = vorher.defense.find((p) => p.schluessel === 'CB1');
 
-  setzeAufstellung(stand, skill.schluessel, cb.spieler.id);
+  assert.equal(stelleVonHand(stand, skill.schluessel, cb.spieler.id), true);
   assert.ok(stand.aufstellung, 'die Vorgabe steht nicht im Stand');
 
   const nachher = eigeneAufstellung(stand);
@@ -438,14 +447,42 @@ test('der erste Handgriff friert die Aufstellung ein und tauscht einen Platz', (
 
 test('ein unbekannter Spieler wird nicht aufgestellt', () => {
   const stand = neuesSpiel('heg', 'fremd');
-  setzeAufstellung(stand, 'QB', 'gibtesnicht');
-  assert.equal(stand.aufstellung, null);
+  const vorher = entwurfVon(stand);
+  assert.deepEqual(entwurfSetze(stand, null, 'QB', 'gibtesnicht'), vorher);
+});
+
+test('ein Entwurf lässt den Spielstand in Ruhe, bis gespeichert wird', () => {
+  const stand = neuesSpiel('heg', 'entwurf');
+  const cb = eigeneAufstellung(stand).defense[0].spieler;
+
+  const entwurf = entwurfSetze(stand, null, 'QB', cb.id);
+  assert.equal(stand.aufstellung, null, 'der Entwurf ist schon im Stand gelandet');
+  assert.equal(eigeneAufstellung(stand).offense[0].spieler.id !== cb.id, true);
+
+  // Die Ansicht rechnet ihn trotzdem durch — sie zeigt, was gälte.
+  assert.equal(eigeneAufstellung(stand, entwurf).offense[0].spieler.id, cb.id);
+
+  assert.equal(setzeAufstellung(stand, entwurf), true);
+  assert.equal(eigeneAufstellung(stand).offense[0].spieler.id, cb.id);
+});
+
+test('eine unvollständige Elf wird nicht gespeichert', () => {
+  const stand = neuesSpiel('heg', 'unvollstaendig');
+  const voll = entwurfVon(stand);
+  assert.equal(entwurfVollstaendig(stand, voll), true);
+  assert.equal(setzeAufstellung(stand, voll), true);
+
+  // Ein Platz, den die Vorgabe ausdrücklich frei lässt, ist keine Elf.
+  const halb = { ...voll, QB: null };
+  assert.equal(entwurfVollstaendig(stand, halb), false);
+  assert.equal(setzeAufstellung(stand, halb), false);
+  assert.deepEqual(stand.aufstellung, voll, 'der alte Stand wurde überschrieben');
 });
 
 test('automatisch aufstellen vergisst die Vorgabe', () => {
   const stand = neuesSpiel('heg', 'auto');
   const cb = eigeneAufstellung(stand).defense[0].spieler;
-  setzeAufstellung(stand, 'QB', cb.id);
+  stelleVonHand(stand, 'QB', cb.id);
   assert.equal(eigeneAufstellung(stand).offense[0].spieler.id, cb.id);
 
   automatischAufstellen(stand);
@@ -455,7 +492,7 @@ test('automatisch aufstellen vergisst die Vorgabe', () => {
 
 test('nur der eigene Verein bekommt eine Aufstellung mit', () => {
   const stand = neuesSpiel('heg', 'nurmeiner');
-  setzeAufstellung(stand, 'QB', stand.kader.heg[0].id);
+  stelleVonHand(stand, 'QB', stand.kader.heg[0].id);
 
   assert.ok(alsGegner(stand, 'heg').aufstellung, 'der eigene Verein steht ohne Vorgabe da');
   for (const t of TEAMS) {
@@ -468,7 +505,7 @@ test('nur der eigene Verein bekommt eine Aufstellung mit', () => {
 test('der Saisonwechsel wirft die Abgänge aus der Vorgabe', () => {
   const stand = neuesSpiel('heg', 'abgang');
   stand.aufstellung = null;
-  setzeAufstellung(stand, 'QB', stand.kader.heg[0].id);
+  stelleVonHand(stand, 'QB', stand.kader.heg[0].id);
   const vorher = Object.keys(stand.aufstellung).length;
 
   while (!saisonVorbei(stand)) spieleSpieltag(stand);
@@ -485,7 +522,7 @@ test('der Saisonwechsel wirft die Abgänge aus der Vorgabe', () => {
 
 test('Export, Import und Migration nehmen die Aufstellung mit', () => {
   const stand = neuesSpiel('heg', 'aufstellung-export');
-  setzeAufstellung(stand, 'QB', stand.kader.heg[0].id);
+  stelleVonHand(stand, 'QB', stand.kader.heg[0].id);
 
   const zurueck = importiere(exportiere(stand));
   assert.deepEqual(zurueck.aufstellung, stand.aufstellung);
@@ -495,4 +532,33 @@ test('Export, Import und Migration nehmen die Aufstellung mit', () => {
   const alt = { ...stand };
   delete alt.aufstellung;
   assert.equal(migriere(alt).aufstellung, null);
+});
+
+test('ein von Hand geleerter Platz überlebt das Laden nicht', () => {
+  const stand = neuesSpiel('heg', 'ladenleer');
+  setzeAufstellung(stand, entwurfVon(stand));
+
+  // So etwas schreibt das Spiel nie — nur eine bearbeitete Datei.
+  const datei = JSON.parse(exportiere(stand));
+  datei.aufstellung.QB = null;
+
+  const zurueck = migriere(datei);
+  assert.equal('QB' in zurueck.aufstellung, false, 'der leere Platz steht noch in der Vorgabe');
+  assert.equal(entwurfVollstaendig(zurueck, zurueck.aufstellung), true);
+});
+
+test('das Leeren ist ein Entwurf und kein Speicherzustand', () => {
+  const stand = neuesSpiel('heg', 'leeren');
+  const leer = entwurfLeeren(stand);
+
+  assert.equal(Object.keys(leer).length, 22);
+  assert.ok(Object.values(leer).every((id) => id === null));
+  assert.equal(entwurfVollstaendig(stand, leer), false);
+  assert.equal(setzeAufstellung(stand, leer), false);
+  assert.equal(stand.aufstellung, null, 'die leere Aufstellung ist im Stand gelandet');
+
+  // Von dort aus besetzt jeder Handgriff genau einen Platz.
+  const einer = entwurfSetze(stand, leer, 'QB', stand.kader.heg[0].id);
+  const a = eigeneAufstellung(stand, einer);
+  assert.equal([...a.offense, ...a.defense].filter((p) => p.spieler).length, 1);
 });

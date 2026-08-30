@@ -45,6 +45,13 @@ export function migriere(roh) {
   if (!stand.aufstellung || typeof stand.aufstellung !== 'object'
       || Array.isArray(stand.aufstellung)) {
     stand.aufstellung = null;
+  } else {
+    // Ein `null` heißt „hier soll niemand stehen". Das ist ein Zustand beim
+    // Bauen, keiner zum Antreten — gespeichert wird nur eine vollständige Elf.
+    // Steht trotzdem eins in der Datei, ist sie von Hand bearbeitet worden, und
+    // der Platz fällt an die Automatik statt leer zu bleiben.
+    stand.aufstellung = Object.fromEntries(
+      Object.entries(stand.aufstellung).filter(([, id]) => typeof id === 'string'));
   }
 
   // Taktik: fehlt sie, wird sie aus dem Saatgut nachgezogen statt geraten.
