@@ -35,6 +35,7 @@ const SHELL = [
   './ui/frage.js',
   './ui/intro.js',
   './ui/start.js',
+  './ui/bracket.js',
   './ui/tabelle.js',
   './ui/aufstellung.js',
   './ui/kader.js',

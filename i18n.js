@@ -63,6 +63,13 @@ export const DE = {
     sued: 'Gruppe Süd',
   },
 
+  // Im Bracket steht die Gruppe neben einer Platzziffer — „1. Gruppe Nord"
+  // wäre dort ein Satz, wo eine Marke hingehört.
+  gruppenKurz: {
+    nord: 'Nord',
+    sued: 'Süd',
+  },
+
   runde: {
     gruppe: 'Gruppenrunde',
     halbfinale: 'Halbfinale',
@@ -71,8 +78,13 @@ export const DE = {
 
   playoffs: {
     ueberschrift: 'Playoffs',
-    offen: 'Wird nach der Gruppenrunde ausgelost.',
+    offen: 'Wird nach der Gruppenrunde ausgelost. Wer die vier Plätze gerade hält, steht dabei.',
     heimrecht: 'Heimrecht',
+    heimZeichen: 'H',
+    setzplatz: (platz, gruppe) => `${platz}. ${gruppe}`,
+    siegerHalbfinale: 'Sieger Halbfinale',
+    meister: 'Meister',
+    meisterOffen: 'Noch offen',
   },
 
   kader: {

@@ -239,8 +239,28 @@ Setzt auf 2 und 3 auf:
 - ~~**Zwei Gruppentabellen** statt einer, plus Playoff-Ansicht mit Bracket.~~
   **Erledigt mit Block 3** — die Tabellenansicht zeigt beide Gruppen und
   darunter eine Playoff-Karte, der Spielplan benennt Halbfinale und Finale
-  statt „Spieltag 11/12", und die Kopfzeile tut dasselbe. Was fehlt, ist eine
-  richtige Bracket-*Grafik*; im Moment sind es drei Zeilen.
+  statt „Spieltag 11/12", und die Kopfzeile tut dasselbe. ~~Was fehlt, ist eine
+  richtige Bracket-*Grafik*; im Moment sind es drei Zeilen.~~ **Auch das ist
+  erledigt** — drei Spalten, Halbfinale, Finale, Meister, mit Verbindern aus
+  CSS-Rahmen statt aus SVG. Zwei Entscheidungen dabei:
+
+  Das Bracket steht **auch dann da, wenn nichts ausgelost ist**. Die vier
+  Halbfinalplätze tragen dann ihre Setzung — „1. Nord", „2. Süd" — und, sobald
+  ein Spieltag gespielt ist, das Kürzel des Vereins, der den Platz gerade hält.
+  Damit beantwortet die Ansicht schon am fünften Spieltag die Frage, für die man
+  vorher zwei Tabellen im Kopf kreuzen musste: auf wen liefe das gerade hinaus.
+  Vor dem ersten Spieltag bleibt das Kürzel weg — die Tabelle steht dann nur in
+  irgendeiner Reihenfolge da, und „Erster" wäre eine Auskunft über nichts.
+
+  Im Finale stehen die beiden **in der Reihenfolge der Halbfinale**, nicht nach
+  Heimrecht: das hängt an der Bilanz, und sobald es beim Sieger des unteren
+  Halbfinales liegt, kreuzten sich die Linien. Wer zu Hause spielt, sagt
+  stattdessen ein `H` am Verein.
+
+  Damit die Ansicht die Setzung beschriften kann, ohne sie ein zweites Mal zu
+  kennen, steht sie als `HALBFINAL_SETZUNG` in
+  [`engine/spielplan.js`](../engine/spielplan.js) — dieselbe Liste, aus der
+  `macheHalbfinale()` die Partien baut, und ein Test hält beide aneinander.
 - ~~**Formation im Kaderscreen** — welches Personnel der Verein spielt, wer auf
   welchem Slot steht, wer umgestellt wurde.~~ **Erledigt** — die
   Aufstellungskarte steht im Roster, mit Marken für Umsteller und
@@ -268,9 +288,13 @@ Setzt auf 2 und 3 auf:
   `bestesPassAnteil()` markiert dazu das rechnerische Optimum auf der Reglerskala.
   Die vier Balken bleiben stehen, aber unter der ehrlichen Überschrift „Angriff
   und Verteidigung" und mit dem Hinweis, dass sie sagen, was die Mannschaft *ist*.
-- **Talent als Sterne** im Roster: eine Zehnerstufe ist ein halber Stern, unter
+- ~~**Talent als Sterne** im Roster: eine Zehnerstufe ist ein halber Stern, unter
   10 bleibt es bei einem halben, ab 90 sind es fünf. Die rohe Zahl steht noch im
-  Tooltip, und sortiert wird weiter numerisch.
+  Tooltip, und sortiert wird weiter numerisch.~~ **Erledigt** — `talentSterne()`
+  in [`engine/spieler.js`](../engine/spieler.js), gezeichnet von `sterne()` in
+  [`ui/dom.js`](../ui/dom.js): zwei Reihen übereinander, die gefüllte auf die
+  halbe Breite beschnitten, weil das Halbstern-Zeichen in zu vielen Schriften
+  als Kasten ankommt.
 - Der zweifarbige Vereinstupfer ist schon da (`farbtupfer()` in
   [`ui/dom.js`](../ui/dom.js)); die Wappen holen ihre Textfarbe über
   `kontrastFarbe()`.
@@ -372,6 +396,10 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Kicker-Auswahl | der beste Fuß des **ganzen** Kaders, Doppeleinsatz K/P erlaubt |
 | Speicherstände | vor v3 abgelehnt statt migriert — die alte Ligaform lässt sich nicht retten |
 | Vereinsfarben | drei je Verein, in `farben: { primaer, sekundaer, tertiaer }` |
+| Bracket | drei Spalten mit Verbindern aus CSS-Rahmen; unter 720px gestapelt und ohne Linien, weil eine Klammer um die Ecke schlimmer wäre als keine |
+| Leeres Bracket | steht trotzdem da, mit der Setzung auf den Plätzen und dem, der sie gerade hält — aber erst ab dem ersten gespielten Spieltag |
+| Setzung | als Daten in `HALBFINAL_SETZUNG`, damit die Ansicht sie beschriften kann, ohne die Regel zu kennen |
+| Finalseiten | in der Reihenfolge der Halbfinale, nicht nach Heimrecht — sonst kreuzen sich die Linien; das Heimrecht sagt ein `H` am Verein |
 | Kürzel | zwei- oder dreistellig, gemischt ist in Ordnung |
 | Eingespieltheit | `spieler.einsaetze` je Platz-Kürzel; die Stufenleiter ist der Startpunkt, die Einsätze schließen die Lücke; voll nach 30 Spielen; sie wirkt allein über den Technikanteil und ist damit auf rund drei Stärkepunkte gedeckelt |
 | Ausbildung | `position`/`seite` ändern sich **nie** — der Hauptplatz wird aus den Einsätzen abgeleitet, nicht gespeichert |

@@ -6,6 +6,7 @@ import { makeRng } from '../engine/constants.js';
 import { TEAMS, GRUPPEN, teamsDerGruppe, teamById } from '../engine/content.js';
 import {
   macheSpielplan, macheGruppenplan, macheHalbfinale, macheFinale, sieger,
+  HALBFINAL_SETZUNG,
   anzahlSpieltage, partienAmSpieltag, partienDerRunde,
 } from '../engine/spielplan.js';
 
@@ -96,6 +97,23 @@ test('das Halbfinale kreuzt die Gruppen, Heimrecht beim Gruppensieger', () => {
     hf.map((p) => [p.heim, p.gast]),
     [[sued[0].teamId, nord[1].teamId], [nord[0].teamId, sued[1].teamId]],
   );
+});
+
+test('die Setzung beschreibt genau die Paarungen, die gebaut werden', () => {
+  // Die Tabellenansicht beschriftet die leeren Halbfinalplätze aus dieser
+  // Liste. Läuft sie der Partienbildung davon, steht im Bracket eine Setzung,
+  // die nie gespielt wird — und niemand sähe es, weil beide Seiten für sich
+  // stimmen.
+  const nord = nordIds.map((id, i) => zeile(id, 10 - i, 10, 0));
+  const sued = suedIds.map((id, i) => zeile(id, 10 - i, 10, 0));
+  const tabellen = { nord, sued };
+  const hf = macheHalbfinale(nord, sued, 11);
+
+  assert.equal(HALBFINAL_SETZUNG.length, hf.length);
+  HALBFINAL_SETZUNG.forEach((s, i) => {
+    assert.equal(hf[i].heim, tabellen[s.heim.gruppe][s.heim.platz - 1].teamId);
+    assert.equal(hf[i].gast, tabellen[s.gast.gruppe][s.gast.platz - 1].teamId);
+  });
 });
 
 test('ohne zwei Vereine je Gruppe gibt es kein Halbfinale', () => {

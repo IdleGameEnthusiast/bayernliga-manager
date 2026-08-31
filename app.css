@@ -165,6 +165,106 @@ tr.playoff td:first-child { box-shadow: inset 3px 0 0 var(--gruen); }
   width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto;
   outline: 1px solid rgba(255, 255, 255, .22); outline-offset: -1px;
 }
+.farbtupfer.leer { outline-style: dashed; opacity: .55; }
+
+/* --- Playoff-Bracket ------------------------------------------------------
+   Drei Spalten: die beiden Halbfinale, das Finale dazwischen mittig, der
+   Meister rechts. Die Verbinder sind Rahmen an den Kästen, kein SVG — so
+   hängen sie am Kasten und verrutschen nicht, wenn eine Zeile anders bricht.
+
+   Unter 720px stapeln sich die Spalten und die Linien verschwinden. Eine
+   Klammer, die um die Ecke zeigt, wäre schlimmer als gar keine; die
+   Überschriften tragen die Struktur dann allein. */
+
+.bracket {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.15fr) minmax(0, .8fr);
+  gap: 28px;
+}
+
+.bracket-spalte { display: flex; flex-direction: column; min-width: 0; }
+
+.bracket-titel {
+  margin: 0 0 8px;
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-leise);
+}
+
+/* Mittig, weil die Verbinder die Mitte treffen. */
+.bracket-runde { flex: 1; display: grid; align-content: center; gap: 18px; }
+
+.bracket-paar {
+  position: relative;
+  background: var(--bg-zeile);
+  border: 1px solid var(--rand);
+  border-radius: 8px;
+}
+/* Die Ecken rundet der Inhalt, nicht `overflow: hidden` — das schnitte die
+   Verbinder ab, die als Pseudoelemente am selben Kasten hängen. */
+.bracket-paar > :first-child { border-radius: 7px 7px 0 0; }
+.bracket-paar > :last-child { border-radius: 0 0 7px 7px; }
+.bracket-paar > :only-child { border-radius: 7px; }
+
+.bracket-seite {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 40px;
+  padding: 6px 10px;
+}
+.bracket-seite + .bracket-seite { border-top: 1px solid var(--rand); }
+.bracket-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bracket-punkte { flex: 0 0 auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bracket-halter { flex: 0 0 auto; }
+
+.bracket-seite.sieger { font-weight: 700; }
+.bracket-seite.sieger .bracket-punkte { color: var(--gruen); }
+.bracket-seite.raus { color: var(--text-leise); }
+.bracket-seite.raus .farbtupfer { opacity: .45; }
+.bracket-seite.meins { background: rgba(214, 73, 51, .13); }
+.bracket-seite.offen .bracket-name { color: var(--text-leise); }
+
+/* Der Heimrechtsvermerk steht am Verein und nicht in der Überschrift, weil im
+   Finale der Gruppenzweite zu Hause spielen kann. */
+.bracket-heim {
+  flex: 0 0 auto;
+  font-size: 11px; font-weight: 700; line-height: 1;
+  padding: 3px 5px; border-radius: 4px;
+  color: var(--text-leise);
+  border: 1px solid var(--rand);
+}
+
+/* Die Waagerechten: aus jedem Kasten nach rechts, in jeden Kasten von links.
+   Zwei 14px-Stummel treffen sich in der Mitte des 28px-Abstands. */
+.bracket-runde.halbfinale > *::after,
+.bracket-runde.finale > *::after {
+  content: ''; position: absolute; top: 50%;
+  left: 100%; width: 14px;
+  border-top: 2px solid var(--rand);
+}
+.bracket-runde.finale > *::before,
+.bracket-runde.meister > *::before {
+  content: ''; position: absolute; top: 50%;
+  right: 100%; width: 14px;
+  border-top: 2px solid var(--rand);
+}
+
+/* Die Klammer, die beide Halbfinale zusammenführt: je eine Senkrechte von der
+   Kastenmitte bis in die Mitte des Abstands zwischen ihnen — die Hälfte der
+   18px Lücke, also 9px über die Kante hinaus. */
+.bracket-runde.halbfinale > :first-child::before,
+.bracket-runde.halbfinale > :last-child::before {
+  content: ''; position: absolute;
+  left: calc(100% + 12px);
+  border-left: 2px solid var(--rand);
+}
+.bracket-runde.halbfinale > :first-child::before { top: 50%; bottom: -9px; }
+.bracket-runde.halbfinale > :last-child::before { top: -9px; bottom: 50%; }
+
+@media (max-width: 720px) {
+  .bracket { grid-template-columns: 1fr; gap: 16px; }
+  .bracket-runde { align-content: start; }
+  .bracket-runde > *::before, .bracket-runde > *::after { display: none; }
+}
 
 /* --- Fußleiste mit der Hauptaktion --------------------------------------- */
 

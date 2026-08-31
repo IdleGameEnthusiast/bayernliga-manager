@@ -97,6 +97,25 @@ export function macheGruppenplan(rng, gruppen) {
   return partien;
 }
 
+/** @typedef {{ platz: number, gruppe: 'nord'|'sued' }} Setzung */
+
+/**
+ * Wer im Halbfinale auf wen trifft: der Gruppensieger gegen den Zweiten der
+ * *anderen* Gruppe, Heimrecht beim Gruppensieger.
+ *
+ * Das steht als Daten da und nicht nur als Code in `macheHalbfinale()`, weil
+ * die Tabellenansicht dasselbe wissen muss: sie beschriftet die vier
+ * Halbfinalplätze, solange die Gruppenrunde läuft und noch keine Partie
+ * existiert. Ohne diese Liste stünde die Setzung ein zweites Mal in `ui/` —
+ * und die zweite Fassung wäre die, an die beim nächsten Formatwechsel
+ * niemand denkt.
+ * @type {{ heim: Setzung, gast: Setzung }[]}
+ */
+export const HALBFINAL_SETZUNG = [
+  { heim: { platz: 1, gruppe: 'sued' }, gast: { platz: 2, gruppe: 'nord' } },
+  { heim: { platz: 1, gruppe: 'nord' }, gast: { platz: 2, gruppe: 'sued' } },
+];
+
 /**
  * The semi-finals: each group winner hosts the other group's runner-up.
  * @param {import('./tabelle.js').TabellenZeile[]} nord  final group table, sorted
@@ -108,10 +127,14 @@ export function macheHalbfinale(nord, sued, spieltag) {
   if (nord.length < 2 || sued.length < 2) {
     throw new Error('Für ein Halbfinale braucht jede Gruppe zwei Vereine');
   }
-  return [
-    { spieltag, runde: 'halbfinale', heim: sued[0].teamId, gast: nord[1].teamId, ergebnis: null },
-    { spieltag, runde: 'halbfinale', heim: nord[0].teamId, gast: sued[1].teamId, ergebnis: null },
-  ];
+  const tabellen = { nord, sued };
+  return HALBFINAL_SETZUNG.map((s) => ({
+    spieltag,
+    runde: /** @type {Runde} */ ('halbfinale'),
+    heim: tabellen[s.heim.gruppe][s.heim.platz - 1].teamId,
+    gast: tabellen[s.gast.gruppe][s.gast.platz - 1].teamId,
+    ergebnis: null,
+  }));
 }
 
 /**

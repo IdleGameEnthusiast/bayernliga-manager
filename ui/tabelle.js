@@ -2,6 +2,7 @@
 /** Die beiden Gruppentabellen und, sobald es sie gibt, das Playoff-Bracket. */
 
 import { el, tabelle as machTabelle, farbtupfer } from './dom.js';
+import { zeigeBracket } from './bracket.js';
 import { T } from '../i18n.js';
 import { teamById } from '../engine/content.js';
 import { bilanz } from '../engine/tabelle.js';
@@ -15,7 +16,7 @@ import { PLAYOFF_PLAETZE } from '../engine/constants.js';
 export function zeigeTabelle(gruppen, meinTeam, playoffs) {
   return el('div', {},
     gruppen.map((g) => gruppenKarte(g.gruppe, g.zeilen, meinTeam)),
-    playoffKarte(playoffs, meinTeam));
+    playoffKarte(playoffs, gruppen, meinTeam));
 }
 
 /**
@@ -55,38 +56,17 @@ function gruppenKarte(gruppe, zeilen, meinTeam) {
 }
 
 /**
- * Das Bracket. Vor dem letzten Gruppenspieltag gibt es nichts zu zeigen —
- * dann steht dort, dass es noch nichts zu zeigen gibt.
+ * Das Bracket. Vor dem letzten Gruppenspieltag gibt es noch keine Partie —
+ * die Form steht trotzdem schon da, mit den Setzungen auf den vier Plätzen.
  * @param {import('../engine/spielplan.js').Partie[]} playoffs
+ * @param {{ gruppe: 'nord'|'sued', zeilen: import('../engine/tabelle.js').TabellenZeile[] }[]} gruppen
  * @param {string} meinTeam
  */
-function playoffKarte(playoffs, meinTeam) {
-  const inhalt = playoffs.length === 0
-    ? [el('p', { class: 'leise klein', style: { margin: '0' }, text: T.playoffs.offen })]
-    : playoffs.map((p) => paarung(p, meinTeam));
-
+function playoffKarte(playoffs, gruppen, meinTeam) {
   return el('div', { class: 'karte' },
     el('h2', { text: T.playoffs.ueberschrift }),
-    inhalt);
-}
-
-/**
- * @param {import('../engine/spielplan.js').Partie} p
- * @param {string} meinTeam
- */
-function paarung(p, meinTeam) {
-  const heim = teamById(p.heim);
-  const gast = teamById(p.gast);
-  const meins = p.heim === meinTeam || p.gast === meinTeam;
-
-  return el('div', { class: 'paarung', style: { cursor: 'default' } },
-    farbtupfer(heim),
-    el('span', { class: 'namen', style: { fontWeight: meins ? '700' : '400' } },
-      el('div', { class: 'leise klein', text: T.runde[p.runde] }),
-      el('div', { text: `${heim.name} — ${gast.name}` })),
-    farbtupfer(gast),
-    el('span', {
-      class: p.ergebnis ? 'stand' : 'stand leise',
-      text: p.ergebnis ? `${p.ergebnis.heimPunkte} : ${p.ergebnis.gastPunkte}` : '–',
-    }));
+    zeigeBracket(playoffs, gruppen, meinTeam),
+    playoffs.length === 0
+      ? el('p', { class: 'leise klein', style: { margin: '12px 0 0' }, text: T.playoffs.offen })
+      : null);
 }
