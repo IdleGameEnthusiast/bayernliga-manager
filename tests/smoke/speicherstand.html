@@ -41,8 +41,10 @@ import { neuesSpiel } from '../../engine/saison.js';
 try {
   // 1 — Er wird nicht fortgesetzt, sondern weggeworfen
   gleich('die App zeigt den Startbildschirm', alle('.start-team').length, 12);
+  // Gefragt wird der Bildschirm, nicht der Body: dessen `textContent` enthält
+  // auch den Quelltext dieses Skripts — die Zeile fände sich selbst.
   pruefe('und bietet kein Fortsetzen an',
-    !document.body.textContent.includes('Karriere fortsetzen'));
+    !alle('#app button').some((b) => b.textContent.trim() === 'Karriere fortsetzen'));
   gleich('der fremde Stand ist aus dem Speicher verschwunden',
     localStorage.getItem('bayernliga.save'), null);
   gleich('mit ihm der Schlüssel des alten Builds',
