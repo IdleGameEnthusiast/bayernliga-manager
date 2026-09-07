@@ -5,18 +5,80 @@ import assert from 'node:assert/strict';
 import { TEAMS, GRUPPEN, teamsDerGruppe, teamById } from '../engine/content.js';
 import { KADER_GROESSE_EIGEN, KADER_GROESSE_FREMD, EIGENE_VEREINSBASIS } from '../engine/constants.js';
 import {
-  neuesSpiel, spieleSpieltag, saisonVorbei, naechsteSaison, anzahlSpieltage,
+  neuesSpiel, weiter, letzterTag, naechsterStopp, beantworteNachricht,
+  naechsteSaison, anzahlSpieltage,
   vereinsBasen, gruppenTabelle, gruppenTabellen, meineTabelle, meister,
   gruppenSpieltage, losePersonnel, personnelVon, passAnteilVon, setzeTaktik,
   erlaubterPassAnteil, alsGegner, eigeneAufstellung, aufstellungVon,
   setzeAufstellung, automatischAufstellen, entwurfSetze, entwurfVon,
   entwurfVollstaendig, entwurfLeeren, naechstePartie, ligaSchnittVerteidigung,
 } from '../engine/saison.js';
+import {
+  offeneAntworten, antwortenZu, brauchtAntwort, markiereGelesen,
+} from '../engine/postfach.js';
+import { tagVonSpieltag } from '../engine/kalender.js';
 import { PERSONNEL } from '../engine/aufstellung.js';
 import { teamStaerken } from '../engine/team.js';
 import { partienDerRunde, sieger } from '../engine/spielplan.js';
 import { SAVE_VERSION } from '../engine/saison.js';
 import { migriere, exportiere, importiere } from '../engine/save.js';
+
+// --- Der Weg durch den Kalender ---------------------------------------------
+//
+// Es gibt keinen `spieleSpieltag()` mehr. Wer eine Saison durchspielen will,
+// bewegt die Uhr — und die hält bei jedem eigenen Spiel und bei jeder
+// Antwortpflicht an. Beides räumen diese drei Helfer ab, damit die Tests
+// darunter von Tabellen und Kadern handeln und nicht vom Tick.
+
+/**
+ * Alles beantworten, was den Kalender festhält.
+ *
+ * `wahl` entscheidet unter den Antworten einer Art. Vorgabe ist die erste — bei
+ * `aufstellungUngueltig` also die Automatik, und die wirft die Vorgabe des
+ * Managers weg. Wo genau die Vorgabe der Gegenstand des Tests ist, wählt er
+ * die letzte.
+ * @param {any} s @param {(a: string[]) => string} [wahl]
+ */
+function raeumeAntworten(s, wahl = (a) => a[0]) {
+  for (const n of offeneAntworten(s)) beantworteNachricht(s, n.id, wahl(antwortenZu(n.art)));
+}
+
+/**
+ * Spielt bis zum entschiedenen Finale.
+ *
+ * `meister(s) !== null` ist das neue `saisonVorbei(s)` — es tritt am Tag des
+ * Finales ein, nicht erst am Saisonende. Der Unterschied ist wichtig:
+ * `weiter()` rollt am letzten Tag **von selbst** in die nächste Saison, und
+ * wer bis dahin durchspielt, hat `naechsteSaison()` schon hinter sich, ohne sie
+ * gerufen zu haben.
+ * @param {any} s @param {(a: string[]) => string} [wahl]
+ */
+function bisSaisonende(s, wahl) {
+  for (let i = 0; i < 400 && !meister(s); i++) {
+    raeumeAntworten(s, wahl);
+    weiter(s);
+  }
+  assert.ok(meister(s), 'die Saison terminiert');
+}
+
+/**
+ * Spielt bis einschliesslich Spieltag `nr` — und keinen Tag weiter als nötig.
+ *
+ * Gezielt wird auf den Tag **nach** dem Spieltag: steht die Uhr auf dem
+ * Spieltag selbst, wäre er das Ziel und `weiter()` bliebe stehen, ohne
+ * anzupfeifen. Ein Ziel dahinter pfeift an und hält am Morgen danach — ein
+ * bloßes `weiter(s)` liefe stattdessen bis zum nächsten eigenen Spiel durch
+ * und nähme fremde Partien im Vorbeigehen mit.
+ * @param {any} s @param {number} nr @param {(a: string[]) => string} [wahl]
+ */
+function bisSpieltag(s, nr, wahl) {
+  const ziel = tagVonSpieltag(nr) + 1;
+  for (let i = 0; i < 400 && s.tag < ziel; i++) {
+    raeumeAntworten(s, wahl);
+    weiter(s, ziel);
+  }
+  assert.ok(s.tag >= ziel, `Spieltag ${nr} ist nicht erreicht worden`);
+}
 
 test('der eigene Verein fällt ans Tabellenende, die anderen rücken auf', () => {
   const basen = vereinsBasen('sta');
@@ -49,14 +111,14 @@ test('die Werteleiter der Liga bleibt dieselbe, egal wer gewählt wird', () => {
 test('ein neues Spiel ist vollständig aufgesetzt', () => {
   const s = neuesSpiel('heg', 'seed-1');
   assert.equal(s.jahr, 2026);
-  assert.equal(s.spieltag, 1);
+  assert.equal(s.tag, 1);
   assert.equal(s.meinTeam, 'heg');
   assert.equal(Object.keys(s.kader).length, TEAMS.length);
   for (const t of TEAMS) {
     const soll = t.id === s.meinTeam ? KADER_GROESSE_EIGEN : KADER_GROESSE_FREMD;
     assert.equal(s.kader[t.id].length, soll, t.id);
   }
-  assert.ok(!saisonVorbei(s));
+  assert.equal(meister(s), null);
   assert.equal(anzahlSpieltage(s.spielplan), 10, 'die Gruppenrunde steht, das Bracket nicht');
   assert.equal(partienDerRunde(s.spielplan, 'halbfinale').length, 0);
 });
@@ -64,17 +126,12 @@ test('ein neues Spiel ist vollständig aufgesetzt', () => {
 test('eine volle Saison lässt sich durchspielen', () => {
   const s = neuesSpiel('ers', 'seed-2');
 
-  let gespielt = 0;
-  while (!saisonVorbei(s)) {
-    const bericht = spieleSpieltag(s);
-    assert.ok(bericht, 'jeder Spieltag liefert einen Bericht');
-    gespielt++;
-    assert.ok(gespielt <= 12, 'die Saison terminiert');
-  }
-  assert.equal(gespielt, 12, 'zehn Gruppenspieltage, Halbfinale, Finale');
-  assert.equal(anzahlSpieltage(s.spielplan), 12);
+  bisSaisonende(s);
+  assert.equal(anzahlSpieltage(s.spielplan), 12, 'zehn Gruppenspieltage, Halbfinale, Finale');
   assert.equal(s.spielplan.filter((p) => p.ergebnis === null).length, 0);
-  assert.equal(spieleSpieltag(s), null, 'nach dem Ende passiert nichts mehr');
+  // Nach dem Ende passiert nicht nichts mehr — nach dem Ende kommt die
+  // Sommerpause, und die ist ein Teil derselben Saison.
+  assert.equal(s.jahr, 2026, 'der Wechsel geschieht erst am letzten Tag');
 });
 
 test('das Bracket entsteht erst, wenn es feststeht', () => {
@@ -82,13 +139,13 @@ test('das Bracket entsteht erst, wenn es feststeht', () => {
   const gruppenEnde = gruppenSpieltage(s.spielplan);
   assert.equal(gruppenEnde, 10);
 
-  for (let i = 0; i < gruppenEnde - 1; i++) {
-    spieleSpieltag(s);
+  for (let nr = 1; nr < gruppenEnde; nr++) {
+    bisSpieltag(s, nr);
     assert.equal(partienDerRunde(s.spielplan, 'halbfinale').length, 0,
-      `nach Spieltag ${i + 1} steht noch kein Halbfinale`);
+      `nach Spieltag ${nr} steht noch kein Halbfinale`);
   }
 
-  spieleSpieltag(s); // letzter Gruppenspieltag
+  bisSpieltag(s, gruppenEnde); // letzter Gruppenspieltag
   const hf = partienDerRunde(s.spielplan, 'halbfinale');
   assert.equal(hf.length, 2);
   assert.ok(hf.every((p) => p.spieltag === 11));
@@ -102,7 +159,7 @@ test('das Bracket entsteht erst, wenn es feststeht', () => {
     [nord[0].teamId, sued[1].teamId],
   ]);
 
-  spieleSpieltag(s); // Halbfinale
+  bisSpieltag(s, 11); // Halbfinale
   const finale = partienDerRunde(s.spielplan, 'finale');
   assert.equal(finale.length, 1);
   assert.equal(finale[0].spieltag, 12);
@@ -111,14 +168,13 @@ test('das Bracket entsteht erst, wenn es feststeht', () => {
   assert.deepEqual([finale[0].heim, finale[0].gast].sort(), [sieger1, sieger2].sort());
 
   assert.equal(meister(s), null, 'vor dem Finale gibt es keinen Meister');
-  spieleSpieltag(s);
+  bisSpieltag(s, 12);
   assert.equal(meister(s), sieger(finale[0]));
-  assert.ok(saisonVorbei(s));
 });
 
 test('die Gruppentabellen zählen nur Gruppenspiele', () => {
   const s = neuesSpiel('hr', 'seed-gruppen');
-  while (!saisonVorbei(s)) spieleSpieltag(s);
+  bisSaisonende(s);
 
   for (const { gruppe, zeilen } of gruppenTabellen(s)) {
     assert.equal(zeilen.length, teamsDerGruppe(gruppe).length);
@@ -132,7 +188,7 @@ test('die Gruppentabellen zählen nur Gruppenspiele', () => {
 
 test('kein Spiel einer ganzen Saison endet unentschieden', () => {
   const s = neuesSpiel('fkk', 'seed-remis');
-  while (!saisonVorbei(s)) spieleSpieltag(s);
+  bisSaisonende(s);
   for (const p of s.spielplan) {
     assert.ok(p.ergebnis, 'jede Partie ist gespielt');
     assert.notEqual(p.ergebnis.heimPunkte, p.ergebnis.gastPunkte,
@@ -142,7 +198,7 @@ test('kein Spiel einer ganzen Saison endet unentschieden', () => {
 
 test('die Tabelle stimmt mit den gespielten Partien überein', () => {
   const s = neuesSpiel('gc', 'seed-3');
-  while (!saisonVorbei(s)) spieleSpieltag(s);
+  bisSaisonende(s);
 
   for (const { zeilen } of gruppenTabellen(s)) {
     // Jeder Sieg auf der einen Seite ist eine Niederlage auf der anderen.
@@ -162,21 +218,21 @@ test('die Tabelle stimmt mit den gespielten Partien überein', () => {
 test('gleicher Seed, gleiche Saison', () => {
   const a = neuesSpiel('fel', 'gleich');
   const b = neuesSpiel('fel', 'gleich');
-  while (!saisonVorbei(a)) spieleSpieltag(a);
-  while (!saisonVorbei(b)) spieleSpieltag(b);
+  bisSaisonende(a);
+  bisSaisonende(b);
   assert.deepEqual(gruppenTabellen(a), gruppenTabellen(b));
   assert.equal(meister(a), meister(b));
 });
 
 test('der Saisonwechsel setzt zurück und schreibt Historie', () => {
   const s = neuesSpiel('mr', 'seed-4');
-  while (!saisonVorbei(s)) spieleSpieltag(s);
+  bisSaisonende(s);
 
   const finale = partienDerRunde(s.spielplan, 'finale')[0];
   const { meister: champion } = naechsteSaison(s);
   assert.equal(champion, sieger(finale), 'Meister ist der Finalsieger');
   assert.equal(s.jahr, 2027);
-  assert.equal(s.spieltag, 1);
+  assert.equal(s.tag, 1);
   assert.equal(s.historie.length, 1);
   assert.equal(s.historie[0].jahr, 2026);
   assert.equal(s.spielplan.filter((p) => p.ergebnis !== null).length, 0, 'frischer Spielplan');
@@ -193,7 +249,7 @@ test('der Saisonwechsel setzt zurück und schreibt Historie', () => {
 test('mehrere Saisons hintereinander bleiben stabil', () => {
   const s = neuesSpiel('btc', 'seed-5');
   for (let i = 0; i < 5; i++) {
-    while (!saisonVorbei(s)) spieleSpieltag(s);
+    bisSaisonende(s);
     naechsteSaison(s);
   }
   assert.equal(s.jahr, 2031);
@@ -206,18 +262,20 @@ test('mehrere Saisons hintereinander bleiben stabil', () => {
 
 test('Export und Import ergeben denselben Stand', () => {
   const s = neuesSpiel('pp', 'seed-6');
-  spieleSpieltag(s);
-  spieleSpieltag(s);
+  bisSpieltag(s, 2);
 
   const zurueck = importiere(exportiere(s));
   assert.deepEqual(zurueck, s);
 });
 
 test('Migration füllt fehlende Felder auf', () => {
+  // Der Rohstand behält sein `spieltag` — das ist ja gerade der v4-Fall.
   const roh = { seed: 'x', jahr: 2026, spieltag: 1, meinTeam: 'heg', kader: {}, spielplan: [] };
   const m = migriere(roh);
   assert.equal(m.version, SAVE_VERSION);
-  assert.deepEqual(m.verlauf, []);
+  assert.equal(m.tag, tagVonSpieltag(1), 'Spieltag 1 ist Tag 183');
+  assert.equal('spieltag' in m, false, 'die alte Uhr steht noch daneben');
+  assert.deepEqual(m.post, []);
   assert.deepEqual(m.historie, []);
 });
 
@@ -256,7 +314,7 @@ test('ein Spieltag verbucht die Einsätze bei allen Vereinen', () => {
   assert.equal(alle().filter((s) => Object.keys(s.einsaetze).length > 0).length, 0,
     'vor dem ersten Spieltag hat niemand einen Einsatz');
 
-  spieleSpieltag(stand);
+  bisSpieltag(stand, 1);
 
   const gespielt = alle().filter((s) => Object.keys(s.einsaetze).length > 0);
   // Zweiundzwanzig Plätze mal zwölf Vereine, abzüglich der Doppeleinsätze.
@@ -277,7 +335,7 @@ test('die Aufstellung landet nicht im gespeicherten Ergebnis', () => {
   // Sie ist flüchtig: sie dient der Verbuchung und hätte im Spielplan nur den
   // Speicherstand aufgebläht.
   const stand = neuesSpiel(TEAMS[0].id, 'fluechtig');
-  spieleSpieltag(stand);
+  bisSpieltag(stand, 1);
   const gespielt = stand.spielplan.filter((p) => p.ergebnis);
   assert.ok(gespielt.length > 0);
   for (const p of gespielt) {
@@ -298,6 +356,100 @@ test('Stände aus einer älteren Liga werden abgelehnt', () => {
   // nur durch Erfinden gewinnen.
   assert.throws(() => migriere({ version: 3, seed: 'x', meinTeam: 'heg', kader: {} }),
     /älteren Liga/);
+});
+
+// --- Der Kalender und das Postfach ------------------------------------------
+
+test('ein Zwangsstopp hält ein Ziel auf', () => {
+  const s = neuesSpiel('heg', 'stopp');
+  raeumeAntworten(s);
+
+  // Tag 300 liegt tief in den Playoffs. Der Kalender kommt nicht hin: am ersten
+  // Spieltag steht das eigene Spiel, und ein eigenes Spiel wird nicht
+  // übersprungen, nur weil weiter hinten ein Ziel steht.
+  const f = weiter(s, 300);
+  assert.equal(f.bisTag, tagVonSpieltag(1));
+  assert.equal(f.grund, 'spiel');
+  assert.equal(s.tag, tagVonSpieltag(1));
+});
+
+test('eine offene Antwort blockiert die Uhr', () => {
+  const s = neuesSpiel('heg', 'blockade');
+  assert.equal(offeneAntworten(s).length, 1, 'das Wort des Vorstands steht offen');
+
+  for (const versuch of [1, 2]) {
+    const f = weiter(s);
+    assert.equal(f.grund, 'antwort', `Versuch ${versuch}`);
+    assert.equal(f.bisTag, 1);
+    assert.equal(s.tag, 1, 'die Uhr hat sich bewegt');
+    assert.deepEqual(f.partien, []);
+  }
+
+  // Erst die Antwort löst die Bremse.
+  raeumeAntworten(s);
+  assert.equal(weiter(s).grund, 'spiel');
+  assert.ok(s.tag > 1);
+});
+
+test('die Kennungen der Nachrichten hängen am Saatgut, nicht an der Uhrzeit', () => {
+  const wege = [1, 2].map(() => {
+    const s = neuesSpiel('heg', 'kennungen');
+    bisSpieltag(s, 2);
+    return s.post.map((n) => `${n.id} ${n.art}`);
+  });
+  assert.ok(wege[0].length > 3, 'auf dem Weg ist überhaupt Post entstanden');
+  assert.deepEqual(wege[0], wege[1]);
+});
+
+test('naechsterStopp sagt nur, was käme, und ändert nichts', () => {
+  const s = neuesSpiel('heg', 'vorschau');
+
+  const offen = JSON.stringify(s);
+  assert.deepEqual(naechsterStopp(s), { tag: 1, grund: 'antwort' });
+  assert.equal(JSON.stringify(s), offen, 'die Vorschau hat den Stand angefasst');
+
+  raeumeAntworten(s);
+  const frei = JSON.stringify(s);
+  assert.deepEqual(naechsterStopp(s), { tag: tagVonSpieltag(1), grund: 'spiel' });
+  assert.equal(JSON.stringify(s), frei, 'die Vorschau hat den Stand angefasst');
+});
+
+test('am letzten Tag rollt der Kalender von selbst in die nächste Saison', () => {
+  const s = neuesSpiel('heg', 'rollover');
+  bisSaisonende(s);
+
+  const ende = letzterTag(s);
+  assert.equal(ende, 364, 'eine Saison ist volle Wochen lang');
+  raeumeAntworten(s);
+  weiter(s, ende);
+  assert.equal(s.tag, ende, 'der letzte Tag der Sommerpause');
+  assert.equal(s.jahr, 2026, 'und noch dieselbe Saison');
+
+  const f = weiter(s);
+  assert.equal(f.grund, 'phase');
+  assert.equal(s.jahr, 2027);
+  assert.equal(s.tag, 1, 'Tag 1 des Folgejahres');
+  assert.equal(s.historie.length, 1, 'der Wechsel hat Historie geschrieben');
+  assert.ok(offeneAntworten(s).length > 0, 'und der Vorstand meldet sich wieder');
+});
+
+test('der Saisonwechsel stutzt das Postfach', () => {
+  const s = neuesSpiel('heg', 'stutzen');
+  bisSaisonende(s);
+  for (const n of s.post) markiereGelesen(s, n.id);
+
+  const wegwerf = s.post.filter((n) => !brauchtAntwort(n.art)).map((n) => n.id);
+  const bleibt = s.post.filter((n) => brauchtAntwort(n.art)).map((n) => n.id);
+  assert.ok(wegwerf.length > 0, 'es gibt überhaupt etwas zu stutzen');
+  assert.ok(bleibt.length > 0, 'und etwas, das bleiben muss');
+
+  naechsteSaison(s);
+  const ids = new Set(s.post.map((n) => n.id));
+  for (const id of wegwerf) assert.ok(!ids.has(id), `${id} liegt noch im Postfach`);
+  // Was eine Antwort verlangt hat, ist Aktenlage und bleibt liegen.
+  for (const id of bleibt) assert.ok(ids.has(id), `${id} ist weggeräumt worden`);
+  // Und die Eröffnung des neuen Jahres liegt obenauf.
+  assert.ok(s.post.some((n) => n.art === 'vorstandsziel' && n.jahr === 2027));
 });
 
 // --- Taktik ----------------------------------------------------------------
@@ -323,7 +475,7 @@ test('die Auslosung hängt nur am Saatgut', () => {
 test('das System überlebt den Saisonwechsel', () => {
   const stand = neuesSpiel('heg', 'philosophie');
   const vorher = { ...stand.personnel };
-  while (!saisonVorbei(stand)) spieleSpieltag(stand);
+  bisSaisonende(stand);
   naechsteSaison(stand);
   assert.deepEqual(stand.personnel, vorher, 'ein Verein hat eine Spielphilosophie');
 });
@@ -378,16 +530,16 @@ test('die Taktik gilt ab dem nächsten Spieltag', () => {
   const a = gleich();
   const b = gleich();
 
-  spieleSpieltag(a);
-  spieleSpieltag(b);
+  bisSpieltag(a, 1);
+  bisSpieltag(b, 1);
   const nachEins = JSON.stringify(a.spielplan.filter((p) => p.spieltag === 1));
 
   setzeTaktik(b, { personnel: '32', passAnteil: 0.2 });
   // Der gespielte Spieltag rührt sich nicht.
   assert.equal(JSON.stringify(b.spielplan.filter((p) => p.spieltag === 1)), nachEins);
 
-  spieleSpieltag(a);
-  spieleSpieltag(b);
+  bisSpieltag(a, 2);
+  bisSpieltag(b, 2);
   const zweiA = a.spielplan.filter((p) => p.spieltag === 2);
   const zweiB = b.spielplan.filter((p) => p.spieltag === 2);
   assert.notDeepEqual(zweiB, zweiA, 'der nächste Spieltag sieht die Änderung');
@@ -411,14 +563,14 @@ test('die nächste Partie ist die früheste ungespielte, nicht die erste im Arra
   assert.equal(erste.spieltag, 1);
   assert.ok(erste.heim === 'heg' || erste.gast === 'heg');
 
-  spieleSpieltag(stand);
+  bisSpieltag(stand, 1);
   const zweite = naechstePartie(stand, 'heg');
   assert.ok(zweite);
   assert.equal(zweite.spieltag, 2);
 
   // Nach dem letzten Spieltag steht keine mehr an — der Fall, für den es den
   // Rückfall auf den Ligaschnitt gibt.
-  while (!saisonVorbei(stand)) spieleSpieltag(stand);
+  bisSaisonende(stand);
   assert.equal(naechstePartie(stand, 'heg'), null);
 });
 
@@ -434,7 +586,7 @@ test('der Ligaschnitt mittelt die Verteidigung aller anderen Vereine', () => {
 
   // Ein Mittel liegt zwischen den Rändern dessen, was es mittelt.
   const werte = andere.map((t) => teamStaerken(
-    stand.kader[t.id], stand.spieltag, personnelVon(stand, t.id), passAnteilVon(stand, t.id)));
+    stand.kader[t.id], stand.tag, personnelVon(stand, t.id), passAnteilVon(stand, t.id)));
   const pass = werte.map((w) => w.passVerteidigung);
   assert.ok(schnitt.passVerteidigung >= Math.min(...pass));
   assert.ok(schnitt.passVerteidigung <= Math.max(...pass));
@@ -443,7 +595,7 @@ test('der Ligaschnitt mittelt die Verteidigung aller anderen Vereine', () => {
 test('Export und Import nehmen die Taktik mit', () => {
   const stand = neuesSpiel('heg', 'export');
   setzeTaktik(stand, { personnel: '21', passAnteil: 0.35 });
-  spieleSpieltag(stand);
+  bisSpieltag(stand, 1);
 
   const zurueck = importiere(exportiere(stand));
   assert.deepEqual(zurueck.personnel, stand.personnel);
@@ -547,7 +699,9 @@ test('der Saisonwechsel wirft die Abgänge aus der Vorgabe', () => {
   stelleVonHand(stand, 'QB', stand.kader.heg[0].id);
   const vorher = Object.keys(stand.aufstellung).length;
 
-  while (!saisonVorbei(stand)) spieleSpieltag(stand);
+  // „selbst" statt „automatisch": die Automatik würfe die Vorgabe weg, um die
+  // es hier geht.
+  bisSaisonende(stand, (a) => a[a.length - 1]);
   const { ruecktritte } = naechsteSaison(stand);
 
   const da = new Set(stand.kader.heg.map((s) => s.id));
