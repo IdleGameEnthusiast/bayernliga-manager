@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<title>Eine neue Karriere, vom Startbildschirm bis zum zweiten Spieltag</title>
+<link rel="stylesheet" href="../../app.css">
+<link rel="stylesheet" href="melder.css">
+<script src="./melder.js"></script>
+</head>
+<body><div id="app" class="app"></div><div id="bericht"></div>
+
+<!-- Erst leeren, dann erst die App laden — und beides statisch. Ein
+     `await import()` im Modul geht am load-Ereignis vorbei, und dann steht der
+     Browser noch mitten in der Arbeit, während der Runner schon abräumt. -->
+<script type="module">
+localStorage.clear();
+</script>
+
+<script type="module">
+import '../../app.js';
+
+const knopf = () => txt('.tageskarte button.haupt');
+const tageskarte = () => txt('.tageskarte');
+
+try {
+  // 1 — Der Startbildschirm
+  gleich('Startbildschirm listet zwölf Vereine', alle('.start-team').length, 12);
+  q('.start-team').click();
+  q('.fuss button.haupt').click();
+
+  // 2 — Die erste Ansicht ist der Posteingang.
+  //
+  // Eine neue Karriere steht in Saison 2026, und die beginnt am dritten
+  // Oktobersamstag 2025. Die Beispielsaison in docs/umbau-kalender.md §4 ist
+  // die 2027er — wer ihre Daten hier erwartet, misst das falsche Jahr.
+  gleich('erster Reiter ist der Posteingang',
+    q('.reiter button[aria-selected=true]').textContent, 'Posteingang');
+  gleich('fünf Reiter', alle('.reiter button').length, 5);
+  gleich('keine Fußleiste', alle('.fuss').length, 0);
+  gleich('Raster steht auf Oktober 2025', txt('.kalkopf h2'), 'Oktober 2025');
+  gleich('heute ist der 18.', txt('.kaltag.heute .kalzahl'), '18');
+  const raster = [...q('.kalraster:not(.kalkopfzeile)').children];
+  gleich('und steht in der Samstagsspalte',
+    ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][raster.indexOf(q('.kaltag.heute')) % 7], 'Sa');
+  gleich('Kopfzeile trägt ein Datum statt eines Spieltags', txt('.kopf-datum'), 'Sa 18. Okt 2025');
+
+  // 3 — Der Vorstand hält den Kalender an
+  gleich('eine Nachricht trägt die Antwortmarke', alle('.postzeichen.antwort').length, 1);
+  gleich('Tageskarte führt zur Nachricht', knopf(), 'Zur Nachricht ›');
+  enthaelt('und sagt, worauf gewartet wird', tageskarte(), 'wartet auf eine Antwort');
+
+  q('.tageskarte button.haupt').click();
+  gleich('die Nachricht klappt auf', alle('.postzeile.offen').length, 1);
+  q('.postzeile.offen .postknoepfe button').click();
+
+  // 4 — Beantwortet: der Weg zum ersten Spieltag ist frei
+  gleich('Tageskarte bietet den Sprung an', knopf(), 'Bis dahin');
+  enthaelt('nächster Termin', tageskarte(), 'Nächster Termin');
+  enthaelt('am 18. April', tageskarte(), 'Sa 18. Apr');
+  enthaelt('zu Spieltag 1', tageskarte(), 'Spieltag 1');
+  gleich('die Uhr steht noch an Tag 1', txt('.kopf-datum'), 'Sa 18. Okt 2025');
+  gleich('die Antwort steht als Marke da', txt('.postzeile.offen .postknoepfe .marke'),
+    'Ja, ich bin bereit');
+
+  // 5 — „bis hierhin": ein späterer Tag im Raster bewegt die Uhr dorthin
+  const imOktober = alle('.kaltag.springbar');
+  const letzterOkt = imOktober[imOktober.length - 1];
+  enthaelt('ein späterer Tag lädt zum Weiterspielen',
+    letzterOkt.getAttribute('title'), 'weiterspielen');
+  gleich('der 31. ist der letzte des Monats',
+    letzterOkt.querySelector('.kalzahl').textContent, '31');
+  letzterOkt.click();
+  gleich('die Uhr steht auf dem angetippten Tag', txt('.kopf-datum'), 'Fr 31. Okt 2025');
+  gleich('und bietet weiter den Sprung an', knopf(), 'Bis dahin');
+
+  // 6 — Ein Ziel hinter dem Spieltag: die Uhr hält trotzdem am eigenen Spiel
+  for (let i = 0; i < 6; i++) q('.kalkopf .kalpfeil:last-of-type').click();
+  gleich('das Raster lässt sich blättern', txt('.kalkopf h2'), 'April 2026');
+  const imApril = alle('.kaltag.springbar');
+  const letzterApr = imApril[imApril.length - 1];
+  gleich('bis zum 30. April', letzterApr.querySelector('.kalzahl').textContent, '30');
+  letzterApr.click();
+  gleich('die Uhr hält am eigenen Spiel, nicht am Ziel', txt('.kopf-datum'), 'Sa 18. Apr 2026');
+  gleich('Raster ist zum heutigen Tag zurückgekehrt', txt('.kalkopf h2'), 'April 2026');
+  gleich('heute ist der 18. April', txt('.kaltag.heute .kalzahl'), '18');
+  gleich('Tageskarte trägt den Anpfiff', knopf(), 'Anpfiff');
+  enthaelt('und nennt den Gegner', tageskarte(), 'gegen ');
+
+  // 7 — Anpfiff: der Spielbericht schlägt sich auf
+  q('.tageskarte button.haupt').click();
+  gleich('der Spielbericht öffnet sich', alle('.bericht-kopf').length, 2);
+  gleich('ohne Reiter', alle('.reiter').length, 0);
+  q('.fuss button.haupt').click();
+
+  // 8 — Zurück im Postfach liegen Spielbericht und Rundenergebnisse
+  const betreffe = alle('.postbetreff').map((e) => e.textContent);
+  pruefe('der Spielbericht liegt im Postfach',
+    betreffe.some((b) => /\d+:\d+/.test(b)), betreffe.join(' | '));
+  pruefe('die Rundenergebnisse auch',
+    betreffe.some((b) => /^Spieltag 1 /.test(b)), betreffe.join(' | '));
+  gleich('die Uhr steht am zweiten Spieltag', txt('.kopf-datum'), 'Sa 25. Apr 2026');
+  gleich('und bietet den nächsten Anpfiff', knopf(), 'Anpfiff');
+
+  // Aufklappen zeichnet die Ansicht neu — die Zeile von vorhin ist danach eine
+  // abgehängte, und es muss frisch gesucht werden.
+  const berichtZeile = alle('.postzeile').find((z) => /\d+:\d+/.test(z.textContent));
+  pruefe('der Spielbericht liegt als Nachricht vor', !!berichtZeile);
+  berichtZeile.querySelector('.postkopf').click();
+  const zumBericht = alle('.postzeile.offen button')
+    .find((b) => b.textContent === 'Spielbericht ansehen');
+  pruefe('und führt von dort zum Box Score', !!zumBericht);
+  zumBericht.click();
+  gleich('der Box Score steht wieder da', alle('.bericht-kopf').length, 2);
+} catch (e) { merkeFehler(e); }
+melde();
+</script></body></html>

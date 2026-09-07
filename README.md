@@ -23,6 +23,7 @@ Weil die App ES-Module benutzt, reicht ein Doppelklick auf `index.html` **nicht*
 | Auf dem iPad | gleicher Befehl, dann `http://<IP-des-Macs>:8000` im selben WLAN |
 | Layout-Fixture | `vis.html` — Saison bis Spieltag 8 vorgespielt, `?ende` spielt sie bis hinter das Finale; dazu `?v=kader`, `?v=taktik`, `?v=spielplan`, `?v=bericht` |
 | Tests | `node --test tests/*.test.js` |
+| Rauchtest im Browser | `node tests/smoke.js [filter]` — startet Server und Firefox selbst |
 | Icons neu bauen | `node scripts/mach-icons.js` |
 | Ligastärken messen | `node scripts/baseline-staerken.js` — das Messband für den Umbau |
 
@@ -72,6 +73,7 @@ in Millisekunden durchspielen können.
 | `ui/*.js` | Jeder DOM-Aufruf |
 | `app.js` | Zustand, Ansichten, Verdrahtung |
 | `sw.js` | Service Worker: Netz zuerst, Cache als Rückfall. Seine `SHELL` muss jedes Modul nennen, sonst startet die App offline nicht — `tests/sw.test.js` prüft das gegen die Platte |
+| `tests/smoke/` | Der Rauchtest: Seiten, die die echte App in einem Browser durchklicken. `tests/smoke.js` fährt sie |
 
 **Bezeichner im Code sind englisch, sichtbare Texte deutsch** und stehen
 ausschließlich in `i18n.js`. Die Datei ist UTF-8 ohne BOM und benutzt echte
@@ -88,6 +90,45 @@ schreiben. Sie ist mit dem Postfach entfallen — eine Nachricht speichert einen
 **Schlüssel und ihre Daten, nie einen Satz**, und der Satz dazu steht in
 `T.post`. Damit lassen sich Texte ändern, ohne alte Speicherstände zu
 verfälschen. Heute importiert kein Modul in `engine/` etwas von außerhalb.
+
+## Der Rauchtest
+
+`node --test` deckt `engine/` ab und rührt `ui/` nicht an — dort gibt es kein
+DOM. Was dabei ungeprüft bleibt, ist die **Verdrahtung**: ob der erste
+Bildschirm der Posteingang ist, ob ein Knopf die Uhr bewegt, ob ein alter
+Speicherstand beim Laden ankommt. Genau das prüft `node tests/smoke.js`, indem
+es die echte `app.js` in einem echten Firefox lädt und sich durchklickt.
+
+```
+node tests/smoke.js            # alle Seiten
+node tests/smoke.js saison     # nur die, deren Dateiname passt
+```
+
+Das Skript bringt alles mit, was es braucht: es serviert das Projekt auf einem
+freien Port, startet Firefox headless mit einem eigenen Wegwerfprofil und nimmt
+den Bericht der Seite per POST wieder entgegen. **Der Rückweg ist der Grund für
+den eigenen Server** — ein headless Firefox kann kein DOM ausgeben, nur
+fotografieren, und ein Foto ist kein Urteil. So endet der Lauf mit einer Zahl
+wie jeder andere Test: `0` alles grün, `1` etwas rot, `2` kein Firefox da.
+
+Ausgegeben wird nur das Rote. Ein grüner Lauf sind fünf Zeilen.
+
+Die Seiten liegen in `tests/smoke/` und lassen sich auch von Hand aufmachen —
+sie schreiben ihren Bericht zusätzlich sichtbar auf die Seite. Zwei Regeln
+halten sie am Leben:
+
+- **Nur statische Importe.** Ein `await import()` im Modul geht am
+  `load`-Ereignis vorbei; der Runner räumt dann ab, während die Seite noch
+  arbeitet. Deshalb steht das Herrichten in einem `<script type="module">` und
+  `import '../../app.js'` samt Prüfungen im nächsten — Modulskripte laufen in
+  Dokumentreihenfolge, und `load` wartet auf beide.
+- **`melder.js` ist ein klassisches Skript.** Es läuft auch dann, wenn der
+  Modulgraph gar nicht erst lädt, und meldet nach zwei Sekunden von selbst, was
+  es hat. Ein Rauchtest, der schweigend nichts tut, sähe sonst aus wie einer,
+  der nichts gefunden hat.
+
+Sie prüfen die Verdrahtung, nie das Layout: welcher Text in welchem Element
+steht und welcher Klick was auslöst. Wie breit etwas ist, steht nirgends drin.
 
 ## Zufall und Tests
 
