@@ -37,6 +37,15 @@ keine Jahresgebühr, kein Ablaufdatum.
 Für den dauerhaften Betrieb kommt das Ganze auf **GitHub Pages** — der Mac muss
 dann nicht laufen.
 
+Im Wurzelverzeichnis liegt dafür eine leere Datei `.nojekyll`. Ohne sie schiebt
+GitHub Pages jeden Push durch Jekyll, und Jekyll liest **jede** `.md`-Datei im
+Repo als Liquid-Vorlage — auch die Entwürfe unter `docs/`, die nie eine
+Webseite werden sollten. Ein `{{` in einem Codeblock reicht dann, um den ganzen
+Deploy scheitern zu lassen: Liquid läuft vor dem Markdown-Renderer und kennt
+keine Codefences. Genau so stand die Seite hier sechs Tage auf einem alten
+Stand, während jeder Push durchging. `.nojekyll` schaltet den Schritt ab — die
+Dateien gehen unverändert online, und mehr braucht diese App nicht.
+
 ## Aufbau
 
 `engine/` enthält jede Regel und **fasst kein DOM an**. `ui/` enthält jeden
