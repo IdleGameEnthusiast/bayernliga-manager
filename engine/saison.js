@@ -12,8 +12,7 @@
  * einzige Funktion — `weiter()` —, die von selbst dort anhält, wo eine
  * Entscheidung fällig ist.
  *
- * Docs: docs/spec/02-core-loop.md, docs/spec/03-state-contract.md,
- * docs/umbau-kalender.md
+ * Docs: docs/umbau-kalender.md
  */
 
 import {
@@ -39,7 +38,15 @@ import {
 import { berechneTabelle } from './tabelle.js';
 import { teamStaerken } from './team.js';
 
-export const SAVE_VERSION = 5;
+/**
+ * Der Stempel auf einem Speicherstand — **kein Migrationspfad**.
+ *
+ * Bis zum Livegang wird auf alte Stände keine Rücksicht genommen: Wer die Form
+ * von `SpielStand` ändert, zählt hier hoch, und `lade()` wirft jeden Stand weg,
+ * der eine andere Nummer trägt. Eine Umrechnung gibt es nicht und soll es bis
+ * dahin auch nicht geben — siehe CLAUDE.md.
+ */
+export const SAVE_VERSION = 6;
 
 /**
  * @typedef {object} SpielStand
@@ -55,7 +62,6 @@ export const SAVE_VERSION = 5;
  * @property {import('./aufstellung.js').Vorgabe | null} aufstellung  Von Hand, nur der eigene Verein
  * @property {import('./postfach.js').Nachricht[]} post  Der Posteingang, ältestes zuerst
  * @property {{ jahr: number, meister: string, meinPlatz: number }[]} historie
- * @property {string[]} [altverlauf]  Fertige Sätze aus einem v4-Stand, siehe migriere()
  */
 
 /**

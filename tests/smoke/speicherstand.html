@@ -1,77 +1,63 @@
 <!doctype html>
 <html lang="de"><head><meta charset="utf-8">
-<title>Ein Speicherstand aus der Zeit vor dem Kalender</title>
+<title>Ein Speicherstand aus einem anderen Build wird weggeworfen</title>
 <link rel="stylesheet" href="../../app.css">
 <link rel="stylesheet" href="melder.css">
 <script src="./melder.js"></script>
 </head>
 <body><div id="app" class="app"></div><div id="bericht"></div>
 
-<!-- Erst den alten Stand hinlegen, dann erst die App laden: sie liest ihn beim
-     Start, und danach wäre es zu spät. -->
+<!-- Erst den Stand hinlegen, dann erst die App laden: sie liest ihn beim Start,
+     und danach wäre es zu spät. Beides statisch importiert — ein `await
+     import()` ginge am load-Ereignis vorbei. -->
 <script type="module">
-import { neuesSpiel, weiter, beantworteNachricht } from '../../engine/saison.js';
+import { neuesSpiel, weiter, beantworteNachricht, SAVE_VERSION } from '../../engine/saison.js';
 import { tagVonSpieltag } from '../../engine/kalender.js';
 
 localStorage.clear();
 
-// Einen echten v4-Stand herstellen: einen heutigen bauen und ihn zurückbauen.
-// Von Hand geschrieben wäre er nur so alt, wie ich ihn mir vorstelle.
-const s = neuesSpiel('heg', 'v4-seed');
+// Einen Stand aus einem anderen Build herstellen: einen echten bauen und ihm
+// einen fremden Stempel geben. Von Hand geschrieben wäre er nur so falsch, wie
+// ich ihn mir vorstelle — so ist er in allem außer der Nummer gültig.
+const s = neuesSpiel('heg', 'stempel-seed');
 beantworteNachricht(s, s.post[s.post.length - 1].id, 'ja');
 for (let i = 0; i < 30 && s.tag < tagVonSpieltag(3); i++) weiter(s, tagVonSpieltag(3));
 
-const v4 = JSON.parse(JSON.stringify(s));
-v4.version = 4;
-v4.spieltag = 4;                     // die Uhr lief in Spieltagen
-delete v4.tag;
-delete v4.post;                      // und es gab kein Postfach
-v4.verlauf = ['Spieltag 1: HEG 21 : 14 ASS', 'Spieltag 2: ERS 7 : 28 HEG'];
-for (const p of v4.spielplan) delete p.tag;
-// Zwei Verletzte in Spieltagen, wie ein v4-Stand sie führte. Der zweite endet
-// mit Spieltag 11 im Halbfinale — Tag 267, nicht 253.
-v4.kader.heg[0].verletztBis = 6;
-v4.kader.heg[1].verletztBis = 11;
-pruefe('der Rohstand kennt weder tag noch post',
-  !('tag' in v4) && !('post' in v4) && v4.spielplan.every((p) => !('tag' in p)));
-localStorage.setItem('bayernliga.save.v4', JSON.stringify(v4));
+const fremd = JSON.parse(JSON.stringify(s));
+fremd.version = SAVE_VERSION - 1;
+pruefe('der Rohstand wäre spielbar, trüge er den richtigen Stempel',
+  fremd.tag > 1 && fremd.post.length > 0 && fremd.version !== SAVE_VERSION);
+localStorage.setItem('bayernliga.save', JSON.stringify(fremd));
+
+// Dazu ein Schlüssel aus der Zeit, als die Nummer noch im Namen stand.
+localStorage.setItem('bayernliga.save.v5', '{"version":5}');
 </script>
 
 <script type="module">
 import '../../app.js';
+import { lade, speichere, loesche, gibtEsSpeicherstand } from '../../engine/save.js';
+import { neuesSpiel } from '../../engine/saison.js';
 
 try {
-  // 1 — Er wird gefunden, migriert und angezeigt
-  gleich('der alte Stand wird gelesen und fortgesetzt', alle('.start-team').length, 0);
-  gleich('die Uhr steht auf dem Termin von Spieltag 4', txt('.kopf-datum'), 'Sa 9. Mai 2026');
-  gleich('das Raster steht im Mai 2026', txt('.kalkopf h2'), 'Mai 2026');
-  gleich('heute ist der 9.', txt('.kaltag.heute .kalzahl'), '9');
+  // 1 — Er wird nicht fortgesetzt, sondern weggeworfen
+  gleich('die App zeigt den Startbildschirm', alle('.start-team').length, 12);
+  pruefe('und bietet kein Fortsetzen an',
+    !document.body.textContent.includes('Karriere fortsetzen'));
+  gleich('der fremde Stand ist aus dem Speicher verschwunden',
+    localStorage.getItem('bayernliga.save'), null);
+  gleich('mit ihm der Schlüssel des alten Builds',
+    localStorage.getItem('bayernliga.save.v5'), null);
 
-  // 2 — Der migrierte Stand liegt sofort unter dem neuen Schlüssel
-  const neu = JSON.parse(localStorage.getItem('bayernliga.save.v5') || 'null');
-  pruefe('unter dem v5-Schlüssel steht etwas', !!neu);
-  gleich('mit der Version 5', neu.version, 5);
-  gleich('und der Uhr in Tagen', neu.tag, 204);
-  // Eine misslungene Migration soll nicht die einzige Kopie der Karriere sein.
-  pruefe('der alte Schlüssel bleibt als Sicherung liegen',
-    localStorage.getItem('bayernliga.save.v4') !== null);
-  pruefe('jede Partie hat einen Termin bekommen',
-    neu.spielplan.every((p) => typeof p.tag === 'number' && p.tag > 0));
-  const bis = Object.values(neu.kader).flat().map((sp) => sp.verletztBis).filter((t) => t > 0);
-  gleich('beide Verletzte sind mitgekommen', bis.length, 2);
-  pruefe('und stehen auf plausiblen Tagen', bis.join() === '225,267', bis.join());
+  // 2 — Der gute Weg steht davon unberührt
+  const gut = neuesSpiel('heg', 'guter-stand');
+  speichere(gut);
+  pruefe('ein frischer Stand wird wiedergefunden', gibtEsSpeicherstand());
+  gleich('und kommt unverändert zurück', JSON.stringify(lade()), JSON.stringify(gut));
 
-  // 3 — Der alte Verlauf steht unter dem Archiv, statt geraten zu werden
-  const karten = alle('.karte h2').map((h) => h.textContent);
-  pruefe('die Karte „Aus früheren Saisons" steht da',
-    karten.includes('Aus früheren Saisons'), karten.join(' | '));
-  pruefe('mit den alten Zeilen', document.body.textContent.includes('HEG 21 : 14 ASS'));
-  gleich('das Postfach selbst fängt leer an', txt('.karte p.leise.klein'), 'Nichts Neues.');
-
-  // 4 — Und er lässt sich weiterspielen
-  gleich('die Tageskarte trägt den Anpfiff', txt('.tageskarte button.haupt'), 'Anpfiff');
-  q('.tageskarte button.haupt').click();
-  gleich('der Spielbericht öffnet sich', alle('.bericht-kopf').length, 2);
+  // 3 — Und Aufräumen räumt wirklich alles ab
+  localStorage.setItem('bayernliga.save.v4', '{}');
+  loesche();
+  gleich('loesche() lässt nichts von dieser App liegen', localStorage.length, 0);
 } catch (e) { merkeFehler(e); }
 melde();
 </script></body></html>

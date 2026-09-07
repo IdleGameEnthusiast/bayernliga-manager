@@ -3,13 +3,13 @@
 Ein Managerspiel für American Football in der bayerischen Bayernliga.
 Deutsch, läuft auf PC und iPad, kostet nichts und braucht keinen Store.
 
+> Wer hier mit Claude Code arbeitet: die Arbeitsregeln stehen in
+> [`CLAUDE.md`](CLAUDE.md) — kein Build, keine Migration, wo die Fallen liegen.
+
 ## Die eine Regel: kein Build
 
 Kein Bundler, kein npm, keine Abhängigkeiten. Der Browser lädt die ES-Module
-direkt. Ein `git push` ist das Deployment.
-
-Was es **nicht** gibt und nicht geben soll: TypeScript-Dateien, JSX, einen
-Bundler, eine `package.json` mit Abhängigkeiten. Die Typen kommen aus JSDoc und
+direkt. Ein `git push` ist das Deployment. Die Typen kommen aus JSDoc und
 `// @ts-check` — VS Code prüft sie ohne jedes Werkzeug.
 
 ## Starten
@@ -22,7 +22,7 @@ Weil die App ES-Module benutzt, reicht ein Doppelklick auf `index.html` **nicht*
 | Lokal spielen | `python3 -m http.server 8000`, dann `http://localhost:8000` |
 | Auf dem iPad | gleicher Befehl, dann `http://<IP-des-Macs>:8000` im selben WLAN |
 | Layout-Fixture | `vis.html` — Saison bis Spieltag 8 vorgespielt, `?ende` spielt sie bis hinter das Finale; dazu `?v=kader`, `?v=taktik`, `?v=spielplan`, `?v=bericht` |
-| Tests | `node --test tests/*.test.js` |
+| Tests | `node --test tests/` |
 | Rauchtest im Browser | `node tests/smoke.js [filter]` — startet Server und Firefox selbst |
 | Icons neu bauen | `node scripts/mach-icons.js` |
 | Ligastärken messen | `node scripts/baseline-staerken.js` — das Messband für den Umbau |
@@ -36,17 +36,8 @@ im Vollbild, ohne Safari-Leiste, und funktioniert offline. Kein Entwicklerkonto,
 keine Jahresgebühr, kein Ablaufdatum.
 
 Für den dauerhaften Betrieb kommt das Ganze auf **GitHub Pages** — der Mac muss
-dann nicht laufen.
-
-Im Wurzelverzeichnis liegt dafür eine leere Datei `.nojekyll`. Ohne sie schiebt
-GitHub Pages jeden Push durch Jekyll, und Jekyll liest **jede** `.md`-Datei im
-Repo als Liquid-Vorlage — auch die Entwürfe unter `docs/`, die nie eine
-Webseite werden sollten. Ein `{{` in einem Codeblock reicht dann, um den ganzen
-Deploy scheitern zu lassen: Liquid läuft vor dem Markdown-Renderer und kennt
-keine Codefences. Genau so stand die Seite hier sechs Tage auf einem alten
-Stand, während jeder Push durchging. `.nojekyll` schaltet den Schritt ab — die
-Dateien gehen unverändert online, und mehr braucht diese App nicht.
-
+dann nicht laufen. Die leere `.nojekyll` im Wurzelverzeichnis gehört dazu und
+darf nicht verschwinden; warum, steht in [`CLAUDE.md`](CLAUDE.md).
 ## Aufbau
 
 `engine/` enthält jede Regel und **fasst kein DOM an**. `ui/` enthält jeden
@@ -68,34 +59,29 @@ in Millisekunden durchspielen können.
 | `engine/tabelle.js` | Die Gruppentabellen — immer neu berechnet, nie gespeichert |
 | `engine/postfach.js` | Nachrichten: Schlüssel und Daten, Antwortpflicht, das Stutzen |
 | `engine/saison.js` | Zustandsform, der Tages-Tick `weiter()`, das Bracket, der Sprung ins nächste Jahr |
-| `engine/save.js` | Speichern, Migration, Export und Import |
+| `engine/save.js` | Speichern, Laden, Export und Import — ohne Migration |
 | `i18n.js` | Alle sichtbaren Texte. Nur Daten |
 | `ui/*.js` | Jeder DOM-Aufruf |
 | `app.js` | Zustand, Ansichten, Verdrahtung |
 | `sw.js` | Service Worker: Netz zuerst, Cache als Rückfall. Seine `SHELL` muss jedes Modul nennen, sonst startet die App offline nicht — `tests/sw.test.js` prüft das gegen die Platte |
 | `tests/smoke/` | Der Rauchtest: Seiten, die die echte App in einem Browser durchklicken. `tests/smoke.js` fährt sie |
+| `CLAUDE.md` | Die Arbeitsregeln: kein Build, keine Migration, die Fallen |
 
 **Bezeichner im Code sind englisch, sichtbare Texte deutsch** und stehen
-ausschließlich in `i18n.js`. Die Datei ist UTF-8 ohne BOM und benutzt echte
-Umlaute — bitte so lassen.
+ausschließlich in `i18n.js`. Ausgenommen ist die Sprache des Sports selbst:
+Offense, Defense, Run, Pass, Roster und die Positionsnamen bleiben, wie sie auf
+dem Feld gesprochen werden.
 
-Ausgenommen ist die Sprache des Sports selbst: **Offense, Defense, Run, Pass,
-Roster** und die Positionsnamen bleiben, wie sie auf dem Feld gesprochen
-werden. Ein deutsches Wort dafür wäre nur ein zweiter Name für etwas, das der
-Manager schon unter seinem ersten kennt.
-
-Eine Ausnahme von der Richtung „engine kennt kein außen" gab es einmal:
-`engine/saison.js` importierte `i18n.js`, um die fertigen Zeilen des Verlaufs zu
-schreiben. Sie ist mit dem Postfach entfallen — eine Nachricht speichert einen
-**Schlüssel und ihre Daten, nie einen Satz**, und der Satz dazu steht in
-`T.post`. Damit lassen sich Texte ändern, ohne alte Speicherstände zu
-verfälschen. Heute importiert kein Modul in `engine/` etwas von außerhalb.
+Kein Modul in `engine/` importiert etwas von außerhalb `engine/` — auch nicht
+`i18n.js`. Eine Nachricht speichert deshalb einen **Schlüssel und ihre Daten,
+nie einen Satz**; der Satz dazu steht in `T.post`. So lassen sich Texte ändern,
+ohne einen laufenden Speicherstand zu verfälschen.
 
 ## Der Rauchtest
 
 `node --test` deckt `engine/` ab und rührt `ui/` nicht an — dort gibt es kein
 DOM. Was dabei ungeprüft bleibt, ist die **Verdrahtung**: ob der erste
-Bildschirm der Posteingang ist, ob ein Knopf die Uhr bewegt, ob ein alter
+Bildschirm der Posteingang ist, ob ein Knopf die Uhr bewegt, ob ein
 Speicherstand beim Laden ankommt. Genau das prüft `node tests/smoke.js`, indem
 es die echte `app.js` in einem echten Firefox lädt und sich durchklickt.
 
@@ -104,37 +90,20 @@ node tests/smoke.js            # alle Seiten
 node tests/smoke.js saison     # nur die, deren Dateiname passt
 ```
 
-Das Skript bringt alles mit, was es braucht: es serviert das Projekt auf einem
-freien Port, startet Firefox headless mit einem eigenen Wegwerfprofil und nimmt
-den Bericht der Seite per POST wieder entgegen. **Der Rückweg ist der Grund für
-den eigenen Server** — ein headless Firefox kann kein DOM ausgeben, nur
-fotografieren, und ein Foto ist kein Urteil. So endet der Lauf mit einer Zahl
-wie jeder andere Test: `0` alles grün, `1` etwas rot, `2` kein Firefox da.
-
-Ausgegeben wird nur das Rote. Ein grüner Lauf sind fünf Zeilen.
+Das Skript bringt alles mit: es serviert das Projekt auf einem freien Port,
+startet Firefox headless mit einem Wegwerfprofil und nimmt den Bericht der Seite
+per POST wieder entgegen. So endet der Lauf mit einer Zahl wie jeder andere
+Test: `0` alles grün, `1` etwas rot, `2` kein Firefox da. Ausgegeben wird nur
+das Rote; ein grüner Lauf sind fünf Zeilen.
 
 Die Seiten liegen in `tests/smoke/` und lassen sich auch von Hand aufmachen —
-sie schreiben ihren Bericht zusätzlich sichtbar auf die Seite. Zwei Regeln
-halten sie am Leben:
+sie schreiben ihren Bericht zusätzlich sichtbar auf die Seite. Was beim Anlegen
+einer neuen Seite zu beachten ist, steht im Kopf von `tests/smoke.js`.
 
-- **Nur statische Importe.** Ein `await import()` im Modul geht am
-  `load`-Ereignis vorbei; der Runner räumt dann ab, während die Seite noch
-  arbeitet. Deshalb steht das Herrichten in einem `<script type="module">` und
-  `import '../../app.js'` samt Prüfungen im nächsten — Modulskripte laufen in
-  Dokumentreihenfolge, und `load` wartet auf beide.
-- **`melder.js` ist ein klassisches Skript.** Es läuft auch dann, wenn der
-  Modulgraph gar nicht erst lädt, und meldet nach zwei Sekunden von selbst, was
-  es hat. Ein Rauchtest, der schweigend nichts tut, sähe sonst aus wie einer,
-  der nichts gefunden hat.
-
-Sie prüfen die Verdrahtung, nie das Layout: welcher Text in welchem Element
-steht und welcher Klick was auslöst. Wie breit etwas ist, steht nirgends drin.
-
-## Zufall und Tests
+## Zufall
 
 Die Engine bekommt ihren Zufall injiziert (`makeRng(seed)`). Derselbe Seed ergibt
-dieselbe Saison, deshalb sind die Tests reproduzierbar. In Tests nie auf eine
-Verteilung prüfen, ohne den Seed festzunageln.
+dieselbe Saison, deshalb sind die Tests reproduzierbar.
 
 Der Tages-Zufall leitet sich aus `seed | jahr | tag` ab: ein Speicherstand
 liefert beim erneuten Spielen dasselbe Ergebnis. Weil der Tag innerhalb einer
@@ -143,15 +112,15 @@ Saison eindeutig ist, kann der Schlüssel nicht kollidieren, obwohl eine Saison
 
 ## Speicherstände
 
-Der laufende Stand liegt im `localStorage` (rund 150 KB). Das ist für eine
-installierte Web-App haltbar, aber nicht unantastbar — der **Export** unter
-*Posteingang → Speicherstand* ist die eigentliche Sicherung und zugleich der
-Weg, eine Karriere zwischen PC und iPad zu tragen.
+Der laufende Stand liegt im `localStorage` unter `bayernliga.save` (rund
+150 KB). Das ist für eine installierte Web-App haltbar, aber nicht unantastbar —
+der **Export** unter *Posteingang → Speicherstand* ist die eigentliche Sicherung
+und zugleich der Weg, eine Karriere zwischen PC und iPad zu tragen.
 
-Der Schlüssel heißt `bayernliga.save.v5`. Ein Stand von vor dem Kalender
-(`…v4`) wird beim Laden auf Tage umgerechnet und unter dem neuen Schlüssel
-abgelegt; der alte bleibt liegen, damit eine misslungene Migration nicht die
-einzige Kopie der Karriere ist.
+**Solange das Spiel nicht veröffentlicht ist, gibt es keine Migration.** Jeder
+Stand trägt eine `SAVE_VERSION`; passt sie nicht zum laufenden Build, wird er
+weggeworfen statt umgerechnet, und die Karriere fängt von vorn an. Das ist eine
+bewusste Entscheidung für die Bauzeit — Näheres in [`CLAUDE.md`](CLAUDE.md).
 
 ## Stand und was als Nächstes käme
 

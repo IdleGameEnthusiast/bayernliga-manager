@@ -436,7 +436,7 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Unentschieden | gibt es nirgends, Verlängerung ohne Limit (nur eine Notbremse, die entscheidet statt auszugleichen) |
 | Kickwerte | `kickStaerke` und `kickGenauigkeit` je Spieler; Kicker 50/50, Punter 70/30; unabhängig gezogen, OL und DL nie mit gutem Fuß |
 | Kicker-Auswahl | der beste Fuß des **ganzen** Kaders, Doppeleinsatz K/P erlaubt |
-| Speicherstände | vor v3 abgelehnt statt migriert — die alte Ligaform lässt sich nicht retten |
+| Speicherstände | bis zum Livegang **keine Migration** — ein Stand mit fremder `SAVE_VERSION` wird weggeworfen statt umgerechnet, siehe [`CLAUDE.md`](../CLAUDE.md) |
 | Vereinsfarben | drei je Verein, in `farben: { primaer, sekundaer, tertiaer }` |
 | Bracket | drei Spalten mit Verbindern aus CSS-Rahmen; unter 720px gestapelt und ohne Linien, weil eine Klammer um die Ecke schlimmer wäre als keine |
 | Leeres Bracket | steht trotzdem da, mit der Setzung auf den Plätzen und dem, der sie gerade hält — aber erst ab dem ersten gespielten Spieltag |

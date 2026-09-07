@@ -5,12 +5,28 @@
  * `node --test` deckt `engine/` ab und rührt `ui/` nicht an — dort gibt es kein
  * DOM. Was diese Suite prüft, ist deshalb genau das, was die Unit-Tests nicht
  * können: die **Verdrahtung**. Ob der erste Bildschirm der Posteingang ist, ob
- * ein Knopf die Uhr bewegt, ob ein alter Speicherstand beim Laden ankommt.
+ * ein Knopf die Uhr bewegt, ob ein Speicherstand beim Laden ankommt.
  *
  * Der Weg hinaus ist der Punkt. Ein headless Firefox kann kein DOM ausgeben,
  * nur fotografieren — und ein Foto ist kein Urteil. Also serviert dieses
  * Skript die Seiten selbst und nimmt ihren Bericht per POST wieder entgegen.
  * Damit endet der Lauf mit einer Zahl wie jeder andere Test auch.
+ *
+ * Wer eine Seite unter `tests/smoke/` anlegt, hält zwei Regeln ein, sonst
+ * meldet sie nichts oder das Falsche:
+ *
+ * - **Nur statische Importe.** Ein `await import()` im Modul geht am
+ *   `load`-Ereignis vorbei; der Runner räumt dann ab, während die Seite noch
+ *   arbeitet. Deshalb steht das Herrichten in einem `<script type="module">`
+ *   und `import '../../app.js'` samt Prüfungen im nächsten — Modulskripte
+ *   laufen in Dokumentreihenfolge, und `load` wartet auf beide.
+ * - **`melder.js` bleibt ein klassisches Skript.** Es läuft auch dann, wenn der
+ *   Modulgraph gar nicht erst lädt, und meldet nach zwei Sekunden von selbst,
+ *   was es hat. Ein Rauchtest, der schweigend nichts tut, sähe sonst aus wie
+ *   einer, der nichts gefunden hat.
+ *
+ * Geprüft wird die Verdrahtung, nie das Layout: welcher Text in welchem Element
+ * steht und welcher Klick was auslöst. Wie breit etwas ist, steht nirgends drin.
  *
  * Aufruf: `node tests/smoke.js [filter]`
  * Exit 0 alles grün · 1 eine Prüfung rot · 2 kein Browser da

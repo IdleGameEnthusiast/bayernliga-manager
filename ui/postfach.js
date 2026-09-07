@@ -73,7 +73,6 @@ export function zeigePostfach(stand, aktionen) {
     tagesKarte(stand, aktionen),
     listenKarte(T.postfach.posteingang, eingang, T.postfach.keinePost, stand, aktionen),
     listenKarte(T.postfach.archiv, archiv, T.postfach.keinArchiv, stand, aktionen),
-    altverlaufKarte(stand),
     historieKarte(stand),
     datenKarte(aktionen));
 }
@@ -427,18 +426,6 @@ function angereichert(daten) {
       paar.map((id) => teamById(id).name));
   }
   return d;
-}
-
-// --- Das, was von der Verlaufsansicht übrig ist ----------------------------
-
-/** @param {import('../engine/saison.js').SpielStand} stand */
-function altverlaufKarte(stand) {
-  const zeilen = stand.altverlauf;
-  if (!zeilen || zeilen.length === 0) return null;
-  return el('div', { class: 'karte' },
-    el('h2', { text: T.postfach.altverlauf }),
-    zeilen.slice().reverse().map((z) =>
-      el('p', { class: 'klein', style: { margin: '4px 0' }, text: z })));
 }
 
 /** @param {import('../engine/saison.js').SpielStand} stand */

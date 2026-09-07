@@ -21,7 +21,7 @@ import { PERSONNEL } from '../engine/aufstellung.js';
 import { teamStaerken } from '../engine/team.js';
 import { partienDerRunde, sieger } from '../engine/spielplan.js';
 import { SAVE_VERSION } from '../engine/saison.js';
-import { migriere, exportiere, importiere } from '../engine/save.js';
+import { exportiere, importiere } from '../engine/save.js';
 
 // --- Der Weg durch den Kalender ---------------------------------------------
 //
@@ -268,118 +268,6 @@ test('Export und Import ergeben denselben Stand', () => {
   assert.deepEqual(zurueck, s);
 });
 
-test('Migration füllt fehlende Felder auf', () => {
-  // Der Rohstand behält sein `spieltag` — das ist ja gerade der v4-Fall.
-  const roh = { seed: 'x', jahr: 2026, spieltag: 1, meinTeam: 'heg', kader: {}, spielplan: [] };
-  const m = migriere(roh);
-  assert.equal(m.version, SAVE_VERSION);
-  assert.equal(m.tag, tagVonSpieltag(1), 'Spieltag 1 ist Tag 183');
-  assert.equal('spieltag' in m, false, 'die alte Uhr steht noch daneben');
-  assert.deepEqual(m.post, []);
-  assert.deepEqual(m.historie, []);
-});
-
-test('ein v4-Stand mit alten Positionsnamen wird umgeschrieben', () => {
-  const stand = migriere({
-    version: 4, seed: 'alt', meinTeam: 'heg',
-    kader: {
-      heg: [
-        { id: 'a', position: 'MLB', seite: null },
-        { id: 'b', position: 'CB', seite: 'L' },
-        { id: 'c', position: 'WR', seite: 'R' },
-        { id: 'd', position: 'T', seite: 'R' },
-      ],
-    },
-  });
-  assert.deepEqual(stand.kader.heg.map((s) => [s.position, s.seite]), [
-    ['MIKE', null],   // umbenannt
-    ['CB', null],     // die Seite gibt es dort nicht mehr
-    ['WR', null],
-    ['T', 'R'],       // und beim Tackle unverändert
-  ]);
-});
-
-test('ein v4-Stand ohne Einsätze bekommt ein leeres Konto', () => {
-  const stand = migriere({
-    version: 4, seed: 'alt', meinTeam: 'heg',
-    kader: { heg: [{ id: 'a', position: 'G', seite: 'L' }] },
-  });
-  assert.deepEqual(stand.kader.heg[0].einsaetze, {},
-    'leer ist die richtige Vergangenheit — der ausgebildete Platz zählt ohnehin');
-});
-
-/**
- * Ein Speicherstand aus der Zeit vor dem Kalender: eine Uhr in Spieltagen, ein
- * Spielplan ohne Termine, Verletzungen in Spieltagen und ein Verlauf aus
- * fertigen Sätzen. Weder `tag` noch `post` kommen darin vor — das ist der Fall,
- * den die Migration ganz allein trägt.
- * @param {number} spieltag
- */
-function v4Stand(spieltag) {
-  return {
-    version: 4, seed: 'alt', jahr: 2026, spieltag, meinTeam: 'heg',
-    kader: {
-      heg: [
-        { id: 'a', position: 'QB', seite: null, verletztBis: 0 },
-        { id: 'b', position: 'MLB', seite: null, verletztBis: 5 },
-        // Spieltag 10 plus sechs Wochen: eine Verletzung, die hinter dem
-        // letzten Spieltag endet.
-        { id: 'c', position: 'WR', seite: 'L', verletztBis: 16 },
-      ],
-    },
-    spielplan: [
-      { heim: 'heg', gast: 'ass', runde: 'gruppe', spieltag: 1, ergebnis: null },
-      { heim: 'gc', gast: 'heg', runde: 'gruppe', spieltag: 10, ergebnis: null },
-    ],
-    verlauf: ['Spieltag 1: HEG 21 : 14 ASS', 'Spieltag 2: ERS 7 : 28 HEG'],
-    historie: [],
-  };
-}
-
-test('ein v4-Stand bekommt eine Uhr, ohne dass etwas erfunden wird', () => {
-  const m = migriere(v4Stand(3));
-
-  assert.equal(m.version, SAVE_VERSION);
-  assert.equal(m.tag, tagVonSpieltag(3), 'die Uhr steht am Termin des Spieltags');
-  assert.equal('spieltag' in m, false, 'die alte Uhr steht noch daneben');
-
-  // Jede Partie bekommt den Termin ihres Etiketts — das Etikett selbst bleibt.
-  assert.deepEqual(m.spielplan.map((p) => [p.spieltag, p.tag]),
-    [[1, tagVonSpieltag(1)], [10, tagVonSpieltag(10)]]);
-
-  const bis = Object.fromEntries(m.kader.heg.map((s) => [s.id, s.verletztBis]));
-  assert.equal(bis.a, 0, 'wer fit war, bleibt fit');
-  assert.equal(bis.b, tagVonSpieltag(5));
-  // Hinter dem letzten Spieltag zählt die Umrechnung wöchentlich weiter, statt
-  // eine Ausnahme zu werfen: die Verletzung läuft in die Sommerpause hinein,
-  // so wie sie es vorher auch tat.
-  assert.equal(bis.c, tagVonSpieltag(12) + 4 * 7);
-});
-
-test('der alte Verlauf wandert unter das Archiv, statt geraten zu werden', () => {
-  const m = migriere(v4Stand(3));
-
-  // Aus einem fertigen Satz ließen sich `art` und `daten` nur durch Raten
-  // zurückgewinnen. Er wandert als Liste alter Zeilen mit und stirbt aus.
-  assert.deepEqual(m.post, [], 'das Postfach fängt leer an');
-  assert.deepEqual(m.altverlauf, v4Stand(3).verlauf);
-  assert.equal('verlauf' in m, false);
-});
-
-test('ein v4-Stand hinter dem letzten Spieltag landet in der Sommerpause', () => {
-  // Spieltag 13 gab es nie — so sah eine durchgespielte Saison aus.
-  const m = migriere(v4Stand(13));
-  assert.equal(m.tag, tagVonSpieltag(12) + 1);
-});
-
-test('die Migration rechnet dieselben Tage nicht zweimal um', () => {
-  // Der Stand wird beim Laden migriert und sofort neu geschrieben; beim
-  // nächsten Laden läuft dieselbe Funktion noch einmal darüber.
-  const einmal = migriere(v4Stand(3));
-  const zweimal = migriere(JSON.parse(JSON.stringify(einmal)));
-  assert.deepEqual(zweimal, einmal);
-});
-
 test('ein Spieltag verbucht die Einsätze bei allen Vereinen', () => {
   const stand = neuesSpiel(TEAMS[0].id, 'einsaetze');
   const alle = () => TEAMS.flatMap((t) => stand.kader[t.id]);
@@ -416,18 +304,17 @@ test('die Aufstellung landet nicht im gespeicherten Ergebnis', () => {
 });
 
 test('ein leerer Speicherstand wird abgelehnt', () => {
-  assert.throws(() => migriere(null));
+  assert.throws(() => importiere('null'));
 });
 
-test('Stände aus einer älteren Liga werden abgelehnt', () => {
-  assert.throws(() => migriere({ version: 1, seed: 'x', meinTeam: 'ros', kader: {} }),
-    /älteren Liga/);
-  assert.throws(() => migriere({ version: 2, seed: 'x', meinTeam: 'heg', kader: {} }),
-    /älteren Liga/);
-  // v3 kannte fünf Offense-Positionen; ein gültiger Kader ließe sich daraus
-  // nur durch Erfinden gewinnen.
-  assert.throws(() => migriere({ version: 3, seed: 'x', meinTeam: 'heg', kader: {} }),
-    /älteren Liga/);
+test('ein Stand mit fremdem Stempel wird abgelehnt, nicht umgerechnet', () => {
+  // Bis zum Livegang gibt es keinen Migrationspfad. Eine andere Nummer heißt
+  // „aus einem anderen Build", und das ist ein Grund zum Wegwerfen, keiner zum
+  // Umrechnen — siehe CLAUDE.md.
+  const stand = neuesSpiel('heg', 'stempel');
+  const fremd = JSON.parse(exportiere(stand));
+  fremd.version = SAVE_VERSION - 1;
+  assert.throws(() => importiere(JSON.stringify(fremd)), /Version/);
 });
 
 // --- Der Kalender und das Postfach ------------------------------------------
@@ -552,23 +439,10 @@ test('das System überlebt den Saisonwechsel', () => {
   assert.deepEqual(stand.personnel, vorher, 'ein Verein hat eine Spielphilosophie');
 });
 
-test('eine fehlende Taktik wird nachgezogen, nicht geraten', () => {
+test('ein Stand ohne Taktikfelder zieht sie aus dem Saatgut nach', () => {
   const stand = neuesSpiel('heg', 'nachzieh');
   const erwartet = { ...stand.personnel };
-
-  // Ein Stand aus der Zeit davor: die Felder fehlen ganz.
-  const alt = { ...stand };
-  delete alt.personnel;
-  delete alt.passAnteil;
-
-  const m = migriere(alt);
-  assert.deepEqual(m.personnel, erwartet, 'derselbe Stand ergibt dieselben Systeme');
-  assert.equal(m.version, SAVE_VERSION, 'und das kostet keine neue Version');
-  for (const t of TEAMS) {
-    assert.equal(m.passAnteil[t.id], PERSONNEL[m.personnel[t.id]].passAnteil);
-  }
-
-  // Auch einzeln: der Zugriff zieht nach, ohne den Zustand zu brauchen.
+  // Der Zugriff zieht nach, ohne den Zustand dafür zu brauchen.
   const leer = /** @type {any} */ ({ seed: 'nachzieh', meinTeam: 'heg' });
   assert.equal(personnelVon(leer, 'heg'), erwartet.heg);
   assert.equal(passAnteilVon(leer, 'heg'), PERSONNEL[erwartet.heg].passAnteil);
@@ -785,31 +659,12 @@ test('der Saisonwechsel wirft die Abgänge aus der Vorgabe', () => {
     'ein Zurückgetretener steht noch in der Aufstellung');
 });
 
-test('Export, Import und Migration nehmen die Aufstellung mit', () => {
+test('Export und Import nehmen die Aufstellung mit', () => {
   const stand = neuesSpiel('heg', 'aufstellung-export');
   stelleVonHand(stand, 'QB', stand.kader.heg[0].id);
 
   const zurueck = importiere(exportiere(stand));
   assert.deepEqual(zurueck.aufstellung, stand.aufstellung);
-
-  // Ein Stand ohne das Feld ist ein Stand ohne Vorgabe — kein Mangel, sondern
-  // ein Manager, der nie eingegriffen hat.
-  const alt = { ...stand };
-  delete alt.aufstellung;
-  assert.equal(migriere(alt).aufstellung, null);
-});
-
-test('ein von Hand geleerter Platz überlebt das Laden nicht', () => {
-  const stand = neuesSpiel('heg', 'ladenleer');
-  setzeAufstellung(stand, entwurfVon(stand));
-
-  // So etwas schreibt das Spiel nie — nur eine bearbeitete Datei.
-  const datei = JSON.parse(exportiere(stand));
-  datei.aufstellung.QB = null;
-
-  const zurueck = migriere(datei);
-  assert.equal('QB' in zurueck.aufstellung, false, 'der leere Platz steht noch in der Vorgabe');
-  assert.equal(entwurfVollstaendig(zurueck, zurueck.aufstellung), true);
 });
 
 test('das Leeren ist ein Entwurf und kein Speicherzustand', () => {

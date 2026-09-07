@@ -85,7 +85,6 @@ export const DE = {
     keinePost: 'Nichts Neues.',
     keinArchiv: 'Noch nichts gelesen.',
     ungelesen: (anzahl) => `${anzahl} ungelesen`,
-    altverlauf: 'Aus früheren Saisons',
     zumBericht: 'Spielbericht ansehen',
     vergangeneSaisons: 'Vergangene Saisons',
     saisonZeile: (jahr, platz, meister) => `${jahr}: Platz ${platz} · Meister ${meister}`,

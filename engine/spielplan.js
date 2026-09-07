@@ -7,7 +7,7 @@
  * cannot be drawn with it: who plays the semi-final is only known once the
  * tenth matchday has been played, so those fixtures are appended later.
  *
- * Docs: docs/spec/02-core-loop.md
+ * Docs: docs/umbau-kalender.md, Abschnitt 4
  */
 
 import { shuffle } from './constants.js';

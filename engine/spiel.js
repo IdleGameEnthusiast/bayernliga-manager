@@ -7,7 +7,7 @@
  * took the field. Pure — it mutates nothing, and hands injuries back to the
  * caller to apply.
  *
- * Docs: docs/spec/04-economy-formulas.md
+ * Docs: docs/umbau-positionsmodell.md, Abschnitt 8
  */
 
 import {
