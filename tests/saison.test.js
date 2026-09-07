@@ -14,7 +14,7 @@ import {
   entwurfVollstaendig, entwurfLeeren, naechstePartie, ligaSchnittVerteidigung,
 } from '../engine/saison.js';
 import {
-  offeneAntworten, antwortenZu, brauchtAntwort, markiereGelesen,
+  offeneAntworten, antwortenZu, sende, markiereGelesen, loescheNachricht,
 } from '../engine/postfach.js';
 import { tagVonSpieltag } from '../engine/kalender.js';
 import { PERSONNEL } from '../engine/aufstellung.js';
@@ -307,14 +307,20 @@ test('ein leerer Speicherstand wird abgelehnt', () => {
   assert.throws(() => importiere('null'));
 });
 
-test('ein Stand mit fremdem Stempel wird abgelehnt, nicht umgerechnet', () => {
-  // Bis zum Livegang gibt es keinen Migrationspfad. Eine andere Nummer heißt
-  // „aus einem anderen Build", und das ist ein Grund zum Wegwerfen, keiner zum
-  // Umrechnen — siehe CLAUDE.md.
+test('ein Stand aus der Zukunft wird abgelehnt', () => {
+  // Vorwärts führt der Migrationspfad, rückwärts rechnet nichts. Ein Stand mit
+  // einer höheren Nummer stammt aus einem Build, den dieser hier nicht kennt.
   const stand = neuesSpiel('heg', 'stempel');
   const fremd = JSON.parse(exportiere(stand));
-  fremd.version = SAVE_VERSION - 1;
+  fremd.version = SAVE_VERSION + 1;
   assert.throws(() => importiere(JSON.stringify(fremd)), /Version/);
+});
+
+test('ein Stand ohne Weg nach vorn wird abgelehnt', () => {
+  const stand = neuesSpiel('heg', 'kein-weg');
+  const alt = JSON.parse(exportiere(stand));
+  alt.version = 1;
+  assert.throws(() => importiere(JSON.stringify(alt)), /Version 1/);
 });
 
 // --- Der Kalender und das Postfach ------------------------------------------
@@ -334,7 +340,14 @@ test('ein Zwangsstopp hält ein Ziel auf', () => {
 
 test('eine offene Antwort blockiert die Uhr', () => {
   const s = neuesSpiel('heg', 'blockade');
-  assert.equal(offeneAntworten(s).length, 1, 'das Wort des Vorstands steht offen');
+  assert.equal(offeneAntworten(s).length, 0,
+    'das Wort des Vorstands hält niemanden mehr auf');
+
+  // Die Antwortpflicht von Hand ins Postfach legen. Der Fall, der sie im Spiel
+  // auslöst — ein Ausfall in der eigenen Vorgabe —, hängt an einem Wurf, den
+  // dieser Test nicht steuert; geprüft wird die Bremse, nicht ihr Anlass.
+  sende(s, s.tag, [{ art: 'aufstellungUngueltig', daten: { namen: ['Wer auch immer'] } }]);
+  assert.equal(offeneAntworten(s).length, 1);
 
   for (const versuch of [1, 2]) {
     const f = weiter(s);
@@ -363,14 +376,14 @@ test('die Kennungen der Nachrichten hängen am Saatgut, nicht an der Uhrzeit', (
 test('naechsterStopp sagt nur, was käme, und ändert nichts', () => {
   const s = neuesSpiel('heg', 'vorschau');
 
-  const offen = JSON.stringify(s);
-  assert.deepEqual(naechsterStopp(s), { tag: 1, grund: 'antwort' });
-  assert.equal(JSON.stringify(s), offen, 'die Vorschau hat den Stand angefasst');
-
-  raeumeAntworten(s);
   const frei = JSON.stringify(s);
   assert.deepEqual(naechsterStopp(s), { tag: tagVonSpieltag(1), grund: 'spiel' });
   assert.equal(JSON.stringify(s), frei, 'die Vorschau hat den Stand angefasst');
+
+  sende(s, s.tag, [{ art: 'aufstellungUngueltig', daten: { namen: ['Wer auch immer'] } }]);
+  const offen = JSON.stringify(s);
+  assert.deepEqual(naechsterStopp(s), { tag: 1, grund: 'antwort' });
+  assert.equal(JSON.stringify(s), offen, 'die Vorschau hat den Stand angefasst');
 });
 
 test('am letzten Tag rollt der Kalender von selbst in die nächste Saison', () => {
@@ -389,23 +402,28 @@ test('am letzten Tag rollt der Kalender von selbst in die nächste Saison', () =
   assert.equal(s.jahr, 2027);
   assert.equal(s.tag, 1, 'Tag 1 des Folgejahres');
   assert.equal(s.historie.length, 1, 'der Wechsel hat Historie geschrieben');
-  assert.ok(offeneAntworten(s).length > 0, 'und der Vorstand meldet sich wieder');
+  assert.ok(s.post.some((n) => n.art === 'vorstandsziel' && n.jahr === 2027),
+    'und der Vorstand meldet sich wieder');
+  assert.deepEqual(offeneAntworten(s), [], 'aber er hält die Uhr nicht mehr auf');
 });
 
-test('der Saisonwechsel stutzt das Postfach', () => {
+test('der Saisonwechsel leert den Papierkorb und sonst nichts', () => {
   const s = neuesSpiel('heg', 'stutzen');
   bisSaisonende(s);
-  for (const n of s.post) markiereGelesen(s, n.id);
+  raeumeAntworten(s);
 
-  const wegwerf = s.post.filter((n) => !brauchtAntwort(n.art)).map((n) => n.id);
-  const bleibt = s.post.filter((n) => brauchtAntwort(n.art)).map((n) => n.id);
-  assert.ok(wegwerf.length > 0, 'es gibt überhaupt etwas zu stutzen');
-  assert.ok(bleibt.length > 0, 'und etwas, das bleiben muss');
+  // Jede zweite wegwerfen, alle lesen. Gelesen zu sein ist seit dem Umbau kein
+  // Grund mehr, weggeräumt zu werden — nur das Löschen ist einer.
+  const alle = s.post.map((n) => n.id);
+  const wegwerf = alle.filter((_, i) => i % 2 === 0);
+  const bleibt = alle.filter((_, i) => i % 2 === 1);
+  assert.ok(wegwerf.length > 0 && bleibt.length > 0, 'es gibt beides');
+  for (const id of alle) markiereGelesen(s, id);
+  for (const id of wegwerf) assert.ok(loescheNachricht(s, id), `${id} ließ sich nicht löschen`);
 
   naechsteSaison(s);
   const ids = new Set(s.post.map((n) => n.id));
   for (const id of wegwerf) assert.ok(!ids.has(id), `${id} liegt noch im Postfach`);
-  // Was eine Antwort verlangt hat, ist Aktenlage und bleibt liegen.
   for (const id of bleibt) assert.ok(ids.has(id), `${id} ist weggeräumt worden`);
   // Und die Eröffnung des neuen Jahres liegt obenauf.
   assert.ok(s.post.some((n) => n.art === 'vorstandsziel' && n.jahr === 2027));

@@ -39,14 +39,14 @@ import { berechneTabelle } from './tabelle.js';
 import { teamStaerken } from './team.js';
 
 /**
- * Der Stempel auf einem Speicherstand — **kein Migrationspfad**.
+ * Der Stempel auf einem Speicherstand.
  *
- * Bis zum Livegang wird auf alte Stände keine Rücksicht genommen: Wer die Form
- * von `SpielStand` ändert, zählt hier hoch, und `lade()` wirft jeden Stand weg,
- * der eine andere Nummer trägt. Eine Umrechnung gibt es nicht und soll es bis
- * dahin auch nicht geben — siehe CLAUDE.md.
+ * Wer die Form von `SpielStand` ändert, zählt hier hoch **und schreibt dazu
+ * einen Schritt in `MIGRATIONEN` in [`save.js`](./save.js)**, der einen Stand
+ * der vorigen Nummer auf diese hebt. Ohne diesen Schritt wird ein solcher Stand
+ * beim Laden weggeworfen — der Sprung ist billig, der Verlust nicht.
  */
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 /**
  * @typedef {object} SpielStand
@@ -399,7 +399,8 @@ export function neuesSpiel(meinTeam, seed) {
 
 /**
  * Was an Tag 1 einer Saison im Postfach liegt: die Rückgetretenen, und das
- * Wort des Vorstands, auf das der Manager antworten muss.
+ * Wort des Vorstands. Es verlangt keine Antwort — es sagt an, was erwartet
+ * wird, und ein Knopf darunter wäre eine Quittung, kein Entschluss.
  *
  * Der Saisonwechsel schreibt das selbst und nicht `ereignisseAmTag()`, weil er
  * der Einzige ist, der die Namen der Abgänge kennt — die stehen eine Zeile

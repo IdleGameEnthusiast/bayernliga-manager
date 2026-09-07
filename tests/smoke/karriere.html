@@ -19,6 +19,8 @@ import '../../app.js';
 
 const knopf = () => txt('.tageskarte button.haupt');
 const tageskarte = () => txt('.tageskarte');
+const leseKnoepfe = () => alle('.postlese button').map((b) => b.textContent);
+const leseKnopf = (name) => alle('.postlese button').find((b) => b.textContent === name);
 
 try {
   // 1 — Der Startbildschirm
@@ -42,42 +44,63 @@ try {
     ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][raster.indexOf(q('.kaltag.heute')) % 7], 'Sa');
   gleich('Kopfzeile trägt ein Datum statt eines Spieltags', txt('.kopf-datum'), 'Sa 18. Okt 2025');
 
-  // 3 — Der Vorstand hält den Kalender an
-  gleich('eine Nachricht trägt die Antwortmarke', alle('.postzeichen.antwort').length, 1);
-  gleich('Tageskarte führt zur Nachricht', knopf(), 'Zur Nachricht ›');
-  enthaelt('und sagt, worauf gewartet wird', tageskarte(), 'wartet auf eine Antwort');
-
-  q('.tageskarte button.haupt').click();
-  gleich('die Nachricht klappt auf', alle('.postzeile.offen').length, 1);
-  q('.postzeile.offen .postknoepfe button').click();
-
-  // 4 — Beantwortet: der Weg zum ersten Spieltag ist frei
-  gleich('Tageskarte bietet den Sprung an', knopf(), 'Bis dahin');
+  // 3 — Der Vorstand meldet sich, hält aber niemanden auf
+  gleich('eine Nachricht liegt im Eingang', alle('.postzeile').length, 1);
+  gleich('und ist ungelesen', alle('.postzeile.neu').length, 1);
+  gleich('sie verlangt keine Antwort', alle('.postzeichen.antwort').length, 0);
+  gleich('der Weg zum ersten Spieltag ist frei', knopf(), 'Bis dahin');
   enthaelt('nächster Termin', tageskarte(), 'Nächster Termin');
   enthaelt('am 18. April', tageskarte(), 'Sa 18. Apr');
   enthaelt('zu Spieltag 1', tageskarte(), 'Spieltag 1');
-  gleich('die Uhr steht noch an Tag 1', txt('.kopf-datum'), 'Sa 18. Okt 2025');
-  gleich('die Antwort steht als Marke da', txt('.postzeile.offen .postknoepfe .marke'),
-    'Ja, ich bin bereit');
 
-  // 5 — „bis hierhin": ein späterer Tag im Raster bewegt die Uhr dorthin
-  const imOktober = alle('.kaltag.springbar');
+  // Lesen heißt lesen: die Nachricht schlägt rechts auf und bleibt links stehen.
+  enthaelt('rechts steht noch nichts', txt('.postlese'), 'Wähle eine Nachricht');
+  q('.postzeile').click();
+  enthaelt('die Nachricht schlägt rechts auf', txt('.postlese'), 'Willkommen bei');
+  gleich('sie ist jetzt gelesen', alle('.postzeile.neu').length, 0);
+  gleich('und liegt weiter im Posteingang', alle('.postzeile').length, 1);
+  pruefe('unten steht das Löschen', leseKnoepfe().includes('Löschen'), leseKnoepfe().join(' | '));
+  gleich('und sonst nichts', leseKnoepfe().length, 1);
+
+  // 4 — Der Ordner „Gelöscht" und der Weg zurück
+  gleich('zwei Ordner', alle('.postordner-knopf').length, 2);
+  leseKnopf('Löschen').click();
+  gleich('der Posteingang ist leer', alle('.postzeile').length, 0);
+  enthaelt('und sagt es', txt('.postspalte'), 'Der Posteingang ist leer.');
+  alle('.postordner-knopf')[1].click();
+  gleich('im Gelöscht liegt sie', alle('.postzeile').length, 1);
+  q('.postzeile').click();
+  leseKnopf('Wiederherstellen').click();
+  gleich('der Posteingang steht wieder offen',
+    txt('.postordner-knopf.aktiv .postordner-name'), 'Posteingang');
+  gleich('und die Nachricht darin', alle('.postzeile').length, 1);
+
+  // 5 — Ein Tipp im Raster wählt nur aus; simuliert wird auf Knopfdruck
+  gleich('noch steht keine Auswahl da', alle('.kalauswahl').length, 0);
+  const imOktober = alle('.kaltag.waehlbar');
   const letzterOkt = imOktober[imOktober.length - 1];
-  enthaelt('ein späterer Tag lädt zum Weiterspielen',
-    letzterOkt.getAttribute('title'), 'weiterspielen');
+  enthaelt('ein späterer Tag lädt zum Auswählen',
+    letzterOkt.getAttribute('title'), 'auswählen');
   gleich('der 31. ist der letzte des Monats',
     letzterOkt.querySelector('.kalzahl').textContent, '31');
   letzterOkt.click();
-  gleich('die Uhr steht auf dem angetippten Tag', txt('.kopf-datum'), 'Fr 31. Okt 2025');
-  gleich('und bietet weiter den Sprung an', knopf(), 'Bis dahin');
+  gleich('der Tipp allein bewegt die Uhr nicht', txt('.kopf-datum'), 'Sa 18. Okt 2025');
+  enthaelt('er wählt den Tag', txt('.kalauswahl-datum'), 'Fr 31. Okt');
+  gleich('und bietet den Knopf an',
+    txt('.kalauswahl button.haupt'), 'Bis zu diesem Datum simulieren');
+  q('.kalauswahl button.haupt').click();
+  gleich('erst der Knopf bewegt sie', txt('.kopf-datum'), 'Fr 31. Okt 2025');
+  gleich('die Auswahl ist danach weg', alle('.kalauswahl').length, 0);
+  gleich('und die Tageskarte bietet weiter den Sprung an', knopf(), 'Bis dahin');
 
   // 6 — Ein Ziel hinter dem Spieltag: die Uhr hält trotzdem am eigenen Spiel
   for (let i = 0; i < 6; i++) q('.kalkopf .kalpfeil:last-of-type').click();
   gleich('das Raster lässt sich blättern', txt('.kalkopf h2'), 'April 2026');
-  const imApril = alle('.kaltag.springbar');
+  const imApril = alle('.kaltag.waehlbar');
   const letzterApr = imApril[imApril.length - 1];
   gleich('bis zum 30. April', letzterApr.querySelector('.kalzahl').textContent, '30');
   letzterApr.click();
+  q('.kalauswahl button.haupt').click();
   gleich('die Uhr hält am eigenen Spiel, nicht am Ziel', txt('.kopf-datum'), 'Sa 18. Apr 2026');
   gleich('Raster ist zum heutigen Tag zurückgekehrt', txt('.kalkopf h2'), 'April 2026');
   gleich('heute ist der 18. April', txt('.kaltag.heute .kalzahl'), '18');
@@ -99,14 +122,13 @@ try {
   gleich('die Uhr steht am zweiten Spieltag', txt('.kopf-datum'), 'Sa 25. Apr 2026');
   gleich('und bietet den nächsten Anpfiff', knopf(), 'Anpfiff');
 
-  // Aufklappen zeichnet die Ansicht neu — die Zeile von vorhin ist danach eine
+  // Auswählen zeichnet die Ansicht neu — die Zeile von vorhin ist danach eine
   // abgehängte, und es muss frisch gesucht werden.
   const berichtZeile = alle('.postzeile').find((z) => /\d+:\d+/.test(z.textContent));
   pruefe('der Spielbericht liegt als Nachricht vor', !!berichtZeile);
-  berichtZeile.querySelector('.postkopf').click();
-  const zumBericht = alle('.postzeile.offen button')
-    .find((b) => b.textContent === 'Spielbericht ansehen');
-  pruefe('und führt von dort zum Box Score', !!zumBericht);
+  berichtZeile.click();
+  const zumBericht = leseKnopf('Spielbericht ansehen');
+  pruefe('und führt von dort zum Box Score', !!zumBericht, leseKnoepfe().join(' | '));
   zumBericht.click();
   gleich('der Box Score steht wieder da', alle('.bericht-kopf').length, 2);
 } catch (e) { merkeFehler(e); }

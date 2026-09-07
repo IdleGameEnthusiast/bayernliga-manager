@@ -29,7 +29,7 @@ function einSchritt() {
   if (!knopf) return 'nichts zu tun';
   if (knopf.textContent.trim() === 'Zur Nachricht ›') {
     knopf.click();
-    const antwort = q('.postzeile.offen .postknoepfe button');
+    const antwort = q('.postlese .postknoepfe button');
     if (!antwort) return 'antwort fehlt';
     antwort.click();
     return 'geantwortet';
@@ -65,10 +65,12 @@ try {
 
   // Und im Postfach liegt, was der Wechsel mitbringt. Rücktritte sind nicht
   // darunter: nach der ersten Saison ist dafür niemand alt genug.
-  gleich('der Vorstand meldet sich wieder', alle('.postzeichen.antwort').length, 1);
+  gleich('nichts hält die Uhr auf', alle('.postzeichen.antwort').length, 0);
   const betreffe = alle('.postbetreff').map((e) => e.textContent);
-  pruefe('mit den Zielen für 2027', betreffe.some((b) => b.includes('2027')), betreffe.join(' | '));
-  pruefe('und der Meister steht im Archiv',
+  pruefe('der Vorstand meldet sich wieder mit den Zielen für 2027',
+    betreffe.some((b) => b.includes('2027')), betreffe.join(' | '));
+  // Nichts ist von selbst archiviert worden: was gelesen wurde, liegt noch da.
+  pruefe('und der Meister steht noch im Posteingang',
     betreffe.some((b) => /meister/i.test(b)), betreffe.join(' | '));
 
   const karten = alle('.karte h2').map((h) => h.textContent);

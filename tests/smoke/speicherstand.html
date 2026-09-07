@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="de"><head><meta charset="utf-8">
-<title>Ein Speicherstand aus einem anderen Build wird weggeworfen</title>
+<title>Alte Speicherstände: was gehoben wird und was fliegt</title>
 <link rel="stylesheet" href="../../app.css">
 <link rel="stylesheet" href="melder.css">
 <script src="./melder.js"></script>
@@ -11,7 +11,7 @@
      und danach wäre es zu spät. Beides statisch importiert — ein `await
      import()` ginge am load-Ereignis vorbei. -->
 <script type="module">
-import { neuesSpiel, weiter, beantworteNachricht, SAVE_VERSION } from '../../engine/saison.js';
+import { neuesSpiel, weiter, SAVE_VERSION } from '../../engine/saison.js';
 import { tagVonSpieltag } from '../../engine/kalender.js';
 
 localStorage.clear();
@@ -20,14 +20,15 @@ localStorage.clear();
 // einen fremden Stempel geben. Von Hand geschrieben wäre er nur so falsch, wie
 // ich ihn mir vorstelle — so ist er in allem außer der Nummer gültig.
 const s = neuesSpiel('heg', 'stempel-seed');
-beantworteNachricht(s, s.post[s.post.length - 1].id, 'ja');
 for (let i = 0; i < 30 && s.tag < tagVonSpieltag(3); i++) weiter(s, tagVonSpieltag(3));
 
-const fremd = JSON.parse(JSON.stringify(s));
-fremd.version = SAVE_VERSION - 1;
+// Version 1 gibt es in `MIGRATIONEN` nicht und wird es nie geben: der Pfad
+// fängt dort an, wo das Spiel schon gespielt wurde.
+const ohneWeg = JSON.parse(JSON.stringify(s));
+ohneWeg.version = 1;
 pruefe('der Rohstand wäre spielbar, trüge er den richtigen Stempel',
-  fremd.tag > 1 && fremd.post.length > 0 && fremd.version !== SAVE_VERSION);
-localStorage.setItem('bayernliga.save', JSON.stringify(fremd));
+  ohneWeg.tag > 1 && ohneWeg.post.length > 0 && ohneWeg.version !== SAVE_VERSION);
+localStorage.setItem('bayernliga.save', JSON.stringify(ohneWeg));
 
 // Dazu ein Schlüssel aus der Zeit, als die Nummer noch im Namen stand.
 localStorage.setItem('bayernliga.save.v5', '{"version":5}');
@@ -36,27 +37,53 @@ localStorage.setItem('bayernliga.save.v5', '{"version":5}');
 <script type="module">
 import '../../app.js';
 import { lade, speichere, loesche, gibtEsSpeicherstand } from '../../engine/save.js';
-import { neuesSpiel } from '../../engine/saison.js';
+import { neuesSpiel, weiter, SAVE_VERSION } from '../../engine/saison.js';
+import { tagVonSpieltag } from '../../engine/kalender.js';
 
 try {
-  // 1 — Er wird nicht fortgesetzt, sondern weggeworfen
+  // 1 — Ohne Weg nach vorn wird weggeworfen, nicht halb gerettet
   gleich('die App zeigt den Startbildschirm', alle('.start-team').length, 12);
   // Gefragt wird der Bildschirm, nicht der Body: dessen `textContent` enthält
   // auch den Quelltext dieses Skripts — die Zeile fände sich selbst.
   pruefe('und bietet kein Fortsetzen an',
     !alle('#app button').some((b) => b.textContent.trim() === 'Karriere fortsetzen'));
-  gleich('der fremde Stand ist aus dem Speicher verschwunden',
+  gleich('der Stand ohne Weg ist aus dem Speicher verschwunden',
     localStorage.getItem('bayernliga.save'), null);
   gleich('mit ihm der Schlüssel des alten Builds',
     localStorage.getItem('bayernliga.save.v5'), null);
 
-  // 2 — Der gute Weg steht davon unberührt
+  // 2 — Ein Stand aus Version 6 wird gehoben statt weggeworfen
+  //
+  // Version 6 kannte den Ordner „Gelöscht" noch nicht: gelesen war archiviert.
+  // Der alte Stand entsteht auch hier aus einem echten, dem das Feld wieder
+  // genommen wird — so ist er in allem außer der Form gültig.
+  const echt = neuesSpiel('heg', 'sechser');
+  for (let i = 0; i < 30 && echt.tag < tagVonSpieltag(2); i++) weiter(echt, tagVonSpieltag(2));
+  const sechs = JSON.parse(JSON.stringify(echt));
+  sechs.version = 6;
+  for (const n of sechs.post) delete n.geloescht;
+  pruefe('der Sechser trägt Post', sechs.post.length > 0);
+  localStorage.setItem('bayernliga.save', JSON.stringify(sechs));
+
+  const gehoben = lade();
+  pruefe('er kommt zurück statt zu verschwinden', !!gehoben);
+  gleich('mit der heutigen Nummer', gehoben.version, SAVE_VERSION);
+  pruefe('und mit dem Posteingang, in dem alles liegt',
+    gehoben.post.every((n) => n.geloescht === false), JSON.stringify(gehoben.post[0]));
+  gleich('die Uhr steht, wo sie stand', gehoben.tag, echt.tag);
+  gleich('auf der Platte liegt bis zum nächsten Speichern noch die alte Fassung',
+    JSON.parse(localStorage.getItem('bayernliga.save')).version, 6);
+  speichere(gehoben);
+  gleich('danach die neue',
+    JSON.parse(localStorage.getItem('bayernliga.save')).version, SAVE_VERSION);
+
+  // 3 — Der gute Weg steht davon unberührt
   const gut = neuesSpiel('heg', 'guter-stand');
   speichere(gut);
   pruefe('ein frischer Stand wird wiedergefunden', gibtEsSpeicherstand());
   gleich('und kommt unverändert zurück', JSON.stringify(lade()), JSON.stringify(gut));
 
-  // 3 — Und Aufräumen räumt wirklich alles ab
+  // 4 — Und Aufräumen räumt wirklich alles ab
   localStorage.setItem('bayernliga.save.v4', '{}');
   loesche();
   gleich('loesche() lässt nichts von dieser App liegen', localStorage.length, 0);

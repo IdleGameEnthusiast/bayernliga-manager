@@ -8,6 +8,16 @@
  * Handlung: sie ist die sichtbare Oberfläche jedes Zwangsstopps, und ohne sie
  * säße der Manager an einem Spieltag fest.
  *
+ * Zwei Entscheidungen prägen den Rest der Datei:
+ *
+ * - **Der Kalender zeigt Termine, nicht Post.** Er trug einmal Briefmarken an
+ *   den Tagen, an denen Nachrichten lagen. Das verdoppelte den Posteingang an
+ *   einer Stelle, an der niemand nach Post sucht — hier steht, was ansteht.
+ * - **Der Posteingang ist im Schnitt eines Mailprogramms gebaut:** links die
+ *   Ordner, daneben die Liste, rechts die Nachricht. Vorher klappten die
+ *   Nachrichten in der Liste auf; bei zwanzig gelesenen Zeilen sucht man die
+ *   aufgeklappte dann zwischen den anderen.
+ *
  * Docs: docs/umbau-kalender.md, Abschnitt 10
  */
 
@@ -18,7 +28,7 @@ import {
   datum, tagVonDatum, tageImMonat, rasterVersatz, spieltagAmTag, phaseAmTag,
   saisonLaenge,
 } from '../engine/kalender.js';
-import { brauchtAntwort, antwortenZu, nachrichtenAmTag } from '../engine/postfach.js';
+import { brauchtAntwort, antwortenZu } from '../engine/postfach.js';
 import { naechsterStopp, eigenePartieAmTag } from '../engine/saison.js';
 
 /**
@@ -39,14 +49,30 @@ let monat = null;
  */
 let gesehenerTag = null;
 
-/** Welche Nachrichten aufgeklappt sind. @type {Set<string>} */
-const offene = new Set();
+/**
+ * Der angetippte Tag im Raster — noch ist nichts passiert.
+ *
+ * Ein Tipp simulierte einmal sofort bis zu diesem Tag. Das ist der teuerste
+ * Fehlgriff, den diese App kennt: Wochen an Spielzeit, nicht zurückzunehmen,
+ * ausgelöst von einem Daumen am Rand des Rasters. Jetzt wählt der Tipp nur aus,
+ * und ein Knopf unter dem Raster tut es.
+ * @type {number | null}
+ */
+let gewaehlterTag = null;
+
+/** Welcher Ordner offen ist. @type {'posteingang' | 'geloescht'} */
+let ordner = 'posteingang';
+
+/** Welche Nachricht rechts aufgeschlagen ist. @type {string | null} */
+let gewaehlteId = null;
 
 /**
  * @typedef {object} Aktionen
  * @property {(zielTag?: number | null) => void} weiter
  * @property {(id: string, antwort: string) => void} beantworte
- * @property {(id: string) => void} oeffne     Aufklappen und als gelesen führen
+ * @property {(id: string) => void} oeffne     Auswählen und als gelesen führen
+ * @property {(id: string) => void} loesche
+ * @property {(id: string) => void} stelleWiederHer
  * @property {(partie: import('../engine/spielplan.js').Partie) => void} zumBericht
  * @property {() => void} exportieren
  * @property {() => void} importieren
@@ -62,17 +88,15 @@ export function zeigePostfach(stand, aktionen) {
   if (!monat || monat.jahr !== stand.jahr || gesehenerTag !== stand.tag) {
     monat = heutigerMonat(stand);
     gesehenerTag = stand.tag;
+    // Die Uhr ist weitergelaufen: ein Ziel von vorhin liegt jetzt womöglich in
+    // der Vergangenheit und wäre ein Knopf, der nichts mehr täte.
+    gewaehlterTag = null;
   }
-
-  const post = stand.post.slice().reverse();
-  const eingang = post.filter((n) => !n.gelesen || istOffen(n));
-  const archiv = post.filter((n) => n.gelesen && !istOffen(n));
 
   return el('div', {},
     kalenderKarte(stand, aktionen),
     tagesKarte(stand, aktionen),
-    listenKarte(T.postfach.posteingang, eingang, T.postfach.keinePost, stand, aktionen),
-    listenKarte(T.postfach.archiv, archiv, T.postfach.keinArchiv, stand, aktionen),
+    postKarte(stand, aktionen),
     historieKarte(stand),
     datenKarte(aktionen));
 }
@@ -84,7 +108,7 @@ function istOffen(n) {
 
 /**
  * Die Textvorlage zu einer Art — `von`, `betreff(daten)`, `text(daten)` und bei
- * den zweien mit Antwortpflicht die Beschriftungen ihrer Antworten.
+ * der einen mit Antwortpflicht die Beschriftungen ihrer Antworten.
  *
  * Fehlt sie, ist die Nachricht aus einer neueren Fassung des Spiels: dann wird
  * die Zeile roh angezeigt statt zu werfen.
@@ -139,10 +163,9 @@ function kalenderKarte(stand, aktionen) {
     el('div', { class: 'kalraster kalkopfzeile' },
       T.datum.rasterTage.map((n) => el('div', { class: 'kalwochentag', text: n }))),
     el('div', { class: 'kalraster' }, zellen),
+    auswahlLeiste(stand, aktionen),
     el('div', { class: 'kallegende klein leise' },
-      legende(T.postfach.zeichenSpiel, T.postfach.legendeSpiel),
-      legende(T.postfach.zeichenPost, T.postfach.legendePost),
-      legende(T.postfach.zeichenAntwort, T.postfach.legendeAntwort)));
+      legende(T.postfach.zeichenSpiel, T.postfach.legendeSpiel)));
 }
 
 /** @param {string} zeichen @param {string} text */
@@ -169,8 +192,13 @@ function blaettere(stand, richtung) {
 }
 
 /**
- * Eine Zelle des Rasters. Ein Tipp heißt „bis hierhin" — damit ist der
- * häufigste Fall ein Griff und der seltene zwei.
+ * Eine Zelle des Rasters. Ein Tipp wählt aus, ein zweiter auf denselben Tag
+ * nimmt die Wahl zurück — losgespielt wird unter dem Raster.
+ *
+ * Im Raster steht nur, was an einem Tag **ansteht**: das eigene Spiel. Die
+ * Briefmarke für Post an diesem Tag ist weg — sie zeigte ein zweites Mal, was
+ * eine Handbreit tiefer ohnehin steht, und lud dazu ein, den Kalender nach
+ * Nachrichten abzusuchen statt den Posteingang.
  * @param {import('../engine/saison.js').SpielStand} stand
  * @param {Aktionen} aktionen
  * @param {number} tag Tagesnummer der Saison, gern auch außerhalb
@@ -180,39 +208,61 @@ function blaettere(stand, richtung) {
 function tagesZelle(stand, aktionen, tag, imMonat, ende) {
   const drin = tag >= 1 && tag <= ende;
   const heute = tag === stand.tag;
-  const post = drin ? nachrichtenAmTag(stand, tag) : [];
   const spiel = drin && stand.spielplan.some(
     (p) => p.tag === tag && (p.heim === stand.meinTeam || p.gast === stand.meinTeam));
-  const antwort = post.some(istOffen);
-  const springbar = drin && tag > stand.tag;
-
-  const zeichen = el('div', { class: 'kalzeichen' },
-    spiel ? el('span', { text: T.postfach.zeichenSpiel }) : null,
-    antwort
-      ? el('span', { class: 'antwort', text: T.postfach.zeichenAntwort })
-      : (post.length > 0 ? el('span', { text: T.postfach.zeichenPost }) : null));
+  const waehlbar = drin && tag > stand.tag;
 
   const klassen = ['kaltag'];
   if (!drin) klassen.push('aussen');
   if (heute) klassen.push('heute');
-  if (springbar) klassen.push('springbar');
+  if (waehlbar) klassen.push('waehlbar');
+  if (tag === gewaehlterTag) klassen.push('gewaehlt');
+
+  const waehle = () => {
+    gewaehlterTag = tag === gewaehlterTag ? null : tag;
+    aktionen.neuZeichnen();
+  };
 
   return el('div', {
     class: klassen.join(' '),
-    role: springbar ? 'button' : null,
-    tabindex: springbar ? '0' : null,
-    title: springbar ? T.postfach.zumTag(T.datum.ohneJahr(datum(stand.jahr, tag))) : null,
-    onclick: springbar ? () => aktionen.weiter(tag) : null,
-    onkeydown: springbar
+    role: waehlbar ? 'button' : null,
+    tabindex: waehlbar ? '0' : null,
+    'aria-pressed': waehlbar ? String(tag === gewaehlterTag) : null,
+    title: waehlbar ? T.postfach.tagWaehlen(T.datum.ohneJahr(datum(stand.jahr, tag))) : null,
+    onclick: waehlbar ? waehle : null,
+    onkeydown: waehlbar
       ? (/** @type {KeyboardEvent} */ e) => {
         if (e.key !== 'Enter' && e.key !== ' ') return;
         e.preventDefault();
-        aktionen.weiter(tag);
+        waehle();
       }
       : null,
   },
     el('div', { class: 'kalzahl', text: String(imMonat) }),
-    zeichen);
+    el('div', { class: 'kalzeichen' },
+      spiel ? el('span', { text: T.postfach.zeichenSpiel }) : null));
+}
+
+/**
+ * Was unter dem Raster steht, sobald ein Tag gewählt ist: das Datum und der
+ * Knopf, der die Uhr wirklich bewegt.
+ * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {Aktionen} aktionen
+ */
+function auswahlLeiste(stand, aktionen) {
+  if (gewaehlterTag === null) return null;
+  const ziel = gewaehlterTag;
+  return el('div', { class: 'kalauswahl' },
+    el('div', {
+      class: 'kalauswahl-datum klein',
+      text: T.postfach.tagGewaehlt(T.datum.ohneJahr(datum(stand.jahr, ziel))),
+    }),
+    el('button', { class: 'haupt klein', onclick: () => aktionen.weiter(ziel) },
+      T.postfach.bisDatumSimulieren),
+    el('button', {
+      class: 'neben klein',
+      onclick: () => { gewaehlterTag = null; aktionen.neuZeichnen(); },
+    }, T.postfach.auswahlAufheben));
 }
 
 // --- Die Tageskarte --------------------------------------------------------
@@ -286,47 +336,92 @@ function rundeAmTag(stand, tag) {
   return p ? p.runde : null;
 }
 
-// --- Die Nachrichten -------------------------------------------------------
+// --- Der Posteingang -------------------------------------------------------
 
 /**
- * @param {string} titel
- * @param {import('../engine/postfach.js').Nachricht[]} nachrichten neueste zuerst
- * @param {string} leerText
+ * Ordner, Liste, Nachricht — drei Spalten auf dem Schreibtisch, gestapelt auf
+ * dem Telefon.
+ *
+ * Nichts wandert von selbst zwischen den Ordnern: Gelesenes bleibt im Eingang
+ * stehen, und was daraus verschwindet, hat der Manager gelöscht. Das Archiv,
+ * das sich beim Lesen von selbst füllte, gab es einmal — es nahm dem Eingang
+ * jede Nachricht, die man ein zweites Mal ansehen wollte.
  * @param {import('../engine/saison.js').SpielStand} stand
  * @param {Aktionen} aktionen
  */
-function listenKarte(titel, nachrichten, leerText, stand, aktionen) {
-  const ungelesen = nachrichten.filter((n) => !n.gelesen).length;
-  return el('div', { class: 'karte' },
-    el('div', { class: 'kartenkopf' },
-      el('h2', { text: titel }),
-      ungelesen > 0
-        ? el('span', { class: 'marke postmarke', text: T.postfach.ungelesen(ungelesen) })
-        : null),
-    nachrichten.length === 0
-      ? el('p', { class: 'leise klein', text: leerText })
-      : el('div', { class: 'postliste' },
-        nachrichten.map((n) => nachrichtZeile(n, stand, aktionen))));
+function postKarte(stand, aktionen) {
+  const alle = stand.post.slice().reverse();
+  const eingang = alle.filter((n) => !n.geloescht);
+  const papierkorb = alle.filter((n) => n.geloescht);
+  const liste = ordner === 'geloescht' ? papierkorb : eingang;
+
+  // Nur, was im offenen Ordner liegt: eine gerade gelöschte Nachricht stünde
+  // sonst rechts weiter da, während die Liste sie links schon nicht mehr führt.
+  const gewaehlt = liste.find((n) => n.id === gewaehlteId) || null;
+
+  return el('div', { class: 'karte postfach' },
+    el('div', { class: 'postordner', role: 'tablist', 'aria-label': T.postfach.ordner },
+      ordnerKnopf('posteingang', T.postfach.posteingang,
+        eingang.filter((n) => !n.gelesen).length, aktionen),
+      ordnerKnopf('geloescht', T.postfach.geloescht, 0, aktionen)),
+    el('div', { class: 'postspalte' },
+      liste.length === 0
+        ? el('p', {
+          class: 'leise klein postleer',
+          text: ordner === 'geloescht' ? T.postfach.keinGeloeschtes : T.postfach.keinePost,
+        })
+        : el('div', { class: 'postliste' },
+          liste.map((n) => nachrichtZeile(n, aktionen)))),
+    el('div', { class: 'postlese' },
+      gewaehlt
+        ? nachrichtBlatt(gewaehlt, stand, aktionen)
+        : el('p', { class: 'leise klein', text: T.postfach.keineAuswahl })));
 }
 
 /**
- * Eine Zeile, aufklappbar. Der Text entsteht erst hier: gespeichert ist nur
- * ein Schlüssel und ein Häufchen Daten.
- * @param {import('../engine/postfach.js').Nachricht} n
- * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {'posteingang'|'geloescht'} id
+ * @param {string} label
+ * @param {number} ungelesen 0 lässt die Marke weg
  * @param {Aktionen} aktionen
  */
-function nachrichtZeile(n, stand, aktionen) {
+function ordnerKnopf(id, label, ungelesen, aktionen) {
+  return el('button', {
+    class: 'postordner-knopf' + (ordner === id ? ' aktiv' : ''),
+    type: 'button',
+    role: 'tab',
+    'aria-selected': String(ordner === id),
+    onclick: () => { ordner = id; aktionen.neuZeichnen(); },
+  },
+    el('span', { class: 'postordner-name', text: label }),
+    ungelesen > 0
+      ? el('span', {
+        class: 'marke postmarke',
+        text: String(ungelesen),
+        title: T.postfach.ungelesen(ungelesen),
+      })
+      : null);
+}
+
+/**
+ * Eine Zeile der Liste. Der Text entsteht erst hier: gespeichert ist nur ein
+ * Schlüssel und ein Häufchen Daten.
+ * @param {import('../engine/postfach.js').Nachricht} n
+ * @param {Aktionen} aktionen
+ */
+function nachrichtZeile(n, aktionen) {
   const vorlage = vorlageVon(n.art);
   const daten = angereichert(n.daten);
-  const auf = offene.has(n.id);
   const offenerPunkt = istOffen(n);
 
-  const kopf = el('div', {
-    class: 'postkopf',
+  const klassen = ['postzeile'];
+  if (!n.gelesen) klassen.push('neu');
+  if (n.id === gewaehlteId) klassen.push('gewaehlt');
+
+  return el('div', {
+    class: klassen.join(' '),
     role: 'button',
     tabindex: '0',
-    'aria-expanded': String(auf),
+    'aria-current': n.id === gewaehlteId ? 'true' : null,
     onclick: () => aktionen.oeffne(n.id),
     onkeydown: (/** @type {KeyboardEvent} */ e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -340,36 +435,53 @@ function nachrichtZeile(n, stand, aktionen) {
     }),
     el('span', { class: 'postnamen' },
       el('div', { class: 'postbetreff', text: vorlage ? vorlage.betreff(daten) : n.art }),
-      el('div', { class: 'leise klein', text: vorlage ? vorlage.von : '' })),
+      el('div', { class: 'leise klein postvon', text: vorlage ? vorlage.von : '' })),
     el('span', {
       class: 'leise klein postdatum',
       text: T.datum.ohneJahr(datum(n.jahr, n.tag)),
     }));
-
-  if (!auf || !vorlage) {
-    return el('div', { class: 'postzeile' + (n.gelesen ? '' : ' neu') }, kopf);
-  }
-
-  return el('div', { class: 'postzeile offen' + (n.gelesen ? '' : ' neu') },
-    kopf,
-    el('div', { class: 'posttext' },
-      vorlage.text(daten).map((absatz) => el('p', { text: absatz })),
-      knoepfe(n, stand, aktionen)));
 }
 
 /**
- * Was unter einer aufgeklappten Nachricht steht: die Antworten, solange sie
- * offen ist, und der Weg zum Box Score, wenn sie ein Spielbericht ist.
+ * Die aufgeschlagene Nachricht: Betreff, Absender, Text — und unten die Knöpfe.
+ * @param {import('../engine/postfach.js').Nachricht} n
+ * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {Aktionen} aktionen
+ */
+function nachrichtBlatt(n, stand, aktionen) {
+  const vorlage = vorlageVon(n.art);
+  const daten = angereichert(n.daten);
+
+  return el('div', { class: 'postblatt' },
+    el('div', { class: 'postblatt-kopf' },
+      el('h3', { text: vorlage ? vorlage.betreff(daten) : n.art }),
+      el('div', {
+        class: 'leise klein',
+        text: T.postfach.absender(vorlage ? vorlage.von : n.art,
+          T.datum.ohneJahr(datum(n.jahr, n.tag))),
+      })),
+    el('div', { class: 'posttext' },
+      vorlage ? vorlage.text(daten).map((absatz) => el('p', { text: absatz })) : null),
+    knoepfe(n, stand, aktionen));
+}
+
+/**
+ * Was unter der Nachricht steht: die Antworten, solange sie offen ist, der Weg
+ * zum Box Score, wenn sie ein Spielbericht ist — und zuletzt das Löschen.
+ *
+ * Bei einer offenen Antwortpflicht fehlt der Löschknopf: die Nachricht ist dann
+ * die Bremse des Kalenders, und wer sie wegräumen könnte, käme an die
+ * Entscheidung nicht mehr heran, ohne die die Uhr stehen bleibt.
  * @param {import('../engine/postfach.js').Nachricht} n
  * @param {import('../engine/saison.js').SpielStand} stand
  * @param {Aktionen} aktionen
  */
 function knoepfe(n, stand, aktionen) {
   const reihe = [];
-
   const vorlage = vorlageVon(n.art);
+  const labels = (vorlage && vorlage.antworten) || {};
+
   if (istOffen(n)) {
-    const labels = (vorlage && vorlage.antworten) || {};
     for (const schluessel of antwortenZu(n.art)) {
       reihe.push(el('button', {
         class: reihe.length === 0 ? 'haupt klein' : 'neben klein',
@@ -377,7 +489,6 @@ function knoepfe(n, stand, aktionen) {
       }, labels[schluessel] || schluessel));
     }
   } else if (n.antwort) {
-    const labels = (vorlage && vorlage.antworten) || {};
     reihe.push(el('span', { class: 'marke postmarke', text: labels[n.antwort] || n.antwort }));
   }
 
@@ -387,6 +498,18 @@ function knoepfe(n, stand, aktionen) {
       class: 'neben klein',
       onclick: () => aktionen.zumBericht(partie),
     }, T.postfach.zumBericht));
+  }
+
+  if (n.geloescht) {
+    reihe.push(el('button', {
+      class: 'neben klein postloeschen',
+      onclick: () => aktionen.stelleWiederHer(n.id),
+    }, T.postfach.wiederherstellen));
+  } else if (!istOffen(n)) {
+    reihe.push(el('button', {
+      class: 'neben klein postloeschen',
+      onclick: () => aktionen.loesche(n.id),
+    }, T.postfach.loeschen));
   }
 
   return reihe.length > 0 ? el('div', { class: 'postknoepfe' }, reihe) : null;
@@ -450,23 +573,24 @@ function datenKarte(aktionen) {
 }
 
 /**
- * Eine Nachricht auf- oder zuklappen. Der Merker lebt im Modul, das Lesen im
- * Spielstand — `app.js` schreibt es dort hinein und zeichnet neu.
- * @param {string} id
- * @returns {boolean} ob sie jetzt offen steht
+ * Welche Nachricht aufgeschlagen ist — und damit auch, welcher Ordner offen
+ * ist.
+ *
+ * Beides zusammen, weil es eine Handlung ist: „zeig mir diese Nachricht". Sie
+ * kann in einem Ordner liegen, den der Manager gerade nicht ansieht — dann
+ * wechselt die Ansicht mit, statt auf eine Liste zu zeigen, in der sie fehlt.
+ * @param {import('../engine/postfach.js').Nachricht | null} n
  */
-export function klappe(id) {
-  if (offene.has(id)) {
-    offene.delete(id);
-    return false;
-  }
-  offene.add(id);
-  return true;
+export function waehleNachricht(n) {
+  gewaehlteId = n ? n.id : null;
+  if (n) ordner = n.geloescht ? 'geloescht' : 'posteingang';
 }
 
 /** Beim Verlassen der Karriere aufräumen, damit die nächste frisch anfängt. */
 export function vergissAnsicht() {
-  offene.clear();
   monat = null;
   gesehenerTag = null;
+  gewaehlterTag = null;
+  ordner = 'posteingang';
+  gewaehlteId = null;
 }

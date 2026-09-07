@@ -52,6 +52,11 @@ const GEDULD_MS = 60000;
  * `--no-remote` und ein eigenes Profil, sonst hängt sich der Aufruf an die
  * laufende Sitzung und dieses Skript wartet auf einen Bericht, den niemand
  * schreibt.
+ *
+ * Die Windows-Pfade stehen mit Schrägstrichen da. Node nimmt sie dort genauso,
+ * und ein `\` im Stringliteral ist genau die Stelle, an der beim nächsten Mal
+ * wieder ein einzelner Backslash landet — der macht aus dem Pfad klanglos
+ * `C:Program FilesMozilla Firefox…`, und die Suche findet dann gar nichts.
  */
 function browser() {
   const kandidaten = [
@@ -60,6 +65,8 @@ function browser() {
     '/usr/bin/firefox',
     '/usr/local/bin/firefox',
     '/snap/bin/firefox',
+    'C:/Program Files/Mozilla Firefox/firefox.exe',
+    'C:/Program Files (x86)/Mozilla Firefox/firefox.exe',
   ];
   return kandidaten.find((p) => p && existsSync(p)) || null;
 }

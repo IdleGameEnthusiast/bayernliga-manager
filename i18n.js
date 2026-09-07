@@ -59,13 +59,19 @@ export const DE = {
     heute: 'Heute',
     monatZurueck: 'Voriger Monat',
     monatVor: 'Nächster Monat',
-    zumTag: (datum) => `Bis ${datum} weiterspielen`,
-    zeichenSpiel: '⚽',
+    // Im Raster stehen Termine, keine Post. Das Zeichen ist ein Football und
+    // kein Fußball — dieselbe Sportart wie im Rest des Spiels.
+    zeichenSpiel: '🏈',
+    legendeSpiel: 'Spiel',
+    // Ein Tipp auf einen Tag wählt ihn nur aus; die Uhr bewegt erst der Knopf
+    // darunter. Ein Tipp, der sofort simuliert, ist für einen Fehlgriff zu
+    // teuer — er ist nicht zurückzunehmen.
+    tagWaehlen: (datum) => `${datum} auswählen`,
+    tagGewaehlt: (datum) => `Gewählt: ${datum}`,
+    bisDatumSimulieren: 'Bis zu diesem Datum simulieren',
+    auswahlAufheben: 'Auswahl aufheben',
     zeichenPost: '✉',
     zeichenAntwort: '●',
-    legendeSpiel: 'Spiel',
-    legendePost: 'Post',
-    legendeAntwort: 'Antwort nötig',
     saisonEnde: 'Die Saison ist gespielt.',
     heuteMit: (was) => `Heute · ${was}`,
     spielfrei: 'Kein Spiel angesetzt.',
@@ -77,14 +83,21 @@ export const DE = {
     kommendesSpiel: (gegner, wo) => `gegen ${gegner} (${wo})`,
     heimZeichen: 'H',
     auswaertsZeichen: 'A',
-    antwortOffen: 'Der Vorstand wartet auf eine Antwort.',
+    antwortOffen: 'Eine Nachricht wartet auf deine Antwort.',
     phasenWechsel: (phase) => `Weiter in die ${phase}`,
     saisonwechsel: 'Saisonwechsel',
+    // Die Ordner links, die Nachricht rechts. Gelesenes wandert nirgends von
+    // selbst hin — was aus dem Eingang verschwindet, hat der Manager gelöscht.
+    ordner: 'Ordner',
     posteingang: 'Posteingang',
-    archiv: 'Archiv',
-    keinePost: 'Nichts Neues.',
-    keinArchiv: 'Noch nichts gelesen.',
+    geloescht: 'Gelöscht',
+    keinePost: 'Der Posteingang ist leer.',
+    keinGeloeschtes: 'Hier liegt nichts.',
+    keineAuswahl: 'Wähle eine Nachricht aus.',
     ungelesen: (anzahl) => `${anzahl} ungelesen`,
+    absender: (von, datum) => `${von} · ${datum}`,
+    loeschen: 'Löschen',
+    wiederherstellen: 'Wiederherstellen',
     zumBericht: 'Spielbericht ansehen',
     vergangeneSaisons: 'Vergangene Saisons',
     saisonZeile: (jahr, platz, meister) => `${jahr}: Platz ${platz} · Meister ${meister}`,
@@ -111,14 +124,13 @@ export const DE = {
             + 'größer als der Verein. Alle beteiligten Spieler sind mit ihm gegangen.',
           'Es ist also alles bereit für einen Neustart. Nur: Das Team muss komplett neu '
             + 'aufgebaut werden.',
-          'Bist du dafür bereit?',
+          'Wir zählen auf dich. Fang an, wann du willst — die Vorbereitung läuft ab heute.',
         ]
         : [
           `Die Saison ${d.jahr} steht an, und der Vorstand erwartet, dass ${d.verein} `
             + 'oben mitspielt.',
           'Die Vorbereitung läuft ab heute. Wir hören von dir.',
         ]),
-      antworten: { ja: 'Ja, ich bin bereit' },
     },
 
     aufstellungUngueltig: {

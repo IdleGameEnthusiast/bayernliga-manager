@@ -335,6 +335,28 @@ Startansicht, mit Monatsraster und Tageskarte; die Ansprache zum Amtsantritt
 ist die erste E-Mail statt eines eigenen Bildschirms, und die Fußleiste ist
 weggefallen.
 
+**Nachtrag — der Posteingang im Schnitt eines Mailprogramms.** Vier Sachen an
+Block 6 haben sich beim Spielen nicht gehalten und sind nachgezogen worden:
+
+- **Ein Tipp im Raster wählt nur noch aus**; simuliert wird über den Knopf
+  „Bis zu diesem Datum simulieren" darunter. Ein Fehlgriff kostete vorher
+  Wochen an Spielzeit und war nicht zurückzunehmen.
+- **Der Kalender zeigt Termine, keine Post.** Die Briefmarken an den Tagen
+  sind weg; im Raster steht nur, was ansteht — heute das eigene Spiel, später
+  mehr. Das Zeichen dafür ist ein Football, kein Fußball.
+- **Ordner statt Aufklappen.** Links Posteingang und Gelöscht, rechts die
+  Nachricht. **Keine automatische Archivierung mehr:** gelesen heißt gelesen,
+  und was aus dem Eingang verschwindet, hat der Manager über „Löschen"
+  weggeworfen. `stutzePost()` leert beim Saisonwechsel nur noch den
+  Papierkorb.
+- **Das Wort des Vorstands verlangt keine Antwort mehr.** Es war die einzige
+  Antwortpflicht ohne Entscheidung dahinter. `ANTWORTEN` enthält damit nur
+  noch `aufstellungUngueltig`.
+
+`SAVE_VERSION` steht dafür auf 7, und der Schritt 6→7 in
+[`engine/save.js`](../engine/save.js) ist der erste des wieder eingeführten
+Migrationspfads.
+
 **Offen geblieben:** die Vorbereitung (Tag 2–182) und die Sommerpause sind
 noch leer. Sie sind der Haken, an dem Transfers, Training und Rekrutierung
 hängen — das ist der nächste Block, nicht mehr dieser.
@@ -436,7 +458,7 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Unentschieden | gibt es nirgends, Verlängerung ohne Limit (nur eine Notbremse, die entscheidet statt auszugleichen) |
 | Kickwerte | `kickStaerke` und `kickGenauigkeit` je Spieler; Kicker 50/50, Punter 70/30; unabhängig gezogen, OL und DL nie mit gutem Fuß |
 | Kicker-Auswahl | der beste Fuß des **ganzen** Kaders, Doppeleinsatz K/P erlaubt |
-| Speicherstände | bis zum Livegang **keine Migration** — ein Stand mit fremder `SAVE_VERSION` wird weggeworfen statt umgerechnet, siehe [`CLAUDE.md`](../CLAUDE.md) |
+| Speicherstände | **Migrationspfad in `engine/save.js`** — `MIGRATIONEN` hebt einen Stand Schritt für Schritt auf die heutige `SAVE_VERSION`; nur was der Pfad nicht erreicht, wird weggeworfen, siehe [`CLAUDE.md`](../CLAUDE.md) |
 | Vereinsfarben | drei je Verein, in `farben: { primaer, sekundaer, tertiaer }` |
 | Bracket | drei Spalten mit Verbindern aus CSS-Rahmen; unter 720px gestapelt und ohne Linien, weil eine Klammer um die Ecke schlimmer wäre als keine |
 | Leeres Bracket | steht trotzdem da, mit der Setzung auf den Plätzen und dem, der sie gerade hält — aber erst ab dem ersten gespielten Spieltag |

@@ -10,7 +10,7 @@ import { el, leere, kontrastFarbe } from './ui/dom.js';
 import { T } from './i18n.js';
 import { teamById } from './engine/content.js';
 import { datum } from './engine/kalender.js';
-import { markiereGelesen } from './engine/postfach.js';
+import { markiereGelesen, loescheNachricht, stelleWiederHer } from './engine/postfach.js';
 import {
   neuesSpiel, weiter, beantworteNachricht, gruppenTabellen, meineTabelle,
   setzeTaktik, setzeAufstellung, entwurfSetze, entwurfVollstaendig,
@@ -21,7 +21,7 @@ import {
   speichere, lade, gibtEsSpeicherstand, exportiere, importiere, dateiName,
 } from './engine/save.js';
 import { zeigeStart } from './ui/start.js';
-import { zeigePostfach, klappe, vergissAnsicht } from './ui/postfach.js';
+import { zeigePostfach, waehleNachricht, vergissAnsicht } from './ui/postfach.js';
 import { zeigeTabelle } from './ui/tabelle.js';
 import { zeigeKader } from './ui/kader.js';
 import { zeigeTaktik } from './ui/taktik.js';
@@ -176,6 +176,8 @@ const postfachAktionen = {
   weiter: (zielTag = null) => mitEntwurf(() => beiWeiter(zielTag)),
   beantworte: beiAntwort,
   oeffne: beiNachricht,
+  loesche: beiLoeschen,
+  stelleWiederHer: beiWiederherstellen,
   zumBericht: (p) => {
     offenePartie = p;
     berichtZurueck = 'postfach';
@@ -241,18 +243,49 @@ function beiWeiter(zielTag) {
 }
 
 /**
- * Eine Nachricht auf- oder zuklappen. Aufgeklappt heißt gelesen — gelesene
- * Nachrichten sind das Archiv, und ein zweiter Knopf dafür wäre einer zu viel.
+ * Eine Nachricht aufschlagen. Aufgeschlagen heißt gelesen — aber gelesen heißt
+ * nur gelesen: liegen bleibt sie, bis der Manager sie löscht.
  * @param {string} id
  */
 function beiNachricht(id) {
   if (!stand) return;
-  if (klappe(id)) {
-    markiereGelesen(stand, id);
-    speichere(stand);
-  }
+  waehleNachricht(markiereGelesen(stand, id));
+  speichere(stand);
   if (ansicht !== 'postfach') wechsle('postfach');
   else zeichne();
+}
+
+/**
+ * Eine Nachricht in den Ordner „Gelöscht" legen. Die Auswahl fällt dabei weg:
+ * die Nachricht liegt danach woanders, und die Lesespalte zeigt nur, was im
+ * offenen Ordner steht.
+ *
+ * Eine offene Antwortpflicht lehnt die Engine ab — dann bleibt alles stehen,
+ * und der Knopf dafür wird in der Ansicht gar nicht erst angeboten.
+ * @param {string} id
+ */
+function beiLoeschen(id) {
+  if (!stand) return;
+  if (loescheNachricht(stand, id)) {
+    waehleNachricht(null);
+    speichere(stand);
+  }
+  zeichne();
+}
+
+/**
+ * Zurück in den Posteingang — und dorthin mit, damit sichtbar wird, wo sie
+ * gelandet ist.
+ * @param {string} id
+ */
+function beiWiederherstellen(id) {
+  if (!stand) return;
+  const n = stelleWiederHer(stand, id);
+  if (n) {
+    waehleNachricht(n);
+    speichere(stand);
+  }
+  zeichne();
 }
 
 /**

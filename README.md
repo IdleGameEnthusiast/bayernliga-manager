@@ -4,7 +4,8 @@ Ein Managerspiel für American Football in der bayerischen Bayernliga.
 Deutsch, läuft auf PC und iPad, kostet nichts und braucht keinen Store.
 
 > Wer hier mit Claude Code arbeitet: die Arbeitsregeln stehen in
-> [`CLAUDE.md`](CLAUDE.md) — kein Build, keine Migration, wo die Fallen liegen.
+> [`CLAUDE.md`](CLAUDE.md) — kein Build, wie Speicherstände wandern, wo die
+> Fallen liegen.
 
 ## Die eine Regel: kein Build
 
@@ -59,13 +60,13 @@ in Millisekunden durchspielen können.
 | `engine/tabelle.js` | Die Gruppentabellen — immer neu berechnet, nie gespeichert |
 | `engine/postfach.js` | Nachrichten: Schlüssel und Daten, Antwortpflicht, das Stutzen |
 | `engine/saison.js` | Zustandsform, der Tages-Tick `weiter()`, das Bracket, der Sprung ins nächste Jahr |
-| `engine/save.js` | Speichern, Laden, Export und Import — ohne Migration |
+| `engine/save.js` | Speichern, Laden, Export, Import — und der Migrationspfad |
 | `i18n.js` | Alle sichtbaren Texte. Nur Daten |
 | `ui/*.js` | Jeder DOM-Aufruf |
 | `app.js` | Zustand, Ansichten, Verdrahtung |
 | `sw.js` | Service Worker: Netz zuerst, Cache als Rückfall. Seine `SHELL` muss jedes Modul nennen, sonst startet die App offline nicht — `tests/sw.test.js` prüft das gegen die Platte |
 | `tests/smoke/` | Der Rauchtest: Seiten, die die echte App in einem Browser durchklicken. `tests/smoke.js` fährt sie |
-| `CLAUDE.md` | Die Arbeitsregeln: kein Build, keine Migration, die Fallen |
+| `CLAUDE.md` | Die Arbeitsregeln: kein Build, die Migration, die Fallen |
 
 **Bezeichner im Code sind englisch, sichtbare Texte deutsch** und stehen
 ausschließlich in `i18n.js`. Ausgenommen ist die Sprache des Sports selbst:
@@ -117,10 +118,12 @@ Der laufende Stand liegt im `localStorage` unter `bayernliga.save` (rund
 der **Export** unter *Posteingang → Speicherstand* ist die eigentliche Sicherung
 und zugleich der Weg, eine Karriere zwischen PC und iPad zu tragen.
 
-**Solange das Spiel nicht veröffentlicht ist, gibt es keine Migration.** Jeder
-Stand trägt eine `SAVE_VERSION`; passt sie nicht zum laufenden Build, wird er
-weggeworfen statt umgerechnet, und die Karriere fängt von vorn an. Das ist eine
-bewusste Entscheidung für die Bauzeit — Näheres in [`CLAUDE.md`](CLAUDE.md).
+Jeder Stand trägt eine `SAVE_VERSION`. Ist sie älter als der laufende Build,
+**wird der Stand gehoben statt weggeworfen**: `migriere()` in
+[`engine/save.js`](engine/save.js) hängt die Schritte aneinander, bis er auf der
+heutigen Nummer steht. Nur was der Pfad nicht erreicht — eine Nummer ohne
+Schritt oder eine aus der Zukunft — wird abgelehnt. Was beim Ändern der
+Zustandsform zu tun ist, steht in [`CLAUDE.md`](CLAUDE.md).
 
 ## Stand und was als Nächstes käme
 
@@ -128,10 +131,12 @@ Der Fahrplan mit allen gefallenen Entscheidungen steht in
 [`docs/naechste-schritte.md`](docs/naechste-schritte.md).
 
 Gespielt werden kann: Verein wählen, den **Posteingang** als ersten Bildschirm
-— Monatsraster, Tageskarte und die Post des Vereins, in dem auch die Ansprache
-zum Amtsantritt als erste Nachricht liegt —, mit „Weiter" und „bis hierhin"
-durch den Kalender laufen, der von selbst vor jedem eigenen Spiel, vor jeder
-Antwortpflicht und an jedem Phasenwechsel anhält, zwei Gruppentabellen, Kader mit Depth Chart, sortierbaren Spalten
+— Monatsraster mit den Terminen, Tageskarte und die Post des Vereins im Schnitt
+eines Mailprogramms (Ordner links, Nachricht rechts, Löschen und ein Ordner
+„Gelöscht"), in dem auch die Ansprache zum Amtsantritt als erste Nachricht
+liegt —, mit „Weiter" und einem gewählten Datum durch den Kalender laufen, der
+von selbst vor jedem eigenen Spiel, vor jeder Antwortpflicht und an jedem
+Phasenwechsel anhält, zwei Gruppentabellen, Kader mit Depth Chart, sortierbaren Spalten
 und Verletzungen — aufgeklappt zeigt eine Zeile die fünfzehn Attribute und die
 fünf Plätze, auf denen der Mann gerade am meisten wert wäre —, Taktik mit Personnel und Ausrichtung, **die Aufstellung von
 Hand** — Platz antippen und aus den fünf Besten wählen, oder einen Spieler

@@ -1,7 +1,7 @@
 // @ts-check
 /**
- * Das Postfach: was der Verein dem Manager mitteilt — und die zwei Fälle, in
- * denen er antworten muss, bevor ein Tag weitergeht.
+ * Das Postfach: was der Verein dem Manager mitteilt — und der eine Fall, in
+ * dem er antworten muss, bevor ein Tag weitergeht.
  *
  * Eine Nachricht speichert **einen Schlüssel und ihre Daten, nie einen Satz.**
  * Damit lassen sich Texte ändern, ohne alte Speicherstände zu verfälschen, eine
@@ -20,6 +20,7 @@
  * @property {string} art      Schlüssel in T.post
  * @property {Record<string, any>} daten
  * @property {boolean} gelesen
+ * @property {boolean} geloescht  Liegt im Ordner „Gelöscht"
  * @property {string | null} antwort  null = offen; wirkt nur bei Arten mit Antwortpflicht
  */
 
@@ -29,10 +30,15 @@
  * Der Schlüssel steht hier, der Satz dazu in `i18n.js`. Solange eine dieser
  * Nachrichten offen ist, geht kein Tag weiter — das ist der ganze Mechanismus,
  * und er wächst später nur um Einträge in dieser Tabelle.
+ *
+ * Das Wort des Vorstands stand hier einmal mit drin und verlangte ein „Ja, ich
+ * bin bereit". Es war die erste Nachricht jeder Saison und damit die einzige
+ * Antwortpflicht, die nie eine Wahl war — eine Bremse ohne Entscheidung
+ * dahinter. Sie ist raus; wer sie zurückholen will, holt sich einen Klick
+ * zurück, der nichts bewirkt.
  * @type {Record<string, string[]>}
  */
 export const ANTWORTEN = {
-  vorstandsziel: ['ja'],
   aufstellungUngueltig: ['automatisch', 'selbst'],
 };
 
@@ -82,6 +88,7 @@ export function baueNachrichten(stand, tag, eintraege) {
     art: e.art,
     daten: e.daten || {},
     gelesen: false,
+    geloescht: false,
     antwort: null,
   }));
 }
@@ -101,6 +108,10 @@ export function sende(stand, tag, eintraege) {
 
 /**
  * Was den Kalender anhält: Nachrichten mit Antwortpflicht, die keine haben.
+ *
+ * Der Papierkorb zählt mit — eine offene Antwort ließe sich sonst wegwerfen
+ * statt zu geben. `loescheNachricht()` verhindert genau das, und diese Zeile
+ * bleibt trotzdem ohne Filter, damit die Bremse nicht an zwei Stellen hängt.
  * @param {import('./saison.js').SpielStand} stand
  */
 export function offeneAntworten(stand) {
@@ -113,13 +124,45 @@ export function nachrichtMit(stand, id) {
 }
 
 /**
- * Eine Nachricht als gelesen führen. Gelesene Nachrichten *sind* das Archiv —
- * einen eigenen Verlauf braucht es daneben nicht.
+ * Eine Nachricht als gelesen führen.
+ *
+ * Gelesen heißt nur gelesen: die Nachricht bleibt im Posteingang stehen, bis
+ * der Manager sie löscht. Sie wanderte einmal beim Lesen von selbst in ein
+ * Archiv — das räumte den Eingang auf, aber es nahm ihm auch jede Nachricht,
+ * die man ein zweites Mal ansehen wollte, ohne einen Ordner zu wechseln.
  * @param {import('./saison.js').SpielStand} stand @param {string} id
  */
 export function markiereGelesen(stand, id) {
   const n = nachrichtMit(stand, id);
   if (n) n.gelesen = true;
+  return n;
+}
+
+/**
+ * In den Ordner „Gelöscht" legen.
+ *
+ * Eine offene Antwortpflicht wird nicht gelöscht: sie hält die Uhr an, und ein
+ * Löschknopf wäre ein zweiter Weg an der Entscheidung vorbei — die Uhr stünde
+ * danach still, ohne dass irgendwo noch etwas zu sehen wäre.
+ * @param {import('./saison.js').SpielStand} stand @param {string} id
+ * @returns {Nachricht | null} die gelöschte Nachricht, oder null
+ */
+export function loescheNachricht(stand, id) {
+  const n = nachrichtMit(stand, id);
+  if (!n || (brauchtAntwort(n.art) && n.antwort === null)) return null;
+  n.geloescht = true;
+  return n;
+}
+
+/**
+ * Aus dem Ordner „Gelöscht" zurück in den Posteingang.
+ * @param {import('./saison.js').SpielStand} stand @param {string} id
+ * @returns {Nachricht | null}
+ */
+export function stelleWiederHer(stand, id) {
+  const n = nachrichtMit(stand, id);
+  if (!n) return null;
+  n.geloescht = false;
   return n;
 }
 
@@ -140,21 +183,16 @@ export function beantworte(stand, id, antwort) {
 }
 
 /**
- * Das Postfach beim Saisonwechsel stutzen: alles Gelesene ohne Antwortpflicht
- * fällt weg, und über POST_MAX hinaus fällt das Älteste nach.
+ * Das Postfach beim Saisonwechsel stutzen: der Papierkorb wird geleert, und
+ * über POST_MAX hinaus fällt das Älteste nach.
+ *
+ * Die Schere greift nur, wo der Manager schon selbst geschnitten hat. Sie warf
+ * einmal alles Gelesene weg — das ist dieselbe automatische Archivierung wie
+ * beim Lesen, nur ein Jahr später und ohne dass jemand zusieht.
  * @param {import('./saison.js').SpielStand} stand
  */
 export function stutzePost(stand) {
-  stand.post = stand.post.filter((n) => !(n.gelesen && !brauchtAntwort(n.art)));
+  stand.post = stand.post.filter((n) => !n.geloescht);
   if (stand.post.length > POST_MAX) stand.post = stand.post.slice(-POST_MAX);
   return stand.post;
-}
-
-/**
- * Die Nachrichten eines Tages der laufenden Saison — was das Monatsraster als
- * Briefmarke an einem Datum zeigt.
- * @param {import('./saison.js').SpielStand} stand @param {number} tag
- */
-export function nachrichtenAmTag(stand, tag) {
-  return stand.post.filter((n) => n.jahr === stand.jahr && n.tag === tag);
 }

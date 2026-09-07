@@ -18,29 +18,34 @@ beim Arbeiten daran gilt.
    echten Umlauten, UTF-8 ohne BOM. Bezeichner im Code sind englisch. Die
    Sprache des Sports bleibt, wie sie auf dem Feld gesprochen wird: Offense,
    Defense, Run, Pass, Roster, QB, MIKE.
-4. **Bis zum Livegang gibt es keine Migration** — siehe unten. Das ist die
-   Regel, die am ehesten aus Gewohnheit gebrochen wird.
+4. **Wer die Form von `SpielStand` ändert, schreibt den Migrationsschritt
+   dazu** — siehe unten. Das ist der Teil, der am ehesten vergessen wird, und
+   sein Fehlen merkt man erst an einem Speicherstand, den es nicht mehr gibt.
 
-## Keine Rücksicht auf alte Speicherstände
+## Speicherstände wandern mit
 
-Das Spiel ist nicht veröffentlicht. Es gibt keine fremden Karrieren, die zu
-schützen wären, und **kein Migrationspfad wird geschrieben, bis der Auftraggeber
-das ausdrücklich als Anforderung stellt.** Bis dahin gilt:
+Jeder Stand trägt eine `SAVE_VERSION`. Ändert sich die Form von `SpielStand`,
+sind es **zwei** Handgriffe, nie einer:
 
-- Wer die Form von `SpielStand` ändert, **zählt `SAVE_VERSION` in
-  [`engine/saison.js`](engine/saison.js) hoch** und ist fertig.
-- `lade()` wirft jeden Stand mit einer anderen Nummer weg, statt ihn
-  umzurechnen. `importiere()` lehnt ihn ab. Das ist die ganze Logik in
-  [`engine/save.js`](engine/save.js), und sie soll die ganze bleiben.
-- **Kein** `migriere()`, keine Verzweigung nach Versionsnummer, kein „falls das
-  Feld fehlt, dann …", keine zweiten Schlüssel im `localStorage`, keine Tests
-  über alte Formate. Fehlt ein Feld, ist der Stand von gestern und gehört weg.
-- Ein fehlendes Feld **defensiv abzufangen** ist derselbe Fehler in klein. Ein
-  Zugriff darf laut scheitern — das ist ein Fehler im Code, kein alter Stand.
+- **`SAVE_VERSION` in [`engine/saison.js`](engine/saison.js) hochzählen.**
+- **Einen Schritt in `MIGRATIONEN` in [`engine/save.js`](engine/save.js)
+  eintragen**, der einen Stand der vorigen Nummer auf die neue hebt. Der
+  Schlüssel ist die Nummer, von der aus gehoben wird.
 
-Das spart pro Formatänderung eine Umrechnung, ihre Tests und die Frage, ob sie
-zweimal laufen darf. Kommt die Anforderung, fängt der Migrationspfad bei der
-dann aktuellen Version an und muss nichts von der Vergangenheit wissen.
+`migriere()` hängt die Schritte aneinander: ein Stand aus Version 4 läuft durch
+4→5, 5→6, 6→7. Deshalb kennt **ein Schritt nur die beiden Formen an seinen
+Enden**, nie den heutigen `SpielStand` — sonst müsste jeder alte Schritt
+mitwachsen, sobald die Form sich wieder ändert, und genau daran gehen
+Migrationspfade ein. Aus demselben Grund wird nie ein Direktweg von 4 nach 7
+eingetragen: die Tabelle wüchse quadratisch.
+
+Was der Pfad nicht erreicht, wird abgelehnt statt halb gerettet: eine Nummer
+ohne Schritt, eine Nummer aus der Zukunft, kein Objekt. `lade()` wirft einen
+solchen Stand weg, `importiere()` lässt den Fehler laut werden.
+
+Ein gehobener Stand wird beim Laden **nicht** zurückgeschrieben — das erledigt
+der nächste `speichere()`. Bis dahin liegt die alte Fassung noch auf der Platte,
+und ein Export kann sie retten, falls ein Schritt danebengreift.
 
 ## Fallen, die schon zugeschnappt sind
 
@@ -109,4 +114,4 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 
 TypeScript-Dateien, JSX, ein Bundler, `package.json`, eine Abhängigkeit, ein
 Framework, ein CSS-Präprozessor, eine `.github/`-Pipeline für den Deploy — und
-jede Zeile, die einen alten Speicherstand rettet.
+ein Migrationsschritt, der den heutigen `SpielStand` kennt.

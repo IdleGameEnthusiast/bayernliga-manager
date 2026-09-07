@@ -710,16 +710,27 @@ tr.wertezeile td { padding: 0 8px 12px; text-align: left; white-space: normal; }
 /* Ein Tag außerhalb der Saison: er steht im Monat, aber nicht im Jahr. */
 .kaltag.aussen { background: none; color: var(--text-leise); opacity: .4; }
 .kaltag.heute { border-color: var(--akzent); background: rgba(214, 73, 51, .18); }
-.kaltag.springbar { cursor: pointer; }
-.kaltag.springbar:hover { border-color: var(--rand); }
-.kaltag.springbar:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
+.kaltag.waehlbar { cursor: pointer; }
+.kaltag.waehlbar:hover { border-color: var(--rand); }
+.kaltag.waehlbar:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
+/* Der angetippte Tag. Er sieht anders aus als „heute": das eine ist, wo man
+   steht, das andere, wohin man will. */
+.kaltag.gewaehlt { border-color: var(--akzent-hell); background: rgba(255, 107, 82, .22); }
 
 .kalzahl { font-size: 13px; }
 .kalzeichen { font-size: 11px; line-height: 1; display: flex; gap: 2px; }
-.kalzeichen .antwort { color: var(--akzent-hell); }
 
 .kallegende { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
 .kallegende-teil { display: inline-flex; align-items: center; gap: 4px; }
+
+/* Die Leiste unter dem Raster: sie steht nur da, wenn ein Tag gewählt ist, und
+   trägt den einen Knopf, der wirklich simuliert. */
+.kalauswahl {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--rand);
+}
+.kalauswahl-datum { flex: 1; min-width: 110px; font-weight: 600; }
 
 /* Die Tageskarte. Ein Satz links, der Knopf rechts — und auf dem Telefon
    untereinander, damit der Knopf seine 44 Pixel behält. */
@@ -728,32 +739,83 @@ tr.wertezeile td { padding: 0 8px 12px; text-align: left; white-space: normal; }
 .tageskarte-titel { font-weight: 700; }
 .tageskarte button.haupt { flex: 0 0 auto; max-width: none; }
 
+/* --- Der Posteingang im Schnitt eines Mailprogramms -----------------------
+   Links die Ordner, daneben die Liste, rechts die Nachricht. Gestapelt bis
+   860px: drei Spalten auf einem Telefon wären drei Streifen, von denen keiner
+   sich lesen ließe. Die Karte gibt ihr Polster ab — die Trennlinien laufen
+   sonst nicht bis an den Rand. */
+.postfach { padding: 0; overflow: hidden; display: grid; grid-template-columns: 1fr; }
+
+.postordner {
+  display: flex; gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--rand);
+  overflow-x: auto; scrollbar-width: none;
+}
+.postordner::-webkit-scrollbar { display: none; }
+.postordner-knopf {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: var(--tap); padding: 0 14px;
+  background: none; color: var(--text-leise);
+  border: 1px solid transparent; border-radius: var(--radius);
+  font: inherit; font-weight: 600; cursor: pointer;
+  white-space: nowrap;
+}
+.postordner-knopf.aktiv {
+  background: var(--bg-zeile); border-color: var(--rand); color: var(--text);
+}
+.postordner-knopf:focus-visible { outline: 2px solid var(--akzent); outline-offset: -2px; }
+.postordner-name { flex: 1; text-align: left; }
+
+.postspalte { border-bottom: 1px solid var(--rand); max-height: 280px; overflow-y: auto; }
+.postleer { margin: 0; padding: 12px 14px; }
+
 .postliste { display: flex; flex-direction: column; }
 
-.postzeile { border-top: 1px solid var(--rand); }
-.postzeile:first-child { border-top: none; }
-
-.postkopf {
+.postzeile {
   display: flex; align-items: center; gap: 10px;
-  min-height: var(--tap);
-  padding: 6px 0;
+  min-height: var(--tap); padding: 6px 14px;
+  border-top: 1px solid var(--rand);
   cursor: pointer;
 }
-.postkopf:focus-visible { outline: 2px solid var(--akzent); outline-offset: -2px; }
+.postzeile:first-child { border-top: none; }
+.postzeile:focus-visible { outline: 2px solid var(--akzent); outline-offset: -2px; }
+/* Die aufgeschlagene Zeile. Der Streifen links liegt innen, damit die Zeile
+   beim Auswählen nicht um einen Pixel wandert. */
+.postzeile.gewaehlt { background: var(--bg-zeile); box-shadow: inset 3px 0 0 var(--akzent); }
+.postzeile.neu .postbetreff { font-weight: 700; }
 
 .postzeichen { flex: 0 0 auto; width: 16px; text-align: center; color: var(--text-leise); }
 .postzeichen.antwort { color: var(--akzent-hell); }
-.postzeile.neu .postbetreff { font-weight: 700; }
 
 .postnamen { flex: 1; min-width: 0; }
 .postbetreff { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.postvon { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .postdatum { flex: 0 0 auto; }
 
-.posttext { padding: 0 0 10px 26px; }
+.postlese { padding: 12px 14px; }
+.postblatt-kopf { margin-bottom: 10px; }
+.postblatt-kopf h3 { margin: 0 0 2px; font-size: 16px; }
 .posttext p { margin: 0 0 8px; font-size: 14px; }
 .postknoepfe { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+/* Löschen steht ganz rechts, weg von den Antworten: der eine Knopf nimmt etwas
+   weg, die anderen bringen einen weiter. */
+.postloeschen { margin-left: auto; }
 
 .marke.postmarke { background: rgba(255, 255, 255, .08); color: var(--text-leise); }
+
+@media (min-width: 860px) {
+  .postfach { grid-template-columns: 170px minmax(220px, 300px) 1fr; }
+  .postordner {
+    flex-direction: column; align-items: stretch;
+    border-bottom: none; border-right: 1px solid var(--rand);
+    overflow: visible;
+  }
+  .postspalte { border-bottom: none; border-right: 1px solid var(--rand); }
+  /* Beide Spalten scrollen in sich und enden auf derselben Höhe — sonst hörte
+     die Trennlinie mitten in der Karte auf. */
+  .postspalte, .postlese { max-height: 460px; overflow-y: auto; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
