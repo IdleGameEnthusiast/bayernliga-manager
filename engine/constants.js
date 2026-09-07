@@ -233,6 +233,24 @@ export const KICK_FUSS_STREUUNG = 9;
 /** Where a kicker never comes from: the men in the trenches. */
 export const KICK_FUSS_AUSSCHLUSS = LINEMEN;
 
+/**
+ * Die drei Special-Teams-Positionen — der ausgebildete Spezialist.
+ *
+ * Sie stehen mit Absicht **nicht** in `POSITIONS`: gezogen wird keiner von
+ * ihnen, weder im Grundkader noch als Zusatzspieler. Ein Verein bekommt einen
+ * Kicker nur, indem er ihn rekrutiert oder in der Jugend ausbildet — beides
+ * kommt später. Bis dahin ist diese Liste leer bevölkert, und genau das ist
+ * die Aussage: unterhalb der GFL kickt, wer den Fuß dafür hat.
+ *
+ * Woran man sie merkt, sobald es sie gibt: nur ihre `technik` zählt im
+ * Special-Team-Wert (siehe `specialTechnik()`). Für alle anderen ist dieser
+ * Anteil null und bleibt es — wer hundertmal puntet, wird davon kein Punter,
+ * und seine Technik auf der Hauptposition bleibt davon ebenso unberührt. Die
+ * Special Teams haben in diesem Modell einen Sonderstatus: sie verbuchen keine
+ * Einsätze und ziehen an keinem Attribut.
+ */
+export const SPECIAL_POSITIONEN = /** @type {const} */ (['K', 'P', 'LS']);
+
 /** Age bounds for the normal draw, and where the curve peaks. */
 export const MIN_AGE = 18;
 export const MAX_AGE = 36;

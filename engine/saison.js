@@ -33,7 +33,7 @@ import {
 import { simuliereSpiel } from './spiel.js';
 import {
   PERSONNEL, STANDARD_PERSONNEL, stelleAuf, alsVorgabe, setzePlatz, vollstaendig,
-  leereVorgabe, entferneSpieler,
+  leereVorgabe, entferneSpieler, loesePlatz,
 } from './aufstellung.js';
 import { berechneTabelle } from './tabelle.js';
 import { teamStaerken } from './team.js';
@@ -239,6 +239,22 @@ export function entwurfSetze(stand, entwurf, schluessel, spielerId) {
  */
 export function entwurfEntferne(stand, entwurf, spielerId) {
   return entferneSpieler(entwurf || entwurfVon(stand), spielerId);
+}
+
+/**
+ * Einen Platz im Entwurf an die Automatik zurückgeben.
+ *
+ * Gemeint sind die drei Special-Teams-Plätze: dort ist „leer" nicht „niemand",
+ * sondern „entscheide du", und dieser Weg zurück gehört dazu. Bei den
+ * zweiundzwanzig ginge es auch — nur bietet die Ansicht es dort nicht an, weil
+ * Herausnehmen die Handlung ist, die der Manager dort meint.
+ * @param {SpielStand} stand
+ * @param {import('./aufstellung.js').Vorgabe | null} entwurf
+ * @param {string} schluessel
+ * @returns {import('./aufstellung.js').Vorgabe}
+ */
+export function entwurfLoese(stand, entwurf, schluessel) {
+  return loesePlatz(entwurf || entwurfVon(stand), schluessel);
 }
 
 /**

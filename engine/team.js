@@ -16,10 +16,10 @@ import { istFit } from './spieler.js';
 import {
   PERSONNEL, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
   BLOCK_GEWICHT, PLATZ_ANTEIL, stelleAuf, skillAnteile, blockWert,
-  kickerWert, punterWert,
+  kickerWert, punterWert, longSnapperWert, specialTechnik,
 } from './aufstellung.js';
 
-export { kickerWert, punterWert };
+export { kickerWert, punterWert, longSnapperWert, specialTechnik };
 
 /**
  * @typedef {object} Staerken
@@ -47,9 +47,11 @@ function block(plaetze, schluessel) {
 /**
  * Der beste Fuß im Kader für eine der beiden Aufgaben.
  *
- * Gesucht wird im *ganzen* Kader, nicht auf einem K- oder P-Platz: kein
- * Bayernligaverein hält einen Spezialisten. Ein Mann darf beide Aufgaben
- * haben — das ist der eine Doppeleinsatz, den die Regeln ungefragt erlauben.
+ * Gesucht wird im *ganzen* Kader: solange der Verein keinen ausgebildeten
+ * Spezialisten rekrutiert hat, kickt, wer den Fuß dafür hat, und ein Mann darf
+ * alle drei Aufgaben haben — das ist der eine Doppeleinsatz, den die Regeln
+ * ungefragt erlauben. Der Manager darf die drei Plätze inzwischen selbst
+ * besetzen; diese Funktion ist, was passiert, wenn er es nicht tut.
  * @param {import('./spieler.js').Spieler[]} kader
  * @param {number} tag
  * @param {(s: import('./spieler.js').Spieler) => number} wert
@@ -137,15 +139,19 @@ export function teamStaerken(kader, tag, personnel = STANDARD_PERSONNEL, passAnt
   const [passVerteidigung, laufVerteidigung] =
     spreize(verteidigung('pass'), verteidigung('lauf'), 0);
 
+  // Kicker und Punter zu gleichen Teilen, der Long Snapper halb so schwer: er
+  // gewinnt kein Spiel, aber ein Fehlsnap verliert eins, und dieses Gewicht
+  // ist der Preis dafür, dass niemand den Platz beachtet.
   const k = aufstellung.k ? kickerWert(aufstellung.k) : ERSATZ_STAERKE;
   const p = aufstellung.p ? punterWert(aufstellung.p) : ERSATZ_STAERKE;
+  const ls = aufstellung.ls ? longSnapperWert(aufstellung.ls) : ERSATZ_STAERKE;
 
   return {
     passAngriff,
     laufAngriff,
     passVerteidigung,
     laufVerteidigung,
-    special: k * 0.7 + p * 0.3,
+    special: k * 0.4 + p * 0.4 + ls * 0.2,
     aufstellung,
   };
 }

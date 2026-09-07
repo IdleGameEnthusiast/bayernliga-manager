@@ -79,10 +79,10 @@ try {
   pruefe('mit Platz und Meister',
     alle('.karte p.klein').some((p) => p.textContent.startsWith('2026: Platz ')));
 
-  // Zum Schluss: die fünf Reiter tragen alle noch etwas.
+  // Zum Schluss: die sechs Reiter tragen alle noch etwas.
   const reiter = alle('.reiter button').map((b) => b.textContent);
-  gleich('fünf Reiter', reiter.length, 5);
-  for (let r = 0; r < 5; r++) {
+  gleich('sechs Reiter', reiter.length, 6);
+  for (let r = 0; r < reiter.length; r++) {
     alle('.reiter button')[r].click();
     pruefe(`Reiter „${reiter[r]}" zeigt etwas`, alle('.karte').length > 0);
   }

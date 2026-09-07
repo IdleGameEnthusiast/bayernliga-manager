@@ -35,7 +35,7 @@ try {
   // die 2027er — wer ihre Daten hier erwartet, misst das falsche Jahr.
   gleich('erster Reiter ist der Posteingang',
     q('.reiter button[aria-selected=true]').textContent, 'Posteingang');
-  gleich('fünf Reiter', alle('.reiter button').length, 5);
+  gleich('sechs Reiter', alle('.reiter button').length, 6);
   gleich('keine Fußleiste', alle('.fuss').length, 0);
   gleich('Raster steht auf Oktober 2025', txt('.kalkopf h2'), 'Oktober 2025');
   gleich('heute ist der 18.', txt('.kaltag.heute .kalzahl'), '18');
@@ -131,6 +131,76 @@ try {
   pruefe('und führt von dort zum Box Score', !!zumBericht, leseKnoepfe().join(' | '));
   zumBericht.click();
   gleich('der Box Score steht wieder da', alle('.bericht-kopf').length, 2);
+  q('.fuss button.haupt').click();
+
+  // 9 — Der Roster: drei Bereiche, und beide Richtungen des Aufstellens
+  const reiterKnopf = (name) => alle('.reiter button').find((b) => b.textContent === name);
+  reiterKnopf('Roster').click();
+  const kartenTitel = alle('.karte h2').map((h) => h.textContent);
+  gleich('drei Bereiche und ein Kopf', kartenTitel.length, 4);
+  pruefe('Offense, Defense und Special Teams',
+    ['Offense', 'Defense', 'Special Teams'].every((t) => kartenTitel.includes(t)),
+    kartenTitel.join(' | '));
+  gleich('jeder Bereich zeigt seine Stärke', alle('.staerkezahl').length, 3);
+  gleich('elf Plätze in der Offense', alle('.karte')[1].querySelectorAll('.aufstellung li').length, 11);
+  gleich('elf in der Defense', alle('.karte')[2].querySelectorAll('.aufstellung li').length, 11);
+
+  // Die Special Teams: drei Plätze, alle automatisch, mit sichtbaren Kickwerten
+  const special = alle('.karte')[3];
+  gleich('drei Special-Teams-Plätze', special.querySelectorAll('.aufstellung li').length, 3);
+  gleich('und alle drei automatisch', special.querySelectorAll('.marke.auto').length, 3);
+  enthaelt('das Bein steht dabei', special.querySelector('.kickwerte').textContent, 'Bein');
+  enthaelt('und das Zielwasser', special.querySelector('.kickwerte').textContent, 'Ziel');
+
+  // Platz zuerst: ein Tipp auf QB, dann der Erste aus der Liste links.
+  const qbZeile = () => alle('.karte')[1].querySelector('.aufstellung li');
+  const qbName = () => qbZeile().querySelector('.platz-name').textContent;
+  const vorher = qbName();
+  qbZeile().click();
+  enthaelt('der Kopf sagt, für wen die Liste gilt',
+    alle('.karte')[1].querySelector('.verfuegbarkopf h3').textContent, 'QB');
+  const ersterFrei = alle('.karte')[1].querySelector('.verfuegbare li');
+  const neuerName = ersterFrei.querySelector('.verfuegbar-name').textContent;
+  ersterFrei.click();
+  gleich('der zweite Tipp setzt ihn ein', qbName(), neuerName);
+  pruefe('und er stand vorher nicht dort', vorher !== neuerName, vorher);
+  enthaelt('die Änderung ist ungespeichert', txt('.rosterkopf'), 'Ungespeicherte');
+
+  // Mann zuerst: ein Tipp links, und jeder Platz trägt seine Zahl.
+  alle('.karte')[2].querySelector('.verfuegbare li').click();
+  gleich('die Leiste hält den Gewählten fest', alle('.wechselleiste').length, 1);
+  pruefe('jeder Platz zeigt jetzt zwei Zahlen',
+    alle('.karte')[2].querySelectorAll('.aufstellung li .platz-stk.neu').length > 0);
+
+  // Ein Kicker von Hand — und der Weg zurück in die Automatik.
+  const specialZeile = () => alle('.karte')[3].querySelector('.aufstellung li');
+  specialZeile().click();
+  alle('.karte')[3].querySelector('.verfuegbare li').click();
+  gleich('der Kicker ist jetzt gewählt',
+    alle('.karte')[3].querySelectorAll('.marke.auto').length, 2);
+  gleich('und trägt den Weg zurück', alle('.schalter.loesen').length, 1);
+  q('.schalter.loesen').click();
+  gleich('der Platz ist wieder automatisch',
+    alle('.karte')[3].querySelectorAll('.marke.auto').length, 3);
+
+  // Gespeichert wird ausdrücklich. Ohne diesen Schritt hielte der Wächter
+  // vor dem nächsten Reiter an und fragte nach dem Entwurf — genau so, wie er
+  // soll, und genau deshalb steht er hier im Weg.
+  const knopfMit = (name) => alle('.aufstellungsknoepfe button')
+    .find((b) => b.textContent === name);
+  pruefe('der Entwurf lässt sich speichern', !!knopfMit('Speichern'));
+  knopfMit('Speichern').click();
+  enthaelt('und sagt es', txt('.hinweis'), 'gespeichert');
+
+  // 10 — Personal: die Tabelle ist umgezogen, Coaches und Orga stehen still
+  reiterKnopf('Personal').click();
+  gleich('drei Unterreiter', alle('.reiter.unter button').length, 3);
+  gleich('zwei davon gesperrt', alle('.reiter.unter button[disabled]').length, 2);
+  pruefe('die Spielertabelle steht hier', alle('tr.spielerzeile').length > 20);
+  gleich('und im Roster nicht mehr', alle('.karte h2')[0].textContent, 'Spieler');
+  q('tr.spielerzeile').click();
+  gleich('eine Zeile klappt die Werte auf', alle('tr.wertezeile').length, 1);
+  enthaelt('samt der Kickwerte', txt('tr.wertezeile'), 'Bein');
 } catch (e) { merkeFehler(e); }
 melde();
 </script></body></html>

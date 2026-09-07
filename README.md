@@ -22,7 +22,7 @@ Weil die App ES-Module benutzt, reicht ein Doppelklick auf `index.html` **nicht*
 | --- | --- |
 | Lokal spielen | `python3 -m http.server 8000`, dann `http://localhost:8000` |
 | Auf dem iPad | gleicher Befehl, dann `http://<IP-des-Macs>:8000` im selben WLAN |
-| Layout-Fixture | `vis.html` — Saison bis Spieltag 8 vorgespielt, `?ende` spielt sie bis hinter das Finale; dazu `?v=kader`, `?v=taktik`, `?v=spielplan`, `?v=bericht` |
+| Layout-Fixture | `vis.html` — Saison bis Spieltag 8 vorgespielt, `?ende` spielt sie bis hinter das Finale; dazu `?v=kader`, `?v=personal`, `?v=taktik`, `?v=spielplan`, `?v=bericht` |
 | Tests | `node --test tests/` |
 | Rauchtest im Browser | `node tests/smoke.js [filter]` — startet Server und Firefox selbst |
 | Icons neu bauen | `node scripts/mach-icons.js` |
@@ -53,7 +53,7 @@ in Millisekunden durchspielen können.
 | `engine/kalender.js` | Die Uhr: Saisonstart, Tagesnummern, Spieltagstermine, Phasen. Der einzige Ort mit `Date` |
 | `engine/positionen.js` | Körperkorridore, Positionsformeln, Plätze, die Eignung |
 | `engine/spieler.js` | Spieler erzeugen, Attribute, Alterskurve, Verletzungen, Saisonwechsel |
-| `engine/aufstellung.js` | Personnel, die zweiundzwanzig Plätze, der Doppeleinsatz, die Vorgabe des Managers |
+| `engine/aufstellung.js` | Personnel, die zweiundzwanzig Plätze, der Doppeleinsatz, die drei Special-Teams-Plätze, die Vorgabe des Managers |
 | `engine/team.js` | Aus einer Aufstellung werden Lauf- und Passwerte je Einheit |
 | `engine/spielplan.js` | Gruppenrunde nach dem Kreisverfahren, dazu das Bracket |
 | `engine/spiel.js` | Die Spielsimulation: Endstand, Viertel, Box Score |

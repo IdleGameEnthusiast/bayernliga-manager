@@ -19,6 +19,7 @@ export const DE = {
     postfach: 'Posteingang',
     tabelle: 'Tabelle',
     kader: 'Roster',
+    personal: 'Personal',
     taktik: 'Taktik',
     spielplan: 'Spielplan',
   },
@@ -265,7 +266,6 @@ export const DE = {
     verletzt: 'verletzt',
     keineVerletzungen: 'Keine Verletzungen',
     verletztBis: (tage) => `noch ${tage} ${tage === 1 ? 'Tag' : 'Tage'}`,
-    einheiten: 'Mannschaftsteile',
     angriff: 'Offense',
     verteidigung: 'Defense',
     angriffPass: 'Offense Pass',
@@ -288,12 +288,57 @@ export const DE = {
     sortAuf: '▴',
   },
 
+  // Die Namen der drei Bereiche stehen schon unter `kader` — Offense, Defense
+  // und Special Teams heißen dort seit den Mannschaftsteilen so, und ein
+  // zweiter Satz derselben Wörter liefe irgendwann auseinander.
+  roster: {
+    starter: 'Aufstellung',
+    plaetze: 'Plätze',
+    staerke: 'Stärke',
+    niemandFrei: 'Es steht bereits jeder, der spielen kann.',
+    filterAlle: 'Alle',
+    filterAlleTitel: 'Aus: nur Spieler zeigen, die in diese Einheit gehören',
+    kopfAlle: 'Verfügbar',
+    kopfFuer: (platz) => `Die Besten für ${platz}`,
+    hinweis: 'Platz antippen, dann den Mann — oder umgekehrt.',
+    hinweisPlatz: (platz) => `${platz} neu besetzen — jetzt links den Mann wählen.`,
+    hinweisSpieler: (name) => `Wohin mit ${name}? Rechts den Platz antippen.`,
+  },
+
+  special: {
+    K: 'Kicker',
+    P: 'Punter',
+    LS: 'Long Snapper',
+    bein: 'Bein',
+    beinTitel: 'Wie weit er den Ball schlägt',
+    ziel: 'Ziel',
+    zielTitel: 'Wie zuverlässig der Ball dorthin geht, wo er hin soll',
+    technik: 'Technik',
+    technikTitel: 'Das Handwerk des ausgebildeten Spezialisten — alle anderen haben es nicht',
+    automatisch: 'automatisch',
+    automatischTitel: 'Nicht besetzt — der beste Fuß im Kader nimmt den Platz',
+    zurueckAutomatik: 'Automatik',
+    zurueckAutomatikTitel: 'Den Platz wieder dem besten Fuß im Kader überlassen',
+    hinweis: 'Diese drei stehen außerhalb der Elf: wer hier steht, spielt trotzdem seine '
+      + 'Position. Die Technik hat nur ein ausgebildeter Spezialist — der Verein hat keinen, '
+      + 'bis er einen verpflichtet.',
+  },
+
+  personal: {
+    spieler: 'Spieler',
+    coaches: 'Coaches',
+    orga: 'Orga',
+    baustelle: 'Noch nicht besetzt.',
+    anzahl: (n) => `${n} im Kader`,
+  },
+
   spielplan: {
     spieltag: 'Spieltag',
     heim: 'Heim',
     gast: 'Gast',
     ergebnis: 'Ergebnis',
     ausstehend: 'ausstehend',
+    gegen: '–',
     verlaengerung: 'n.V.',
   },
 
@@ -351,21 +396,14 @@ export const DE = {
     wirkung: 'Angriff und Verteidigung',
     wirkungHinweis: 'Diese vier sagen, was die Mannschaft ist — sie hängen am System und '
       + 'an der Aufstellung. Der Regler bewegt sie kaum; er bewegt das Duell darüber.',
-    aufstellung: 'Aufstellung',
-    angriffElf: 'Offense',
-    verteidigungElf: 'Defense',
-    platz: 'Platz',
-    spieler: 'Spieler',
     umgestellt: 'umgestellt',
     doppel: 'doppelt',
     doppelHinweis: 'Steht in beiden Einheiten und verliert dafür Leistung.',
     platzStaerke: (wert) => `Stärke auf diesem Platz: ${wert}`,
-    kickPlaetze: (kicker, punter) => `Kicker: ${kicker} · Punter: ${punter}`,
     keiner: '—',
   },
 
   aufstellung: {
-    hinweis: 'Platz antippen, um ihn neu zu besetzen — oder unten einen Spieler.',
     vonHand: 'Von Hand gestellt. Verletzte und fehlende Plätze füllt die Automatik.',
     automatisch: 'Automatisch aufstellen',
     loeschen: 'Aufstellung löschen',
@@ -381,14 +419,8 @@ export const DE = {
     unvollstaendigText: (offen) => `${offen} ${offen === 1 ? 'Platz ist' : 'Plätze sind'} unbesetzt. `
       + 'So lässt sich die Aufstellung nicht speichern — verworfen wäre die Änderung weg.',
     platzTitel: (platz) => `${platz} neu besetzen`,
-    beste: 'Die Besten für diesen Platz',
-    besteBank: 'Die Besten, die noch nicht stehen',
     starterZeigen: 'Starter',
-    starterZeigenTitel: 'Aus: nur Spieler zeigen, die noch nicht in der Elf stehen',
-    keineBank: 'Es steht bereits jeder, der spielen kann.',
-    oderRoster: 'Oder unten im Roster jemanden auswählen.',
-    rosterHinweis: 'Spieler antippen, um ihn aufzustellen. Der Knopf am Zeilenende zeigt seine Werte.',
-    rosterWaehlen: 'Wähle den Mann für den offenen Platz.',
+    starterZeigenTitel: 'An: auch zeigen, wer schon in der Elf steht',
     spielerWaehlen: (name) => `${name} auswählen`,
     waehleSpieler: 'Spieler auswählen',
     waehlePlatz: 'Platz oben antippen',
@@ -402,7 +434,6 @@ export const DE = {
     stehtSchon: 'steht hier',
     neuerWert: (name, wert) => `${name} wäre hier ${wert} wert`,
     starterTitel: (plaetze) => `Startet auf ${plaetze}`,
-    einsetzen: 'Einsetzen',
     tauscht: (platz) => `tauscht mit ${platz}`,
     pfeil: '→',
   },

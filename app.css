@@ -352,7 +352,19 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
   border-bottom: 1px solid rgba(255, 255, 255, .05);
   cursor: pointer;
 }
-.paarung .namen { flex: 1; min-width: 0; }
+/* Heim und Gast nebeneinander, nicht übereinander: eine Paarung ist eine
+   Zeile. Auf schmalen Schirmen kürzen beide Namen gleichmäßig — jeder bekommt
+   die Hälfte, statt dass der längere den kürzeren wegdrückt. */
+.paarung .namen {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 6px;
+}
+.paarung .namen .name {
+  min-width: 0; flex: 1 1 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.paarung .namen .gegen { flex: 0 0 auto; font-size: 12px; }
+.paarung .namen .farbtupfer { flex: 0 0 auto; }
 .paarung .stand { font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .leise { color: var(--text-leise); }
@@ -430,7 +442,64 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
 }
 .duellreihe.summe .duellwert { font-weight: 700; }
 
-.elfen { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+/* Ein Bereich des Rosters: links die Verfügbaren, rechts die Plätze. Unter
+   640 Pixeln fällt die Liste unter die Plätze — nebeneinander wären beide
+   Spalten zu schmal für einen Namen samt Zahl, und die Plätze sind die
+   Antwort, die zuerst auf dem Schirm stehen soll. */
+.aufstellungsraster {
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.plaetzespalte { order: -1; }
+@media (min-width: 640px) { .plaetzespalte { order: 0; } }
+.verfuegbarspalte h3, .plaetzespalte h3 { margin: 0 0 6px; }
+
+.verfuegbarkopf { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.verfuegbarkopf h3 { flex: 1; margin: 0; }
+
+/* Die Zahl, die der Bereich zusammen ergibt. Sie steht im Kartenkopf und nicht
+   darunter: der Manager liest sie, während er stellt, nicht danach. */
+.staerkezahl { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+.staerkezahl strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+
+.verfuegbare { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow-y: auto; }
+.verfuegbare li {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: var(--tap);
+  margin-top: 4px; padding: 0 8px;
+  background: var(--bg-erhoben);
+  border: 1px solid var(--rand); border-radius: 6px;
+  cursor: pointer;
+}
+.verfuegbare li:active { border-color: var(--akzent); }
+.verfuegbare li:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
+.verfuegbare li.gewaehlt {
+  background: rgba(214, 73, 51, .18);
+  border-color: var(--akzent);
+}
+/* Wer schon in der Elf steht, steht hier nur, wenn der Schalter ihn holt —
+   und dann gedämpft, damit er nicht wie eine freie Wahl aussieht. */
+.verfuegbare li.steht { opacity: .7; }
+.verfuegbar-name { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
+.verfuegbare .platz-stk {
+  flex: 0 0 24px; text-align: right;
+  font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+
+/* Die drei Special-Teams-Plätze tragen mehr als ein Kürzel und einen Namen:
+   die beiden gezogenen Kickwerte stehen daneben, weil sie sonst nirgends
+   stehen. Auf schmalen Schirmen brechen sie unter den Namen. */
+.aufstellung li.special { flex-wrap: wrap; }
+.aufstellung li.special .platz { flex: 0 0 32px; }
+.kickwerte { display: flex; gap: 8px; margin-left: auto; font-variant-numeric: tabular-nums; }
+/* Auf schmalen Schirmen rutschen Bein und Zielwasser unter den Namen, statt
+   ihn in zwei Zeilen zu quetschen. */
+@media (max-width: 480px) {
+  .kickwerte { flex-basis: 100%; margin-left: 32px; }
+  .aufstellung li.special .platz-name { flex: 1 0 auto; }
+}
+.marke.auto { background: rgba(255, 255, 255, .06); color: var(--text-leise); }
+.schalter.loesen { min-height: 26px; padding: 0 8px; font-size: 11px; }
 
 .aufstellung { list-style: none; margin: 6px 0 0; padding: 0; }
 .aufstellung li {
@@ -475,14 +544,13 @@ button.klein {
   border-radius: 6px;
 }
 .aufstellung li.waehlbar:focus-visible { outline: 2px solid var(--akzent); outline-offset: -2px; }
-/* Der gewählte Platz und die Liste darunter sind ein Stück: ein Kasten in der
-   Akzentfarbe, der sich aus der Reihe der übrigen Starter heraushebt. Die Kante
-   zwischen beiden bleibt offen, damit sie nicht als zwei Zeilen lesen. */
+/* Der gewählte Platz: ein Kasten in der Akzentfarbe, der sich aus der Reihe
+   der übrigen heraushebt. Er stand früher auf der Kandidatenliste darunter
+   auf; seit die Liste links steht, ist er ein Kasten für sich. */
 .aufstellung li.gewaehlt {
   background: rgba(214, 73, 51, .16);
   border-color: var(--akzent);
-  border-bottom-color: transparent;
-  border-radius: 6px 6px 0 0;
+  border-radius: 6px;
 }
 .aufstellung li.gewaehlt .platz { color: var(--akzent-hell); }
 
@@ -490,19 +558,6 @@ button.klein {
 .aufstellung li.frei .platz,
 .aufstellung li.frei .platz-name { color: var(--text-leise); }
 .aufstellung li.frei .platz-name { font-style: italic; }
-
-.aufstellung li.kandidaten {
-  display: block;
-  padding: 8px 6px 10px;
-  margin: 0 -6px 6px;
-  background: rgba(214, 73, 51, .09);
-  border-color: var(--akzent);
-  border-top-color: transparent;
-  border-radius: 0 0 6px 6px;
-}
-
-.kandidatenkopf { display: flex; align-items: center; gap: 8px; }
-.kandidatenkopf span { flex: 1; }
 
 /* Ein Schalter, kein Knopf: er schaltet eine Sicht um und bleibt so stehen. */
 .schalter {
@@ -518,19 +573,6 @@ button.klein {
   color: var(--gruen);
 }
 .schalter:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
-
-.kandidat {
-  display: flex; align-items: center; gap: 8px;
-  width: 100%; min-height: var(--tap);
-  margin-top: 4px; padding: 0 8px;
-  background: var(--bg-erhoben);
-  color: var(--text);
-  border: 1px solid var(--rand); border-radius: 6px;
-  font: inherit; text-align: left; cursor: pointer;
-}
-.kandidat:active { border-color: var(--akzent); }
-.kandidat:disabled { opacity: .55; cursor: default; }
-.kandidat-name { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
 
 .marke.tausch { background: rgba(255, 255, 255, .08); color: var(--text-leise); }
 
@@ -564,10 +606,6 @@ button.klein {
 .wechselknoepfe { display: flex; gap: 8px; }
 
 tr.spielerzeile.waehlbar td { cursor: pointer; }
-tr.spielerzeile.gewaehlt td {
-  background: rgba(214, 73, 51, .18);
-  font-weight: 600;
-}
 
 /* Wer in der Elf steht, ist markiert — damit auf einen Blick zu sehen ist, wer
    es nicht ist. Die Marke nennt gleich den Platz. */
@@ -578,16 +616,16 @@ tr.spielerzeile.starter td:first-child { box-shadow: inset 3px 0 0 var(--gruen);
   font-weight: 700; letter-spacing: .03em;
 }
 
-/* Der Knopf am Zeilenende: die fünfzehn Werte, seit die Zeile selbst auswählt. */
-td.werteknopf { width: 1%; padding-left: 0; padding-right: 4px; }
-.chevron {
-  min-width: 32px; min-height: 32px;
-  background: transparent; color: var(--text-leise);
-  border: 1px solid var(--rand); border-radius: 6px;
-  font: inherit; line-height: 1; cursor: pointer;
-}
-.chevron:hover { color: var(--text); }
-.chevron:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
+/* Das Zeichen am Zeilenende. Es war einmal ein eigener Knopf, weil die Zeile
+   selbst auswählte; seit Personal nichts mehr aufstellt, tut die ganze Zeile
+   dasselbe und das Zeichen zeigt nur noch, in welche Richtung. */
+td.werteknopf { width: 1%; padding-left: 0; padding-right: 8px; text-align: right; }
+
+/* Die Unterreiter im Personal: dieselbe Leiste, eine Spur kleiner. Ein
+   gesperrter Reiter bleibt sichtbar — der Platz für Coaches und Orga ist
+   entschieden, ihr Inhalt noch nicht. */
+.reiter.unter button { min-height: 38px; padding: 0 14px; font-size: 13px; }
+.reiter.unter button:disabled { opacity: .45; cursor: default; }
 
 /* --- Rückfrage ------------------------------------------------------------
    Ein Blatt über der Ansicht. Kein confirm(): auf jedem Knopf steht, was er

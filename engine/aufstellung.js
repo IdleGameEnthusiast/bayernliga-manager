@@ -14,7 +14,7 @@
  * Docs: docs/umbau-positionsmodell.md, Abschnitte 5, 6 und 7
  */
 
-import { ERSATZ_STAERKE, clamp, interpoliere } from './constants.js';
+import { ERSATZ_STAERKE, SPECIAL_POSITIONEN, clamp, interpoliere } from './constants.js';
 import { istFit } from './spieler.js';
 import {
   eignung, eignungGemischt, PLAETZE, PLATZ_JE_KUERZEL, hauptPosition,
@@ -198,6 +198,12 @@ export function doppelRisiko(robustheit) {
  * @property {Platz[]} defense
  * @property {import('./spieler.js').Spieler | null} k
  * @property {import('./spieler.js').Spieler | null} p
+ * @property {import('./spieler.js').Spieler | null} ls
+ * @property {Record<string, boolean>} specialVonHand  Welchen der drei Plätze
+ *   der Manager selbst besetzt hat. Nur `alsVorgabe()` liest das — ohne diesen
+ *   Merker würde der erste Handgriff an der Elf den automatisch gewählten
+ *   Kicker mit einfrieren, und „leer heißt automatisch" wäre nach einem
+ *   einzigen Tipp nicht mehr wahr.
  */
 
 /**
@@ -531,7 +537,7 @@ export function stelleAuf(kader, tag, personnel = STANDARD_PERSONNEL, passAnteil
 
   for (const platz of alle) platz.staerke = platzStaerke(platz, anteil);
 
-  return { offense, defense, ...besteFuesse(fit) };
+  return { offense, defense, ...besetzeSpecial(fit, vorgabe) };
 }
 
 /**
@@ -562,36 +568,146 @@ export function platzStaerke(platz, passAnteil) {
 }
 
 /**
+ * Die Technik, die in einem Special-Team-Wert steckt — und nur dort.
+ *
+ * Sie ist für fast jeden **null**, und das ist die Regel, nicht ein fehlender
+ * Wert: nur ein ausgebildeter Spezialist (`SPECIAL_POSITIONEN`) bringt
+ * Handwerk mit, das über Bein und Zielwasser hinausgeht — den Anlauf, den
+ * Griff am Ball, den Snap ohne hinzusehen. Wer die Position nicht hat, hat den
+ * Anteil nicht und bekommt ihn auch nie: gemessen wird an `spieler.position`,
+ * der Ausbildung, nicht am Hauptplatz. Der Hauptplatz wandert mit den
+ * Einsätzen, und genau das soll hier **nicht** passieren — ein Linebacker, der
+ * drei Saisons lang puntet, ist danach immer noch Linebacker, und seine
+ * Technik gehört weiter dorthin.
+ *
+ * Die Gegenrichtung stimmt ebenso: die Special Teams verbuchen keine Einsätze
+ * (siehe `verbucheEinsaetze()` in `saison.js`) und ziehen damit an keinem
+ * Attribut der Hauptposition. Der Sonderstatus gilt in beide Richtungen.
+ *
+ * Damit ist ein rekrutierter Spezialist den Aufwand wert, ohne dass es dafür
+ * eine eigene Regel bräuchte: er ist der Einzige, der diesen Anteil mitbringt.
+ * @param {import('./spieler.js').Spieler} s
+ */
+export function specialTechnik(s) {
+  if (!SPECIAL_POSITIONEN.includes(/** @type {any} */ (s.position))) return 0;
+  return s.attribute.technik;
+}
+
+/**
  * Was ein Mann auf dem Tee wert ist: Weite und Zielwasser zu gleichen Teilen,
- * weil ein Field Goal beides braucht.
+ * weil ein Field Goal beides braucht — dazu das Fünftel Handwerk, das nur ein
+ * ausgebildeter Kicker mitbringt.
  * @param {import('./spieler.js').Spieler} s
  */
 export function kickerWert(s) {
-  return s.kickStaerke * 0.5 + s.kickGenauigkeit * 0.5;
+  return s.kickStaerke * 0.4 + s.kickGenauigkeit * 0.4 + specialTechnik(s) * 0.2;
 }
 
 /**
  * Was er beim Punt wert ist: überwiegend Bein. Ein Punt, der fünf Yards neben
  * der Seitenlinie landet, hat seine Arbeit getan, ein kurzer nie.
+ *
+ * Das Zehntel `fangen` ist kein Beiwerk: vor jedem Punt steht ein Snap über
+ * fünfzehn Yards, und wer den fallen lässt, puntet gar nicht mehr.
  * @param {import('./spieler.js').Spieler} s
  */
 export function punterWert(s) {
-  return s.kickStaerke * 0.7 + s.kickGenauigkeit * 0.3;
+  return s.kickStaerke * 0.5 + s.kickGenauigkeit * 0.2
+    + specialTechnik(s) * 0.2 + s.attribute.fangen * 0.1;
 }
 
 /**
- * Die beiden besten Füße im Kader. Sie laufen außerhalb der Aufstellung: kein
- * Bayernligaverein hält Spezialisten, also kickt, wer den Fuß dafür hat, und
- * derselbe Mann darf beide Aufgaben haben.
- * @param {import('./spieler.js').Spieler[]} fit
+ * Aus welchen Positionen ein Long Snapper wird, ohne einer zu sein.
+ *
+ * Der Snap ist eine Bewegung aus der Line heraus, mit dem Kopf zwischen den
+ * Beinen — Center und Guards machen sie in jedem Spielzug, Tackles, Tight Ends
+ * und Linebacker stehen ihr wenigstens nahe. Wer von weiter weg kommt, kann es
+ * auch, aber nicht so.
  */
-function besteFuesse(fit) {
+export const SNAP_NAHE = /** @type {readonly string[]} */ ([
+  'LS', 'C', 'G', 'T', 'TE', 'MIKE', 'SAM', 'WILL',
+]);
+
+/** Was der Snap den anderen kostet. Ein Abschlag, keine Sperre. */
+export const SNAP_FREMD = 0.8;
+
+/**
+ * Was er als Long Snapper wert ist.
+ *
+ * Kein eigener gezogener Wert, sondern drei vorhandene: der Ball muss sicher
+ * durch die Beine (`ballsicherheit`), er muss fünfzehn Yards weit fliegen
+ * (`kraft`), und das Handwerk trägt wieder nur der Ausgebildete
+ * (`specialTechnik`) — dieselbe Einschränkung wie beim Kicker und Punter.
+ *
+ * Ein vierter gezogener Wert wäre der teurere Weg gewesen: er hätte die Form
+ * jedes Spielers im Speicherstand geändert und dafür nichts erklärt, was diese
+ * drei nicht auch erklären.
+ *
+ * Ohne den Positionsfaktor gewönnen die Receiver: sie haben die beste
+ * Ballsicherheit im Kader und haben trotzdem nie einen Snap gesehen.
+ * @param {import('./spieler.js').Spieler} s
+ */
+export function longSnapperWert(s) {
+  const roh = s.attribute.ballsicherheit * 0.4 + specialTechnik(s) * 0.35
+    + s.attribute.kraft * 0.25;
+  return SNAP_NAHE.includes(hauptPosition(s)) ? roh : roh * SNAP_FREMD;
+}
+
+/** Die drei Plätze der Special Teams. */
+export const SPECIAL_PLAETZE = /** @type {readonly string[]} */ (['K', 'P', 'LS']);
+
+/** Welcher Wert an welchem der drei Plätze hängt. */
+export const SPECIAL_WERT =
+  /** @type {Record<string, (s: import('./spieler.js').Spieler) => number>} */ ({
+    K: kickerWert,
+    P: punterWert,
+    LS: longSnapperWert,
+  });
+
+/**
+ * Die drei Special-Teams-Plätze besetzen — vom Manager, sonst von selbst.
+ *
+ * Sie laufen außerhalb der zweiundzwanzig, und das bleibt so: kein
+ * Bayernligaverein hält Spezialisten, also kickt, wer den Fuß dafür hat, und
+ * derselbe Mann darf alle drei Aufgaben haben, ob er in der Elf steht oder
+ * nicht. Deshalb kennt diese Runde das `benutzt`-Set nicht.
+ *
+ * Ein **fehlender** Schlüssel heißt hier automatisch — nicht „niemand". Das ist
+ * der Unterschied zu den zweiundzwanzig, und er ist der Grund, warum ein alter
+ * Speicherstand ohne jede Änderung weiterläuft: er kennt keinen der drei
+ * Schlüssel und stellt die Special Teams deshalb weiter selbst. Ein Schlüssel
+ * mit `null` heißt dagegen wie überall „hier soll niemand stehen".
+ * @param {import('./spieler.js').Spieler[]} fit
+ * @param {Vorgabe | null | undefined} vorgabe
+ */
+function besetzeSpecial(fit, vorgabe) {
+  const jeId = new Map(fit.map((s) => [s.id, s]));
   /** @param {(s: import('./spieler.js').Spieler) => number} wert */
   const bester = (wert) => fit.reduce(
     (a, b) => (a === null || wert(b) > wert(a) ? b : a),
     /** @type {import('./spieler.js').Spieler | null} */ (null),
   );
-  return { k: bester(kickerWert), p: bester(punterWert) };
+
+  /** @type {Record<string, import('./spieler.js').Spieler | null>} */
+  const besetzt = {};
+  /** @type {Record<string, boolean>} */
+  const vonHand = {};
+  for (const schluessel of SPECIAL_PLAETZE) {
+    const gesetzt = !!vorgabe
+      && Object.prototype.hasOwnProperty.call(vorgabe, schluessel);
+    vonHand[schluessel] = gesetzt;
+    if (gesetzt) {
+      const gewuenscht = /** @type {Vorgabe} */ (vorgabe)[schluessel];
+      // Ausdrücklich niemand: der Platz bleibt leer und kostet die Ersatzstärke.
+      if (gewuenscht === null) { besetzt[schluessel] = null; continue; }
+      // Verletzt oder nicht mehr im Kader — die Automatik springt ein, und die
+      // Vorgabe bleibt unangetastet, damit er seinen Platz zurückbekommt.
+      const spieler = jeId.get(gewuenscht);
+      if (spieler) { besetzt[schluessel] = spieler; continue; }
+    }
+    besetzt[schluessel] = bester(SPECIAL_WERT[schluessel]);
+  }
+  return { k: besetzt.K, p: besetzt.P, ls: besetzt.LS, specialVonHand: vonHand };
 }
 
 /**
@@ -654,6 +770,11 @@ export function umstellungen(a) {
  * einen Platz in einer leeren Aufstellung, sondern immer einen in der, die er
  * gerade vor sich sieht. Was er nicht anfasst, bleibt damit genau so stehen,
  * wie die Automatik es gestellt hatte — bis ein Spieler ausfällt.
+ *
+ * Die drei Special-Teams-Plätze frieren dabei **nicht** mit ein, solange sie
+ * automatisch besetzt sind. Sonst schriebe der erste Tipp irgendwo in der Elf
+ * den Kicker fest, und der nächste rekrutierte Fuß löste ihn nicht mehr ab,
+ * ohne dass jemand wüsste, warum.
  * @param {Aufstellung} a
  * @returns {Vorgabe}
  */
@@ -664,7 +785,27 @@ export function alsVorgabe(a) {
     if (platz.spieler) vorgabe[platz.schluessel] = platz.spieler.id;
     else if (platz.frei) vorgabe[platz.schluessel] = null;
   }
+  for (const schluessel of SPECIAL_PLAETZE) {
+    if (!a.specialVonHand || !a.specialVonHand[schluessel]) continue;
+    const spieler = specialSpieler(a, schluessel);
+    vorgabe[schluessel] = spieler ? spieler.id : null;
+  }
   return vorgabe;
+}
+
+/**
+ * Wer auf einem der drei Special-Teams-Plätze steht.
+ *
+ * Der Umweg über diese Funktion spart der Ansicht ein `a.k`/`a.p`/`a.ls` an
+ * jeder Stelle, an der sie die drei ohnehin in einer Schleife durchgeht.
+ * @param {Aufstellung} a
+ * @param {string} schluessel
+ * @returns {import('./spieler.js').Spieler | null}
+ */
+export function specialSpieler(a, schluessel) {
+  if (schluessel === 'K') return a.k;
+  if (schluessel === 'P') return a.p;
+  return a.ls;
 }
 
 /**
@@ -695,16 +836,28 @@ export function leereVorgabe(a) {
  * Steht der Neue doppelt (in beiden Einheiten), erbt nur seine **erste** Stelle
  * den Verdrängten. Die zweite wird frei und neu besetzt — ein Doppeleinsatz ist
  * ein Notnagel und soll sich nicht durch die Aufstellung weitervererben.
+ *
+ * Die drei Special-Teams-Plätze stehen aus dem Tausch heraus, in beide
+ * Richtungen: wer Kicker wird, verliert seinen Platz in der Elf nicht, und wer
+ * in die Elf rückt, hört dafür nicht auf zu kicken. Ein Verein ohne
+ * Spezialisten besetzt die drei zwangsläufig aus der Elf heraus — wären sie
+ * Teil des Tauschs, räumte jeder Handgriff an der Aufstellung nebenbei die
+ * Special Teams um.
  * @param {Vorgabe} vorgabe
  * @param {string} schluessel Platz-Schlüssel, wie ihn `Platz.schluessel` trägt
  * @param {string} spielerId
  * @returns {Vorgabe} eine neue Karte; die übergebene bleibt unberührt
  */
 export function setzePlatz(vorgabe, schluessel, spielerId) {
+  if (SPECIAL_PLAETZE.includes(schluessel)) {
+    return { ...vorgabe, [schluessel]: spielerId };
+  }
+
   const neu = { ...vorgabe };
   const kanntePlatz = Object.prototype.hasOwnProperty.call(vorgabe, schluessel);
   const verdraengt = neu[schluessel];
-  const bisher = Object.keys(neu).filter((k) => neu[k] === spielerId && k !== schluessel);
+  const bisher = Object.keys(neu).filter(
+    (k) => neu[k] === spielerId && k !== schluessel && !SPECIAL_PLAETZE.includes(k));
 
   neu[schluessel] = spielerId;
   bisher.forEach((k, i) => {
@@ -763,14 +916,36 @@ export function bestePlaetze(spieler, passAnteil, anzahl = 5) {
  * Manager gerade heruntergenommen hat. Der Knopf sähe aus, als täte er nichts.
  * Frei bleibt der Platz sichtbar offen — und die Elf so lange nicht speicherbar.
  *
- * Steht er doppelt, geht er von beiden Plätzen.
+ * Steht er doppelt, geht er von beiden Plätzen. Aus den Special Teams geht er
+ * nicht mit: der Knopf heißt „aus der Elf nehmen", und der Kicker steht nicht
+ * in der Elf. Wer ihn auch dort loswerden will, räumt den Platz dort.
  * @param {Vorgabe} vorgabe
  * @param {string} spielerId
  * @returns {Vorgabe} eine neue Karte
  */
 export function entferneSpieler(vorgabe, spielerId) {
   const neu = { ...vorgabe };
-  for (const [platz, id] of Object.entries(neu)) if (id === spielerId) neu[platz] = null;
+  for (const [platz, id] of Object.entries(neu)) {
+    if (id === spielerId && !SPECIAL_PLAETZE.includes(platz)) neu[platz] = null;
+  }
+  return neu;
+}
+
+/**
+ * Einen Platz an die Automatik zurückgeben — der Schlüssel fällt aus der
+ * Vorgabe, statt auf `null` zu gehen.
+ *
+ * Der Unterschied ist genau der zwischen „niemand" und „entscheide du". Für die
+ * zweiundzwanzig braucht ihn niemand, dort ist Herausnehmen die Handlung; für
+ * die drei Special-Teams-Plätze ist er der Weg zurück, nachdem der Manager
+ * einmal selbst gewählt hat.
+ * @param {Vorgabe} vorgabe
+ * @param {string} schluessel
+ * @returns {Vorgabe} eine neue Karte
+ */
+export function loesePlatz(vorgabe, schluessel) {
+  const neu = { ...vorgabe };
+  delete neu[schluessel];
   return neu;
 }
 

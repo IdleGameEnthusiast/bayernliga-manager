@@ -45,17 +45,28 @@ function zeilePartie(p, meinTeam, beiPartie) {
     ? `${p.ergebnis.heimPunkte} : ${p.ergebnis.gastPunkte}`
     : '–';
 
+  // Heim und Gast stehen nebeneinander, nicht untereinander: eine Paarung ist
+  // eine Zeile, und zwei Zeilen übereinander lasen sich wie zwei Partien.
+  // Fett wird nur der eigene Verein, nicht die ganze Zeile — sonst sagt die
+  // Auszeichnung „hier steht etwas Wichtiges" statt „das bist du".
+  const name = (team) => el('span', {
+    class: 'name',
+    style: { fontWeight: team.id === meinTeam ? '700' : '400' },
+    text: team.name,
+  });
+
   return el('div', {
-    class: 'paarung',
+    class: meins ? 'paarung meins' : 'paarung',
     role: p.ergebnis ? 'button' : null,
     tabindex: p.ergebnis ? '0' : null,
     onclick: p.ergebnis ? () => beiPartie(p) : null,
   },
-    farbtupfer(heim),
-    el('span', { class: 'namen', style: { fontWeight: meins ? '700' : '400' } },
-      el('div', { text: `${heim.name}` }),
-      el('div', { class: 'leise klein', text: `${gast.name}` })),
-    farbtupfer(gast),
+    el('span', { class: 'namen' },
+      farbtupfer(heim),
+      name(heim),
+      el('span', { class: 'leise gegen', text: T.spielplan.gegen }),
+      farbtupfer(gast),
+      name(gast)),
     el('span', { class: p.ergebnis ? 'stand' : 'stand leise', text: stand }),
     p.ergebnis && p.ergebnis.verlaengerung
       ? el('span', { class: 'leise klein', text: T.spielplan.verlaengerung })

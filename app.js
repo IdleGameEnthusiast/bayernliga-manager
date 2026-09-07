@@ -14,7 +14,7 @@ import { markiereGelesen, loescheNachricht, stelleWiederHer } from './engine/pos
 import {
   neuesSpiel, weiter, beantworteNachricht, gruppenTabellen, meineTabelle,
   setzeTaktik, setzeAufstellung, entwurfSetze, entwurfVollstaendig,
-  eigeneAufstellung, entwurfLeeren, entwurfEntferne,
+  eigeneAufstellung, entwurfLeeren, entwurfEntferne, entwurfLoese,
 } from './engine/saison.js';
 import { partienDerRunde } from './engine/spielplan.js';
 import {
@@ -24,12 +24,13 @@ import { zeigeStart } from './ui/start.js';
 import { zeigePostfach, waehleNachricht, vergissAnsicht } from './ui/postfach.js';
 import { zeigeTabelle } from './ui/tabelle.js';
 import { zeigeKader } from './ui/kader.js';
+import { zeigePersonal } from './ui/personal.js';
 import { zeigeTaktik } from './ui/taktik.js';
 import { zeigeSpielplan } from './ui/spielplan.js';
 import { zeigeSpielbericht } from './ui/spielbericht.js';
 import { zeigeFrage } from './ui/frage.js';
 
-/** @typedef {'start'|'postfach'|'tabelle'|'kader'|'taktik'|'spielplan'|'bericht'} Ansicht */
+/** @typedef {'start'|'postfach'|'kader'|'personal'|'taktik'|'tabelle'|'spielplan'|'bericht'} Ansicht */
 
 /** @type {import('./engine/saison.js').SpielStand | null} */
 let stand = null;
@@ -102,11 +103,14 @@ function zeichne() {
       setze: beiAufstellung,
       automatisch: beiAutomatisch,
       entferne: beiEntfernen,
+      loese: beiLoesen,
       leeren: beiLeeren,
       speichern: beiSpeichern,
       verwerfen: beiVerwerfen,
       neuZeichnen: zeichne,
     }));
+  } else if (ansicht === 'personal') {
+    wurzel.append(zeigePersonal(stand, zeichne));
   } else if (ansicht === 'taktik') {
     wurzel.append(zeigeTaktik(stand, beiTaktik));
   } else if (ansicht === 'spielplan') {
@@ -153,12 +157,16 @@ function kopfzeile() {
 }
 
 function reiter() {
+  // Die Reihenfolge folgt dem Tag eines Managers: erst lesen, was los ist,
+  // dann aufstellen, dann nachsehen, wen man hat, dann einstellen, wie
+  // gespielt wird — und zuletzt, wo das hinführt.
   /** @type {[Ansicht, string][]} */
   const tabs = [
     ['postfach', T.nav.postfach],
-    ['tabelle', T.nav.tabelle],
     ['kader', T.nav.kader],
+    ['personal', T.nav.personal],
     ['taktik', T.nav.taktik],
+    ['tabelle', T.nav.tabelle],
     ['spielplan', T.nav.spielplan],
   ];
   return el('div', { class: 'reiter', role: 'tablist' },
@@ -340,6 +348,19 @@ function beiAutomatisch() {
 function beiEntfernen(spielerId) {
   if (!stand) return;
   entwurf = { vorgabe: entwurfEntferne(stand, entwurf && entwurf.vorgabe, spielerId) };
+  zeichne();
+}
+
+/**
+ * Einen Special-Teams-Platz wieder der Automatik überlassen.
+ *
+ * Nicht dasselbe wie Herausnehmen: dort bleibt der Platz sichtbar frei, hier
+ * fällt die Entscheidung ganz weg und der beste Fuß im Kader rückt nach.
+ * @param {string} schluessel
+ */
+function beiLoesen(schluessel) {
+  if (!stand) return;
+  entwurf = { vorgabe: entwurfLoese(stand, entwurf && entwurf.vorgabe, schluessel) };
   zeichne();
 }
 

@@ -20,11 +20,19 @@
   if (q.has('ende')) weiter(s);
   speichere(s);
   await import('./app.js');
+  // Über den Namen und nicht über die Nummer: die Reihenfolge der Reiter hat
+  // sich schon einmal geändert, und dann zeigte diese Fixture stillschweigend
+  // die falsche Ansicht.
   const v = q.get('v');
-  const tabs = document.querySelectorAll('.reiter button');
-  if (v === 'tabelle') tabs[1].click();
-  if (v === 'kader') tabs[2].click();
-  if (v === 'taktik') tabs[3].click();
-  if (v === 'spielplan') tabs[4].click();
-  if (v === 'bericht') { tabs[4].click(); document.querySelector('.paarung[role=button]').click(); }
+  const reiter = (name) => [...document.querySelectorAll('.reiter button')]
+    .find((b) => b.textContent === name);
+  const ANSICHT = {
+    tabelle: 'Tabelle', kader: 'Roster', personal: 'Personal',
+    taktik: 'Taktik', spielplan: 'Spielplan',
+  };
+  if (ANSICHT[v]) reiter(ANSICHT[v]).click();
+  if (v === 'bericht') {
+    reiter('Spielplan').click();
+    document.querySelector('.paarung[role=button]').click();
+  }
 </script></body></html>

@@ -2,22 +2,25 @@
 /**
  * Die Aufstellung: wer auf welchem Platz steht — und der Weg, das zu ändern.
  *
- * Sie steht im Kader und nicht in der Taktik: dort wird entschieden, was die
+ * Sie steht im Roster und nicht in der Taktik: dort wird entschieden, was die
  * Mannschaft vorhat, hier steht, wer es tut.
  *
  * Der Weg ist für den Finger gebaut, nicht für die Maus. Es wird nichts
- * gezogen, und er geht in beide Richtungen:
+ * gezogen, und er geht in beide Richtungen — beide Male zwei Tipps:
  *
- * - **Platz zuerst.** Ein Tipp auf den Platz, darunter klappen die fünf Besten
- *   für ihn auf. Einer davon angetippt — fertig. Oder jemand anderes aus dem
- *   Roster, dann bestätigt der Knopf in der Leiste oben.
- * - **Mann zuerst.** Ein Tipp auf die Rosterzeile, und **jeder** der
- *   zweiundzwanzig Plätze wird zum Knopf, jeder mit der Zahl, die dieser Mann
- *   dort brächte, neben der des Manns, der dort steht. Ein zweiter Tipp setzt
- *   ihn ein.
+ * - **Platz zuerst.** Ein Tipp auf einen Platz rechts, links sortiert sich die
+ *   Liste der Verfügbaren nach dem, was sie **dort** brächten. Ein Tipp auf
+ *   einen Namen setzt ihn ein.
+ * - **Mann zuerst.** Ein Tipp auf einen Namen links, und **jeder** Platz
+ *   rechts trägt die Zahl, die dieser Mann dort brächte, neben der des Manns,
+ *   der dort steht. Ein Tipp auf den Platz setzt ihn ein.
  *
- * Die zweite Richtung ist die wichtigere: sie beantwortet „wohin mit ihm",
- * und dafür muss kein Platz frei oder vorgemerkt sein.
+ * Die zweite Richtung ist die wichtigere: sie beantwortet „wohin mit ihm", und
+ * dafür muss kein Platz frei oder vorgemerkt sein.
+ *
+ * Der zweite Tipp setzt sofort ein. Früher stand dazwischen ein Knopf
+ * „Einsetzen"; er ist entfallen, seit die Liste der Verfügbaren dauerhaft
+ * danebensteht — er bestätigte nur noch, was ohnehin auf dem Schirm stand.
  *
  * Beides landet auf derselben Regel, `setzeAufstellung()`.
  *
@@ -28,6 +31,13 @@
 import { el } from './dom.js';
 import { T } from '../i18n.js';
 import { platzKuerzel, positionsKuerzel } from '../engine/positionen.js';
+import {
+  specialSpieler, specialTechnik, SPECIAL_PLAETZE, SPECIAL_WERT,
+} from '../engine/aufstellung.js';
+
+/**
+ * @typedef {{ spieler: import('../engine/spieler.js').Spieler, wert: number }} Kandidat
+ */
 
 /**
  * @typedef {object} Steuerung
@@ -35,12 +45,15 @@ import { platzKuerzel, positionsKuerzel } from '../engine/positionen.js';
  * @property {string | null} spieler  Die gewählte Spieler-Id
  * @property {boolean} vonHand        Ob eine Vorgabe gespeichert ist
  * @property {(schluessel: string | null) => void} waehlePlatz
+ * @property {(spielerId: string | null) => void} waehleSpieler
  * @property {(schluessel: string, spielerId: string) => void} setze
+ * @property {(schluessel: string) => void} loese  Platz zurück an die Automatik
  * @property {() => void} automatisch
- * @property {(platz: string, stehtDort: string | null) => { spieler: import('../engine/spieler.js').Spieler, wert: number }[]} kandidaten
  * @property {(platz: string) => number} wertFuer  Was der gewählte Mann dort brächte
  * @property {string} gewaehlterName
- * @property {boolean} starterZeigen  Ob die Kandidatenliste die Elf mitzeigt
+ * @property {boolean} alleZeigen     Ob die Liste links über die Einheit hinausgeht
+ * @property {(an: boolean) => void} zeigeAlle
+ * @property {boolean} starterZeigen  Ob die Liste links auch die Aufgestellten zeigt
  * @property {(an: boolean) => void} zeigeStarter
  * @property {boolean} veraendert     Es gibt ungespeicherte Änderungen
  * @property {boolean} vollstaendig   Jeder der zweiundzwanzig Plätze ist besetzt
@@ -57,7 +70,7 @@ function name(p) {
 }
 
 /** @param {import('../engine/spieler.js').Spieler} s */
-function kurzName(s) {
+export function kurzName(s) {
   return `${s.nummer} ${s.vorname.charAt(0)}. ${s.nachname}`;
 }
 
@@ -74,38 +87,147 @@ function stehtAuf(a, spielerId) {
 }
 
 /**
- * Wer wo steht. Ein Umsteller ist markiert, ein Doppeleinsatz auch — beides
- * ist eine Nachricht an den Manager und nicht Dekoration.
+ * Ein Bereich des Rosters: links, wer zur Verfügung steht, rechts die Plätze,
+ * darunter die Zahl, die beides zusammen ergibt.
  *
- * Die Zeile endet rechtsbündig auf Position und Wert; die Marken stehen davor.
- * So stehen die Zahlen aller zweiundzwanzig Zeilen untereinander, statt von
- * einer Marke aus der Flucht geschoben zu werden.
- *
- * Hinter jedem Namen steht, was er **auf diesem Platz** wert ist, nicht seine
- * gezogene Stärke. Erst damit lässt sich die Marke „umgestellt" beziffern —
- * und auch ein Mann auf seiner eigenen Position steht mal besser, mal
- * schlechter da, je nachdem, wie viel der Verein wirft.
+ * Die Aufteilung ist der ganze Umbau. Vorher stand die Liste der Kandidaten
+ * unter dem angetippten Platz und war so lang wie die Frage danach kurz —
+ * fünf Namen, und für alles andere musste man in den Roster hinunterscrollen.
+ * Nebeneinander beantwortet dieselbe Fläche beide Richtungen gleichzeitig.
+ * @param {string} titel
+ * @param {import('../engine/aufstellung.js').Platz[]} plaetze
+ * @param {Kandidat[]} verfuegbare
+ * @param {Steuerung} steuerung
+ * @param {number} staerke
  * @param {import('../engine/aufstellung.js').Aufstellung} a
- * @param {Steuerung} [steuerung]
  */
-export function aufstellungKarte(a, steuerung) {
-  const liste = (/** @type {import('../engine/aufstellung.js').Platz[]} */ plaetze) =>
-    el('ul', { class: 'aufstellung' },
-      plaetze.flatMap((p) => [platzZeile(p, steuerung), kandidatenZeile(a, p, steuerung)]));
-
+export function einheitBereich(titel, plaetze, verfuegbare, steuerung, staerke, a) {
   return el('div', { class: 'karte' },
     el('div', { class: 'kartenkopf' },
-      el('h2', { text: T.taktik.aufstellung }),
-      steuerung ? aktionsknoepfe(steuerung) : null),
-    steuerung ? el('p', { class: hinweisKlasse(steuerung), style: { margin: '0 0 6px' } },
-      hinweisText(steuerung)) : null,
-    el('div', { class: 'elfen' },
-      el('div', {}, el('h3', { class: 'klein', text: T.taktik.angriffElf }), liste(a.offense)),
-      el('div', {}, el('h3', { class: 'klein', text: T.taktik.verteidigungElf }), liste(a.defense))),
-    el('p', { class: 'leise klein', style: { margin: '10px 0 0' },
-      text: T.taktik.kickPlaetze(
-        a.k ? a.k.nachname : T.taktik.keiner,
-        a.p ? a.p.nachname : T.taktik.keiner) }));
+      el('h2', { text: titel }),
+      el('div', { class: 'staerkezahl', title: T.roster.staerke },
+        el('span', { class: 'klein leise', text: T.roster.staerke }),
+        el('strong', { text: String(Math.round(staerke)) }))),
+    el('div', { class: 'aufstellungsraster' },
+      verfuegbarSpalte(verfuegbare, steuerung, a, steuerung),
+      el('div', { class: 'plaetzespalte' },
+        el('h3', { class: 'klein leise', text: T.roster.starter }),
+        el('ul', { class: 'aufstellung' },
+          plaetze.map((p) => platzZeile(p, steuerung))))));
+}
+
+/**
+ * Die Special Teams. Drei Plätze, und keiner von ihnen gehört zur Elf.
+ *
+ * Sie stehen hier und nicht als Fußnote unter der Aufstellung, seit der
+ * Manager sie besetzen darf. Was vorher eine Zeile war („Kicker: Huber ·
+ * Punter: Huber"), ist jetzt eine Entscheidung — und eine, die ohne die
+ * beiden gezogenen Kickwerte nicht zu treffen ist. Deshalb stehen sie
+ * ausgeschrieben daneben: es sind die einzigen Werte im Spiel, die sonst
+ * nirgends sichtbar wären.
+ * @param {import('../engine/aufstellung.js').Aufstellung} a
+ * @param {Kandidat[]} verfuegbare
+ * @param {Steuerung} steuerung
+ * @param {number} staerke
+ */
+export function specialBereich(a, verfuegbare, steuerung, staerke) {
+  return el('div', { class: 'karte' },
+    el('div', { class: 'kartenkopf' },
+      el('h2', { text: T.kader.special }),
+      el('div', { class: 'staerkezahl', title: T.roster.staerke },
+        el('span', { class: 'klein leise', text: T.roster.staerke }),
+        el('strong', { text: String(Math.round(staerke)) }))),
+    el('p', { class: 'leise klein', style: { margin: '0 0 8px' }, text: T.special.hinweis }),
+    el('div', { class: 'aufstellungsraster' },
+      verfuegbarSpalte(verfuegbare, steuerung, a, null),
+      el('div', { class: 'plaetzespalte' },
+        el('h3', { class: 'klein leise', text: T.roster.plaetze }),
+        el('ul', { class: 'aufstellung' },
+          SPECIAL_PLAETZE.map((schluessel) => specialZeile(a, schluessel, steuerung))))));
+}
+
+/**
+ * Die Liste links: wer zu haben ist.
+ *
+ * Ihre Reihenfolge hängt an der Frage, die gerade offen ist. Ist ein Platz
+ * gewählt, steht sie nach dem, was jeder **dort** brächte; sonst nach Stärke.
+ * Die Zahl daneben meint immer dasselbe wie die Überschrift — sonst verglichen
+ * die beiden Spalten Zahlen, die nichts miteinander zu tun haben.
+ * Die beiden Schalter stehen nur dort, wo sie etwas tun. Bei den Special Teams
+ * gibt es nichts zu filtern: gekickt wird aus dem ganzen Kader, die Elf
+ * eingeschlossen, und zwei Schalter ohne Wirkung wären ein Versprechen, das
+ * die Liste nicht hält.
+ * @param {Kandidat[]} verfuegbare
+ * @param {Steuerung} steuerung
+ * @param {import('../engine/aufstellung.js').Aufstellung} a
+ * @param {Steuerung | null} schalter Die Steuerung, wo Filter etwas bewirken
+ */
+function verfuegbarSpalte(verfuegbare, steuerung, a, schalter) {
+  const kopf = steuerung.platz
+    ? T.roster.kopfFuer(platzKuerzel(platzVon(a, steuerung.platz)))
+    : T.roster.kopfAlle;
+
+  return el('div', { class: 'verfuegbarspalte' },
+    el('div', { class: 'verfuegbarkopf' },
+      el('h3', { class: 'klein leise', text: kopf }),
+      schalter
+        ? el('button', {
+          class: schalter.alleZeigen ? 'schalter an' : 'schalter',
+          'aria-pressed': String(schalter.alleZeigen),
+          title: T.roster.filterAlleTitel,
+          onclick: () => schalter.zeigeAlle(!schalter.alleZeigen),
+        }, T.roster.filterAlle)
+        : null,
+      schalter
+        ? el('button', {
+          class: schalter.starterZeigen ? 'schalter an' : 'schalter',
+          'aria-pressed': String(schalter.starterZeigen),
+          title: T.aufstellung.starterZeigenTitel,
+          onclick: () => schalter.zeigeStarter(!schalter.starterZeigen),
+        }, T.aufstellung.starterZeigen)
+        : null),
+    verfuegbare.length === 0
+      ? el('p', { class: 'leise klein', text: T.roster.niemandFrei })
+      : null,
+    el('ul', { class: 'verfuegbare' },
+      verfuegbare.map(({ spieler, wert }) => {
+        const gewaehlt = steuerung.spieler === spieler.id;
+        const wo = stehtAuf(a, spieler.id);
+        const tippen = () => {
+          if (steuerung.platz) steuerung.setze(steuerung.platz, spieler.id);
+          else steuerung.waehleSpieler(gewaehlt ? null : spieler.id);
+        };
+
+        return el('li', {
+          class: 'verfuegbar' + (gewaehlt ? ' gewaehlt' : '') + (wo ? ' steht' : ''),
+          role: 'button',
+          tabindex: '0',
+          'aria-pressed': String(gewaehlt),
+          title: T.aufstellung.spielerWaehlen(spieler.nachname),
+          onclick: tippen,
+          onkeydown: (/** @type {KeyboardEvent} */ e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            tippen();
+          },
+        },
+          el('span', { class: 'verfuegbar-name', text: kurzName(spieler) }),
+          // Das Alter gehört hierher: die Zahl daneben sagt, was er heute kann,
+          // und erst zusammen sagen beide, ob er es nächstes Jahr noch kann.
+          el('span', { class: 'leise klein', title: T.kader.alter,
+            text: T.aufstellung.jahre(spieler.alter) }),
+          el('span', { class: 'leise klein', text: positionsKuerzel(spieler) }),
+          wo ? el('span', { class: 'marke tausch', text: platzKuerzel(wo) }) : null,
+          el('span', { class: 'platz-stk', text: String(Math.round(wert)) }));
+      })));
+}
+
+/** Der Platz zu einem Schlüssel — für die Überschrift der linken Spalte.
+ * @param {import('../engine/aufstellung.js').Aufstellung} a
+ * @param {string} schluessel */
+function platzVon(a, schluessel) {
+  const treffer = [...a.offense, ...a.defense].find((p) => p.schluessel === schluessel);
+  return treffer ? treffer.platz : schluessel;
 }
 
 /**
@@ -116,7 +238,7 @@ export function aufstellungKarte(a, steuerung) {
  * dahinter, statt sie erst beim Tippen zu verraten.
  * @param {Steuerung} steuerung
  */
-function aktionsknoepfe(steuerung) {
+export function aktionsknoepfe(steuerung) {
   return el('div', { class: 'aufstellungsknoepfe' },
     steuerung.veraendert
       ? el('button', {
@@ -137,21 +259,25 @@ function aktionsknoepfe(steuerung) {
 }
 
 /** @param {Steuerung} steuerung */
-function hinweisKlasse(steuerung) {
-  return steuerung.veraendert || (steuerung.spieler && !steuerung.platz) ? 'klein' : 'leise klein';
+export function hinweisKlasse(steuerung) {
+  return steuerung.veraendert || steuerung.spieler || steuerung.platz ? 'klein' : 'leise klein';
 }
 
 /**
- * Was über der Elf steht — der Reihe nach die dringlichste Nachricht: erst das
- * Ungespeicherte, dann die angefangene Handlung, dann die Bedienung.
+ * Was über dem Roster steht — der Reihe nach die dringlichste Nachricht: erst
+ * das Ungespeicherte, dann die angefangene Handlung, dann die Bedienung.
  * @param {Steuerung} steuerung
+ * @param {import('../engine/aufstellung.js').Aufstellung} a
  */
-function hinweisText(steuerung) {
+export function hinweisText(steuerung, a) {
   if (steuerung.veraendert) {
     return steuerung.vollstaendig ? T.aufstellung.ungespeichert : T.aufstellung.ungespeichertOffen;
   }
-  if (steuerung.spieler && !steuerung.platz) return T.aufstellung.wohinMit(steuerung.gewaehlterName);
-  return steuerung.vonHand ? T.aufstellung.vonHand : T.aufstellung.hinweis;
+  if (steuerung.spieler) return T.roster.hinweisSpieler(steuerung.gewaehlterName);
+  if (steuerung.platz) {
+    return T.roster.hinweisPlatz(platzKuerzel(platzVon(a, steuerung.platz)));
+  }
+  return steuerung.vonHand ? T.aufstellung.vonHand : T.roster.hinweis;
 }
 
 /**
@@ -161,18 +287,17 @@ function hinweisText(steuerung) {
  * Im Zielmodus steht rechts nicht mehr eine Zahl, sondern zwei: was der Mann
  * bringt, der dort steht, und was der Gewählte dort brächte. Das ist die ganze
  * Frage, die der Manager an dieser Stelle hat, und sie steht damit
- * zweiundzwanzigmal nebeneinander, statt einzeln erfragt werden zu müssen.
+ * elfmal nebeneinander, statt einzeln erfragt werden zu müssen.
  * @param {import('../engine/aufstellung.js').Platz} p
- * @param {Steuerung} [steuerung]
+ * @param {Steuerung} steuerung
  */
 function platzZeile(p, steuerung) {
-  const gewaehlt = !!steuerung && steuerung.platz === p.schluessel;
-  const ziel = !!steuerung && !!steuerung.spieler && !steuerung.platz;
-  const hier = ziel && !!p.spieler && p.spieler.id === steuerung?.spieler;
+  const gewaehlt = steuerung.platz === p.schluessel;
+  const ziel = !!steuerung.spieler;
+  const hier = ziel && !!p.spieler && p.spieler.id === steuerung.spieler;
   const kuerzel = platzKuerzel(p.platz);
 
   const tippen = () => {
-    if (!steuerung) return;
     if (!ziel) { steuerung.waehlePlatz(gewaehlt ? null : p.schluessel); return; }
     if (!hier) steuerung.setze(p.schluessel, /** @type {string} */ (steuerung.spieler));
   };
@@ -180,23 +305,21 @@ function platzZeile(p, steuerung) {
   const neu = ziel && !hier ? Math.round(steuerung.wertFuer(p.platz)) : null;
 
   return el('li', {
-    class: (steuerung ? 'waehlbar' : '') + (gewaehlt ? ' gewaehlt' : '')
+    class: 'waehlbar' + (gewaehlt ? ' gewaehlt' : '')
       + (ziel ? ' ziel' : '') + (hier ? ' steht' : '') + (p.frei ? ' frei' : ''),
-    ...(steuerung ? {
-      role: 'button',
-      tabindex: '0',
-      'aria-pressed': String(gewaehlt),
-      'aria-disabled': hier ? 'true' : undefined,
-      title: ziel
-        ? (hier ? T.aufstellung.stehtHier : T.aufstellung.hierEinsetzen(kuerzel, steuerung.gewaehlterName))
-        : T.aufstellung.platzTitel(kuerzel),
-      onclick: tippen,
-      onkeydown: (/** @type {KeyboardEvent} */ e) => {
-        if (e.key !== 'Enter' && e.key !== ' ') return;
-        e.preventDefault();
-        tippen();
-      },
-    } : {}),
+    role: 'button',
+    tabindex: '0',
+    'aria-pressed': String(gewaehlt),
+    'aria-disabled': hier ? 'true' : undefined,
+    title: ziel
+      ? (hier ? T.aufstellung.stehtHier : T.aufstellung.hierEinsetzen(kuerzel, steuerung.gewaehlterName))
+      : T.aufstellung.platzTitel(kuerzel),
+    onclick: tippen,
+    onkeydown: (/** @type {KeyboardEvent} */ e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      tippen();
+    },
   },
     el('span', { class: 'platz', text: kuerzel }),
     el('span', { class: 'platz-name', text: name(p) }),
@@ -216,7 +339,7 @@ function platzZeile(p, steuerung) {
     }) : null,
     neu == null ? null : el('span', {
       // Grün, wo er den Platz verbessert. Die beiden Zahlen sagen es auch so,
-      // aber zweiundzwanzig Paare liest niemand einzeln durch.
+      // aber elf Paare liest niemand einzeln durch.
       class: 'platz-stk neu' + (neu > Math.round(p.staerke) ? ' besser' : ''),
       title: T.aufstellung.neuerWert(steuerung.gewaehlterName, neu),
       text: String(neu),
@@ -224,79 +347,106 @@ function platzZeile(p, steuerung) {
 }
 
 /**
- * Die fünf Besten für den angetippten Platz, direkt darunter.
+ * Eine Zeile der Special Teams.
  *
- * Sie beantworten „wer ist hier der Beste" — nicht, was fürs Ganze am besten
- * wäre. Der Unterschied ist der Grund, warum diese Liste nicht dieselbe
- * Reihenfolge hat wie die Automatik: die stellt Paare, diese einen Platz.
- *
- * Der Schalter darüber nimmt die Elf aus der Liste. Ohne ihn stünden dort fast
- * immer dieselben Leute, die ohnehin schon spielen — und die eigentliche Frage,
- * wer von der Bank hier der Beste wäre, bliebe unbeantwortet.
- *
- * Zwei Zeilen hängt die Engine hinten an, wenn die Zahl sie nicht unter die
- * ersten fünf trägt: der Mann, der dort steht, und der Beste, der dort zu Hause
- * ist. Auf `C` oder `NT` bestünde die Liste sonst aus lauter Nachbarn.
+ * Sie trägt eine Marke, die keine der zweiundzwanzig hat: **automatisch**. Ein
+ * leerer Special-Teams-Platz heißt nicht „niemand", sondern „nimm den besten
+ * Fuß" — und deshalb steht neben einem selbst besetzten Platz der Weg zurück.
+ * Ohne ihn wäre die erste Wahl endgültig, und der nächste rekrutierte Kicker
+ * käme nicht mehr auf den Platz, ohne dass jemand wüsste, warum.
  * @param {import('../engine/aufstellung.js').Aufstellung} a
- * @param {import('../engine/aufstellung.js').Platz} p
- * @param {Steuerung} [steuerung]
+ * @param {string} schluessel
+ * @param {Steuerung} steuerung
  */
-function kandidatenZeile(a, p, steuerung) {
-  if (!steuerung || steuerung.platz !== p.schluessel) return null;
-  // Wer dort steht, kommt mit — auch wenn die Zahl ihn nicht unter die ersten
-  // fünf trägt. Ohne ihn fehlt der Liste ausgerechnet der Vergleichswert.
-  const liste = steuerung.kandidaten(p.platz, p.spieler ? p.spieler.id : null);
+function specialZeile(a, schluessel, steuerung) {
+  const spieler = specialSpieler(a, schluessel);
+  const gewaehlt = steuerung.platz === schluessel;
+  const ziel = !!steuerung.spieler;
+  const hier = ziel && !!spieler && spieler.id === steuerung.spieler;
+  const vonHand = !!a.specialVonHand && a.specialVonHand[schluessel];
 
-  return el('li', { class: 'kandidaten' },
-    el('div', { class: 'kandidatenkopf' },
-      el('span', { class: 'klein leise',
-        text: steuerung.starterZeigen ? T.aufstellung.beste : T.aufstellung.besteBank }),
-      el('button', {
-        class: steuerung.starterZeigen ? 'schalter an' : 'schalter',
-        'aria-pressed': String(steuerung.starterZeigen),
-        title: T.aufstellung.starterZeigenTitel,
-        onclick: () => steuerung.zeigeStarter(!steuerung.starterZeigen),
-      }, T.aufstellung.starterZeigen)),
-    liste.length === 0
-      ? el('p', { class: 'leise klein', style: { margin: '6px 0 0' }, text: T.aufstellung.keineBank })
-      : null,
-    liste.map(({ spieler, wert }) => {
-      const wo = stehtAuf(a, spieler.id);
-      const hier = p.spieler && p.spieler.id === spieler.id;
-      return el('button', {
-        class: 'kandidat' + (hier ? ' steht' : ''),
-        disabled: hier || undefined,
-        onclick: () => steuerung.setze(p.schluessel, spieler.id),
-      },
-        el('span', { class: 'kandidat-name', text: kurzName(spieler) }),
-        // Das Alter gehört hierher: die Zahl daneben sagt, was er heute kann,
-        // und erst zusammen sagen beide, ob er es nächstes Jahr noch kann.
-        el('span', { class: 'leise klein', title: T.kader.alter,
-          text: T.aufstellung.jahre(spieler.alter) }),
-        el('span', { class: 'leise klein', text: positionsKuerzel(spieler) }),
-        wo && !hier
-          ? el('span', { class: 'marke tausch', text: T.aufstellung.tauscht(platzKuerzel(wo)) })
-          : null,
-        el('span', { class: 'platz-stk', text: String(Math.round(wert)) }));
-    }),
-    el('p', { class: 'leise klein', style: { margin: '6px 0 0' }, text: T.aufstellung.oderRoster }));
+  const tippen = () => {
+    if (!ziel) { steuerung.waehlePlatz(gewaehlt ? null : schluessel); return; }
+    if (!hier) steuerung.setze(schluessel, /** @type {string} */ (steuerung.spieler));
+  };
+
+  const neu = ziel && !hier ? Math.round(steuerung.wertFuer(schluessel)) : null;
+
+  return el('li', {
+    class: 'waehlbar special' + (gewaehlt ? ' gewaehlt' : '')
+      + (ziel ? ' ziel' : '') + (hier ? ' steht' : '') + (spieler ? '' : ' frei'),
+    role: 'button',
+    tabindex: '0',
+    'aria-pressed': String(gewaehlt),
+    'aria-disabled': hier ? 'true' : undefined,
+    title: ziel
+      ? (hier ? T.aufstellung.stehtHier : T.aufstellung.hierEinsetzen(schluessel, steuerung.gewaehlterName))
+      : T.aufstellung.platzTitel(T.special[schluessel]),
+    onclick: tippen,
+    onkeydown: (/** @type {KeyboardEvent} */ e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      tippen();
+    },
+  },
+    el('span', { class: 'platz', title: T.special[schluessel], text: schluessel }),
+    el('span', { class: 'platz-name', text: spieler ? kurzName(spieler) : T.taktik.keiner }),
+    vonHand
+      ? el('button', {
+        class: 'schalter loesen',
+        title: T.special.zurueckAutomatikTitel,
+        onclick: (/** @type {MouseEvent} */ e) => { e.stopPropagation(); steuerung.loese(schluessel); },
+        onkeydown: (/** @type {KeyboardEvent} */ e) => e.stopPropagation(),
+      }, T.special.zurueckAutomatik)
+      : el('span', { class: 'marke auto', title: T.special.automatischTitel,
+        text: T.special.automatisch }),
+    hier ? el('span', { class: 'marke steht', text: T.aufstellung.stehtSchon }) : null,
+    spieler ? kickWerte(spieler) : null,
+    spieler ? el('span', {
+      class: ziel ? 'platz-stk alt' : 'platz-stk',
+      text: String(Math.round(SPECIAL_WERT[schluessel](spieler))),
+    }) : null,
+    neu == null ? null : el('span', {
+      class: 'platz-stk neu'
+        + (neu > Math.round(spieler ? SPECIAL_WERT[schluessel](spieler) : 0) ? ' besser' : ''),
+      title: T.aufstellung.neuerWert(steuerung.gewaehlterName, neu),
+      text: String(neu),
+    }));
+}
+
+/**
+ * Die beiden gezogenen Kickwerte und, wo es einen gibt, die Technik des
+ * Spezialisten. Bis hierher waren sie unsichtbar: sie stehen in keinem der
+ * fünfzehn Attribute und tauchten nirgends auf, obwohl acht Prozent der
+ * Gesamtstärke an ihnen hängen.
+ * @param {import('../engine/spieler.js').Spieler} s
+ */
+function kickWerte(s) {
+  const technik = specialTechnik(s);
+  return el('span', { class: 'kickwerte' },
+    el('span', { class: 'klein leise', title: T.special.beinTitel,
+      text: `${T.special.bein} ${s.kickStaerke}` }),
+    el('span', { class: 'klein leise', title: T.special.zielTitel,
+      text: `${T.special.ziel} ${s.kickGenauigkeit}` }),
+    technik > 0
+      ? el('span', { class: 'klein', title: T.special.technikTitel,
+        text: `${T.special.technik} ${Math.round(technik)}` })
+      : null);
 }
 
 /**
  * Die Leiste, die den angefangenen Wechsel festhält.
  *
- * Sie klebt oben am Rand, weil der zweite Tipp unten im Roster passiert: ohne
- * sie müsste der Manager nach jeder Auswahl wieder hochscrollen, um zu sehen,
- * was er eigentlich gerade tut.
+ * Sie klebt oben am Rand, weil der zweite Tipp weiter unten passiert: ohne sie
+ * müsste der Manager nach jeder Auswahl wieder hochscrollen, um zu sehen, was
+ * er eigentlich gerade tut. Einen Knopf zum Bestätigen trägt sie nicht mehr —
+ * der zweite Tipp setzt selbst ein.
  * @param {import('../engine/aufstellung.js').Aufstellung} a
  * @param {Steuerung} steuerung
  * @param {import('../engine/spieler.js').Spieler | null} spieler Der gewählte Mann
  */
 export function wechselLeiste(a, steuerung, spieler) {
-  if (!steuerung.platz) {
-    // Mann gewählt, Platz noch nicht: die Leiste sagt nur, wer gemeint ist —
-    // eingesetzt wird oben in der Aufstellung, an dem Platz, der es sein soll.
-    if (!spieler) return null;
+  if (spieler) {
     const steht = stehtAuf(a, spieler.id);
     return el('div', { class: 'wechselleiste' },
       el('div', { class: 'wechseltext' },
@@ -313,27 +463,25 @@ export function wechselLeiste(a, steuerung, spieler) {
             onclick: () => steuerung.entferne(spieler.id),
           }, T.aufstellung.entfernen)
           : null,
-        el('button', { class: 'neben klein', onclick: () => steuerung.waehlePlatz(null) },
+        el('button', { class: 'neben klein', onclick: () => steuerung.waehleSpieler(null) },
           T.aktion.zurueck)));
   }
 
-  const platz = [...a.offense, ...a.defense].find((p) => p.schluessel === steuerung.platz);
-  if (!platz) return null;
+  if (!steuerung.platz) return null;
 
-  const ziel = platzKuerzel(platz.platz);
+  const platz = [...a.offense, ...a.defense].find((p) => p.schluessel === steuerung.platz);
+  const ziel = platz ? platzKuerzel(platz.platz) : T.special[steuerung.platz] || steuerung.platz;
+  const steht = platz ? (platz.spieler ? name(platz) : T.taktik.keiner)
+    : (specialSpieler(a, steuerung.platz)
+      ? kurzName(/** @type {any} */ (specialSpieler(a, steuerung.platz)))
+      : T.taktik.keiner);
+
   return el('div', { class: 'wechselleiste' },
     el('div', { class: 'wechseltext' },
       el('strong', { text: ziel }),
-      el('span', { class: 'klein leise', text: platz.spieler ? name(platz) : T.taktik.keiner }),
-      spieler
-        ? el('span', { class: 'klein', text: `${T.aufstellung.pfeil} ${kurzName(spieler)}` })
-        : el('span', { class: 'klein leise', text: T.aufstellung.waehleSpieler })),
+      el('span', { class: 'klein leise', text: steht }),
+      el('span', { class: 'klein leise', text: T.aufstellung.waehleSpieler })),
     el('div', { class: 'wechselknoepfe' },
-      el('button', {
-        class: 'haupt klein',
-        disabled: !spieler || undefined,
-        onclick: () => spieler && steuerung.setze(/** @type {string} */ (steuerung.platz), spieler.id),
-      }, T.aufstellung.einsetzen),
       el('button', { class: 'neben klein', onclick: () => steuerung.waehlePlatz(null) },
         T.aktion.zurueck)));
 }

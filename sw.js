@@ -40,6 +40,7 @@ const SHELL = [
   './ui/tabelle.js',
   './ui/aufstellung.js',
   './ui/kader.js',
+  './ui/personal.js',
   './ui/taktik.js',
   './ui/spielplan.js',
   './ui/spielbericht.js',

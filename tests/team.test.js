@@ -6,8 +6,32 @@ import { makeRng, ERSATZ_STAERKE, KICK_FUSS_AUSSCHLUSS } from '../engine/constan
 import { macheKader, macheSpieler, ziehKickWerte, resetSpielerIds } from '../engine/spieler.js';
 import {
   teamStaerken, gesamtStaerke, angriffStaerke, verteidigungStaerke,
-  kickerWert, punterWert, besterFuss,
+  kickerWert, punterWert, longSnapperWert, specialTechnik, besterFuss,
 } from '../engine/team.js';
+import { SNAP_NAHE, SNAP_FREMD } from '../engine/aufstellung.js';
+
+/**
+ * Ein Mann, so weit die drei Special-Team-Formeln ihn brauchen: die beiden
+ * Kickwerte, die Attribute, die darin vorkommen, und die Position, an der
+ * `specialTechnik()` entscheidet.
+ * @param {Record<string, any>} werte
+ */
+function fuss(werte) {
+  const { kickStaerke = 40, kickGenauigkeit = 40, position = 'WR' } = werte;
+  return /** @type {any} */ ({
+    kickStaerke,
+    kickGenauigkeit,
+    position,
+    seite: null,
+    einsaetze: {},
+    attribute: {
+      technik: werte.technik || 0,
+      fangen: werte.fangen || 0,
+      ballsicherheit: werte.ballsicherheit || 0,
+      kraft: werte.kraft || 0,
+    },
+  });
+}
 
 test('jeder Spieler bekommt beide Kickwerte', () => {
   resetSpielerIds();
@@ -21,21 +45,59 @@ test('jeder Spieler bekommt beide Kickwerte', () => {
 });
 
 test('Kicker- und Punterwert gewichten die beiden Werte verschieden', () => {
-  const s = /** @type {any} */ ({ kickStaerke: 70, kickGenauigkeit: 30 });
-  assert.equal(kickerWert(s), 50);
-  assert.equal(punterWert(s), 58);
+  const s = fuss({ kickStaerke: 70, kickGenauigkeit: 30, fangen: 40 });
+  assert.equal(kickerWert(s), 40);        // 0,4 · 70 + 0,4 · 30
+  assert.equal(punterWert(s), 45);        // 0,5 · 70 + 0,2 · 30 + 0,1 · 40
 
-  // Bei gleichen Werten fallen beide Formeln zusammen.
-  const gleich = /** @type {any} */ ({ kickStaerke: 44, kickGenauigkeit: 44 });
-  assert.equal(kickerWert(gleich), 44);
-  assert.equal(punterWert(gleich), 44);
+  // Wo alle Eingaben gleich sind, fallen beide Formeln wieder zusammen —
+  // sie summieren beide auf eins, das eine Fünftel Technik eingerechnet.
+  const gleich = fuss({ kickStaerke: 44, kickGenauigkeit: 44, fangen: 44 });
+  assert.equal(Math.round(kickerWert(gleich) * 100) / 100, 35.2);
+  assert.equal(Math.round(punterWert(gleich) * 100) / 100, 35.2);
 });
 
 test('ein starkes Bein ohne Zielwasser ist der bessere Punter', () => {
-  const kanone = /** @type {any} */ ({ kickStaerke: 72, kickGenauigkeit: 34 });
-  const praezise = /** @type {any} */ ({ kickStaerke: 48, kickGenauigkeit: 62 });
+  const kanone = fuss({ kickStaerke: 72, kickGenauigkeit: 34, fangen: 40 });
+  const praezise = fuss({ kickStaerke: 48, kickGenauigkeit: 62, fangen: 40 });
   assert.ok(kickerWert(praezise) > kickerWert(kanone));
   assert.ok(punterWert(kanone) > punterWert(praezise));
+});
+
+test('nur ein ausgebildeter Spezialist bringt Technik aufs Feld', () => {
+  // Derselbe Mann, einmal als Linebacker und einmal als rekrutierter Kicker.
+  const werte = { kickStaerke: 50, kickGenauigkeit: 50, technik: 70, fangen: 50 };
+  const linebacker = fuss({ ...werte, position: 'MIKE' });
+  const kicker = fuss({ ...werte, position: 'K' });
+
+  assert.equal(specialTechnik(linebacker), 0, 'wer keiner ist, hat den Anteil nicht');
+  assert.equal(specialTechnik(kicker), 70);
+  assert.equal(kickerWert(linebacker), 40);
+  assert.equal(kickerWert(kicker), 54);    // 40 + 0,2 · 70
+  assert.ok(punterWert(kicker) > punterWert(linebacker));
+});
+
+test('wer puntet, wird davon kein Punter', () => {
+  // Der Hauptplatz wandert mit den Einsätzen, die Ausbildung nicht — und nur
+  // an ihr hängt der Technikanteil. Sonst würde ein Aushilfskicker mit der
+  // Zeit zum Spezialisten, ohne dass ihn je jemand rekrutiert hätte.
+  const aushilfe = fuss({ position: 'MIKE', technik: 70 });
+  aushilfe.einsaetze = { P: 200, K: 200, LS: 200 };
+  assert.equal(specialTechnik(aushilfe), 0);
+});
+
+test('der Long Snapper kommt aus der Line, nicht aus der Ballsicherheit allein', () => {
+  const werte = { ballsicherheit: 60, kraft: 60 };
+  const center = fuss({ ...werte, position: 'C' });
+  const receiver = fuss({ ...werte, position: 'WR' });
+
+  const roh = 60 * 0.4 + 60 * 0.25;
+  assert.equal(longSnapperWert(center), roh);
+  assert.equal(longSnapperWert(receiver), roh * SNAP_FREMD);
+  assert.ok(SNAP_NAHE.includes('C') && !SNAP_NAHE.includes('WR'));
+
+  // Auch hier trägt die Technik nur der Ausgebildete.
+  const snapper = fuss({ ...werte, position: 'LS', technik: 80 });
+  assert.equal(longSnapperWert(snapper), roh + 80 * 0.35);
 });
 
 test('gekickt wird aus dem ganzen Kader, nicht aus einem K-Slot', () => {
@@ -44,10 +106,15 @@ test('gekickt wird aus dem ganzen Kader, nicht aus einem K-Slot', () => {
   assert.equal(kader.filter((s) => s.position === 'K' || s.position === 'P').length, 0,
     'die Liga kennt keine Spezialisten');
 
+  assert.equal(kader.filter((s) => s.position === 'LS').length, 0,
+    'auch keinen Long Snapper');
+
   const s = teamStaerken(kader, 1);
   const besterKicker = Math.max(...kader.map(kickerWert));
   assert.equal(besterFuss(kader, 1, kickerWert), besterKicker);
-  assert.equal(s.special, besterKicker * 0.7 + Math.max(...kader.map(punterWert)) * 0.3);
+  assert.equal(s.special, besterKicker * 0.4
+    + Math.max(...kader.map(punterWert)) * 0.4
+    + Math.max(...kader.map(longSnapperWert)) * 0.2);
   assert.ok(s.special > ERSATZ_STAERKE, 'Special Teams sind kein toter Wert mehr');
 });
 

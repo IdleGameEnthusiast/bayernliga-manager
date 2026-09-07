@@ -15,7 +15,8 @@ import {
   BLOCK_GEWICHT, PLATZ_ANTEIL, SKILL_LEITER, SKILL_ROLLE, SKILL_NORM,
   stelleAuf, skillAnteile, doppelAbzug, doppelRisiko, doppelEinsaetze, umstellungen,
   platzStaerke, alsVorgabe, setzePlatz, bestenFuer, bestePlaetze, wertAuf, vollstaendig,
-  leereVorgabe, entferneSpieler,
+  leereVorgabe, entferneSpieler, loesePlatz, specialSpieler, SPECIAL_PLAETZE,
+  kickerWert, longSnapperWert,
 } from '../engine/aufstellung.js';
 import { teamStaerken } from '../engine/team.js';
 
@@ -651,4 +652,110 @@ test('einen Mann herausnehmen lässt seinen Platz frei, nicht nachbesetzt', () =
 test('wer doppelt steht, geht von beiden Plätzen', () => {
   const ohne = entferneSpieler({ QB: 'a', LT: 'b', SS: 'b' }, 'b');
   assert.deepEqual(ohne, { QB: 'a', LT: null, SS: null });
+});
+
+// --- Special Teams ---------------------------------------------------------
+
+test('die drei Special-Teams-Plätze besetzen sich selbst, solange niemand wählt', () => {
+  const a = stelleAuf(kader('special'), 1, '11');
+  assert.ok(a.k && a.p && a.ls, 'alle drei stehen');
+  for (const schluessel of SPECIAL_PLAETZE) {
+    assert.equal(a.specialVonHand[schluessel], false, schluessel + ' ist nicht von Hand');
+  }
+  // Ein Speicherstand von vor den drei Plätzen kennt ihre Schlüssel nicht —
+  // und stellt sie deshalb weiter selbst. Genau deshalb braucht es keine
+  // Migration: eine Vorgabe ohne die Schlüssel ist eine gültige Vorgabe.
+  const alt = alsVorgabe(a);
+  assert.deepEqual(SPECIAL_PLAETZE.filter((s) => s in alt), []);
+  const wieder = stelleAuf(kader('special'), 1, '11', undefined, alt);
+  assert.equal(wieder.k.id, a.k.id);
+});
+
+test('der Manager darf die drei selbst besetzen', () => {
+  const k = kader('stwahl');
+  const a = stelleAuf(k, 1, '11');
+  // Irgendwer, nur nicht der, den die Automatik ohnehin nimmt.
+  const anderer = k.find((s) => s.id !== a.k.id);
+
+  const vorgabe = setzePlatz(alsVorgabe(a), 'K', anderer.id);
+  const gestellt = stelleAuf(k, 1, '11', undefined, vorgabe);
+  assert.equal(gestellt.k.id, anderer.id);
+  assert.equal(gestellt.specialVonHand.K, true);
+  assert.equal(gestellt.specialVonHand.P, false, 'die anderen beiden bleiben automatisch');
+
+  // Und die Wahl überlebt das Einfrieren.
+  assert.equal(alsVorgabe(gestellt).K, anderer.id);
+  assert.equal('P' in alsVorgabe(gestellt), false);
+});
+
+test('ein Special-Teams-Platz steht außerhalb des Tauschs', () => {
+  const k = kader('sttausch');
+  const a = stelleAuf(k, 1, '11');
+  const qb = a.offense.find((p) => p.schluessel === QB_PLATZ).spieler;
+
+  // Der Quarterback wird Kicker: er bleibt Quarterback.
+  const alsKicker = setzePlatz(alsVorgabe(a), 'K', qb.id);
+  assert.equal(alsKicker[QB_PLATZ], qb.id, 'der Kicker hat seinen Platz in der Elf verloren');
+  assert.equal(alsKicker.K, qb.id);
+
+  const gestellt = stelleAuf(k, 1, '11', undefined, alsKicker);
+  assert.equal(gestellt.k.id, qb.id);
+  assert.equal(gestellt.offense.find((p) => p.schluessel === QB_PLATZ).spieler.id, qb.id);
+  assert.equal(vollstaendig(gestellt), true, 'die Elf ist dadurch unvollständig geworden');
+
+  // Und umgekehrt: rückt er in der Elf um, bleibt er Kicker.
+  const umgezogen = setzePlatz(alsKicker, 'RB', qb.id);
+  assert.equal(umgezogen.K, qb.id, 'der Umzug in der Elf hat den Kicker mitgenommen');
+
+  // Herausnehmen heißt „aus der Elf", nicht „aus den Special Teams".
+  const raus = entferneSpieler(alsKicker, qb.id);
+  assert.equal(raus[QB_PLATZ], null);
+  assert.equal(raus.K, qb.id);
+});
+
+test('ein verletzter Wunschkicker fällt an die Automatik, ohne seinen Platz zu verlieren', () => {
+  const k = kader('stverletzt');
+  const a = stelleAuf(k, 1, '11');
+  const wunsch = k.find((s) => s.id !== a.k.id);
+  const vorgabe = setzePlatz(alsVorgabe(a), 'K', wunsch.id);
+
+  wunsch.verletztBis = 9;
+  const ohne = stelleAuf(k, 1, '11', undefined, vorgabe);
+  assert.notEqual(ohne.k.id, wunsch.id, 'ein Verletzter kickt');
+  assert.ok(ohne.k, 'und irgendwer kickt trotzdem');
+  assert.equal(vorgabe.K, wunsch.id, 'die Vorgabe wurde angefasst');
+
+  // Zurück aus der Verletzung, zurück auf den Platz.
+  wunsch.verletztBis = 0;
+  assert.equal(stelleAuf(k, 1, '11', undefined, vorgabe).k.id, wunsch.id);
+});
+
+test('ausdrücklich niemand kostet die Ersatzstärke, die Automatik holt sie zurück', () => {
+  const k = kader('stniemand');
+  const a = stelleAuf(k, 1, '11');
+
+  const ohne = stelleAuf(k, 1, '11', undefined, { K: null });
+  assert.equal(ohne.k, null);
+  assert.equal(ohne.specialVonHand.K, true);
+  assert.equal(teamStaerken(k, 1, '11', undefined, { K: null }).special
+    < teamStaerken(k, 1, '11').special, true, 'ohne Kicker ist es nicht schlechter');
+
+  // `loesePlatz` ist der Weg zurück: der Schlüssel fällt weg, nicht auf null.
+  const wieder = loesePlatz({ K: null }, 'K');
+  assert.deepEqual(wieder, {});
+  assert.equal(stelleAuf(k, 1, '11', undefined, wieder).k.id, a.k.id);
+});
+
+test('specialSpieler liest die drei über ihren Schlüssel', () => {
+  const a = stelleAuf(kader('stlesen'), 1, '11');
+  assert.equal(specialSpieler(a, 'K'), a.k);
+  assert.equal(specialSpieler(a, 'P'), a.p);
+  assert.equal(specialSpieler(a, 'LS'), a.ls);
+});
+
+test('die Automatik nimmt für jeden Platz den besten seiner Formel', () => {
+  const k = kader('stbeste');
+  const a = stelleAuf(k, 1, '11');
+  assert.equal(kickerWert(a.k), Math.max(...k.map(kickerWert)));
+  assert.equal(longSnapperWert(a.ls), Math.max(...k.map(longSnapperWert)));
 });
