@@ -22,6 +22,7 @@
   await import('./app.js');
   const v = q.get('v');
   const tabs = document.querySelectorAll('.reiter button');
+  if (v === 'tabelle') tabs[1].click();
   if (v === 'kader') tabs[2].click();
   if (v === 'taktik') tabs[3].click();
   if (v === 'spielplan') tabs[4].click();

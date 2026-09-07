@@ -308,6 +308,78 @@ test('ein v4-Stand ohne Einsätze bekommt ein leeres Konto', () => {
     'leer ist die richtige Vergangenheit — der ausgebildete Platz zählt ohnehin');
 });
 
+/**
+ * Ein Speicherstand aus der Zeit vor dem Kalender: eine Uhr in Spieltagen, ein
+ * Spielplan ohne Termine, Verletzungen in Spieltagen und ein Verlauf aus
+ * fertigen Sätzen. Weder `tag` noch `post` kommen darin vor — das ist der Fall,
+ * den die Migration ganz allein trägt.
+ * @param {number} spieltag
+ */
+function v4Stand(spieltag) {
+  return {
+    version: 4, seed: 'alt', jahr: 2026, spieltag, meinTeam: 'heg',
+    kader: {
+      heg: [
+        { id: 'a', position: 'QB', seite: null, verletztBis: 0 },
+        { id: 'b', position: 'MLB', seite: null, verletztBis: 5 },
+        // Spieltag 10 plus sechs Wochen: eine Verletzung, die hinter dem
+        // letzten Spieltag endet.
+        { id: 'c', position: 'WR', seite: 'L', verletztBis: 16 },
+      ],
+    },
+    spielplan: [
+      { heim: 'heg', gast: 'ass', runde: 'gruppe', spieltag: 1, ergebnis: null },
+      { heim: 'gc', gast: 'heg', runde: 'gruppe', spieltag: 10, ergebnis: null },
+    ],
+    verlauf: ['Spieltag 1: HEG 21 : 14 ASS', 'Spieltag 2: ERS 7 : 28 HEG'],
+    historie: [],
+  };
+}
+
+test('ein v4-Stand bekommt eine Uhr, ohne dass etwas erfunden wird', () => {
+  const m = migriere(v4Stand(3));
+
+  assert.equal(m.version, SAVE_VERSION);
+  assert.equal(m.tag, tagVonSpieltag(3), 'die Uhr steht am Termin des Spieltags');
+  assert.equal('spieltag' in m, false, 'die alte Uhr steht noch daneben');
+
+  // Jede Partie bekommt den Termin ihres Etiketts — das Etikett selbst bleibt.
+  assert.deepEqual(m.spielplan.map((p) => [p.spieltag, p.tag]),
+    [[1, tagVonSpieltag(1)], [10, tagVonSpieltag(10)]]);
+
+  const bis = Object.fromEntries(m.kader.heg.map((s) => [s.id, s.verletztBis]));
+  assert.equal(bis.a, 0, 'wer fit war, bleibt fit');
+  assert.equal(bis.b, tagVonSpieltag(5));
+  // Hinter dem letzten Spieltag zählt die Umrechnung wöchentlich weiter, statt
+  // eine Ausnahme zu werfen: die Verletzung läuft in die Sommerpause hinein,
+  // so wie sie es vorher auch tat.
+  assert.equal(bis.c, tagVonSpieltag(12) + 4 * 7);
+});
+
+test('der alte Verlauf wandert unter das Archiv, statt geraten zu werden', () => {
+  const m = migriere(v4Stand(3));
+
+  // Aus einem fertigen Satz ließen sich `art` und `daten` nur durch Raten
+  // zurückgewinnen. Er wandert als Liste alter Zeilen mit und stirbt aus.
+  assert.deepEqual(m.post, [], 'das Postfach fängt leer an');
+  assert.deepEqual(m.altverlauf, v4Stand(3).verlauf);
+  assert.equal('verlauf' in m, false);
+});
+
+test('ein v4-Stand hinter dem letzten Spieltag landet in der Sommerpause', () => {
+  // Spieltag 13 gab es nie — so sah eine durchgespielte Saison aus.
+  const m = migriere(v4Stand(13));
+  assert.equal(m.tag, tagVonSpieltag(12) + 1);
+});
+
+test('die Migration rechnet dieselben Tage nicht zweimal um', () => {
+  // Der Stand wird beim Laden migriert und sofort neu geschrieben; beim
+  // nächsten Laden läuft dieselbe Funktion noch einmal darüber.
+  const einmal = migriere(v4Stand(3));
+  const zweimal = migriere(JSON.parse(JSON.stringify(einmal)));
+  assert.deepEqual(zweimal, einmal);
+});
+
 test('ein Spieltag verbucht die Einsätze bei allen Vereinen', () => {
   const stand = neuesSpiel(TEAMS[0].id, 'einsaetze');
   const alle = () => TEAMS.flatMap((t) => stand.kader[t.id]);
