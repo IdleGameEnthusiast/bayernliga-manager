@@ -79,7 +79,7 @@ import { verfuegbar, kurzName } from './spieler.js';
  * @property {TeamStats} gastStats
  * @property {Verletzung[]} verletzungen
  * @property {{ heim: import('./aufstellung.js').Aufstellung, gast: import('./aufstellung.js').Aufstellung }} aufstellungen
- *   Wer tatsächlich auf dem Feld stand. Flüchtig: `spieleSpieltag()` bucht daraus
+ *   Wer tatsächlich auf dem Feld stand. Flüchtig: `spieleTag()` bucht daraus
  *   die Einsätze und streift das Feld ab, bevor das Ergebnis im Spielplan landet.
  *   Es hier zurückzugeben und nicht später neu zu rechnen ist wichtig — nach dem
  *   Spiel stehen die Verletzungen schon im Kader, und `stelleAuf()` käme dann auf
@@ -288,16 +288,16 @@ export function angriffGemischt(s, passAnteil) {
  * Build the box score for one side from the players who were actually fit.
  * @param {() => number} rng
  * @param {import('./spieler.js').Spieler[]} kader
- * @param {number} spieltag
+ * @param {number} tag
  * @param {number} touchdowns
  * @param {import('./team.js').Staerken} staerken
  * @param {number} [passAnteil] Ausrichtung des Vereins; teilt die Touchdowns auf
  * @returns {TeamStats}
  */
-export function baueStats(rng, kader, spieltag, touchdowns, staerken, passAnteil = 0.6) {
-  const qb = verfuegbar(kader, 'QB', spieltag)[0] || null;
-  const rb = verfuegbar(kader, 'RB', spieltag)[0] || null;
-  const wr = verfuegbar(kader, 'WR', spieltag)[0] || null;
+export function baueStats(rng, kader, tag, touchdowns, staerken, passAnteil = 0.6) {
+  const qb = verfuegbar(kader, 'QB', tag)[0] || null;
+  const rb = verfuegbar(kader, 'RB', tag)[0] || null;
+  const wr = verfuegbar(kader, 'WR', tag)[0] || null;
 
   const off = angriffGemischt(staerken, passAnteil);
 
@@ -357,13 +357,13 @@ export function baueStats(rng, kader, spieltag, touchdowns, staerken, passAnteil
  * @param {() => number} rng
  * @param {string} teamId
  * @param {import('./spieler.js').Spieler[]} kader
- * @param {number} spieltag
+ * @param {number} tag
  * @param {string[]} [doppelt] ids of the men who played both ways
  * @returns {Verletzung | null}
  */
-export function wuerfelVerletzung(rng, teamId, kader, spieltag, doppelt = []) {
+export function wuerfelVerletzung(rng, teamId, kader, tag, doppelt = []) {
   if (rng() >= INJURY_CHANCE_PER_GAME) return null;
-  const fit = kader.filter((s) => s.verletztBis <= spieltag);
+  const fit = kader.filter((s) => s.verletztBis <= tag);
   if (fit.length === 0) return null;
   const doppelSet = new Set(doppelt);
   const opfer = pickWeighted(rng, fit.map((s) => /** @type {[typeof s, number]} */ ([
@@ -395,16 +395,16 @@ export function wuerfelVerletzung(rng, teamId, kader, spieltag, doppelt = []) {
  * @param {() => number} rng
  * @param {Antritt} heim
  * @param {Antritt} gast
- * @param {number} spieltag
+ * @param {number} tag
  * @returns {Ergebnis}
  */
-export function simuliereSpiel(rng, heim, gast, spieltag) {
+export function simuliereSpiel(rng, heim, gast, tag) {
   const heimAnteil = passAnteilVon(heim);
   const gastAnteil = passAnteilVon(gast);
   const heimStaerken = teamStaerken(
-    heim.kader, spieltag, heim.personnel, heim.passAnteil, heim.aufstellung);
+    heim.kader, tag, heim.personnel, heim.passAnteil, heim.aufstellung);
   const gastStaerken = teamStaerken(
-    gast.kader, spieltag, gast.personnel, gast.passAnteil, gast.aufstellung);
+    gast.kader, tag, gast.personnel, gast.passAnteil, gast.aufstellung);
 
   const heimErwartet = clamp(
     BASE_POINTS
@@ -455,10 +455,10 @@ export function simuliereSpiel(rng, heim, gast, spieltag) {
 
   /** @type {Verletzung[]} */
   const verletzungen = [];
-  const vH = wuerfelVerletzung(rng, heim.id, heim.kader, spieltag,
+  const vH = wuerfelVerletzung(rng, heim.id, heim.kader, tag,
     doppelEinsaetze(heimStaerken.aufstellung));
   if (vH) verletzungen.push(vH);
-  const vG = wuerfelVerletzung(rng, gast.id, gast.kader, spieltag,
+  const vG = wuerfelVerletzung(rng, gast.id, gast.kader, tag,
     doppelEinsaetze(gastStaerken.aufstellung));
   if (vG) verletzungen.push(vG);
 
@@ -468,8 +468,8 @@ export function simuliereSpiel(rng, heim, gast, spieltag) {
     heimViertel: h.viertel,
     gastViertel: g.viertel,
     verlaengerung,
-    heimStats: baueStats(rng, heim.kader, spieltag, heimTds, heimStaerken, heimAnteil),
-    gastStats: baueStats(rng, gast.kader, spieltag, gastTds, gastStaerken, gastAnteil),
+    heimStats: baueStats(rng, heim.kader, tag, heimTds, heimStaerken, heimAnteil),
+    gastStats: baueStats(rng, gast.kader, tag, gastTds, gastStaerken, gastAnteil),
     verletzungen,
     aufstellungen: { heim: heimStaerken.aufstellung, gast: gastStaerken.aufstellung },
   };

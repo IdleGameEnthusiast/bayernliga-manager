@@ -9,17 +9,19 @@
 import { el, leere, kontrastFarbe } from './ui/dom.js';
 import { T } from './i18n.js';
 import { teamById } from './engine/content.js';
+import { datum } from './engine/kalender.js';
+import { markiereGelesen } from './engine/postfach.js';
 import {
-  neuesSpiel, spieleSpieltag, naechsteSaison, saisonVorbei, anzahlSpieltage,
-  gruppenTabellen, meineTabelle, setzeTaktik, setzeAufstellung, entwurfSetze,
-  entwurfVollstaendig, eigeneAufstellung, entwurfLeeren, entwurfEntferne,
+  neuesSpiel, weiter, beantworteNachricht, gruppenTabellen, meineTabelle,
+  setzeTaktik, setzeAufstellung, entwurfSetze, entwurfVollstaendig,
+  eigeneAufstellung, entwurfLeeren, entwurfEntferne,
 } from './engine/saison.js';
 import { partienDerRunde } from './engine/spielplan.js';
 import {
   speichere, lade, gibtEsSpeicherstand, exportiere, importiere, dateiName,
 } from './engine/save.js';
 import { zeigeStart } from './ui/start.js';
-import { zeigeIntro } from './ui/intro.js';
+import { zeigePostfach, klappe, vergissAnsicht } from './ui/postfach.js';
 import { zeigeTabelle } from './ui/tabelle.js';
 import { zeigeKader } from './ui/kader.js';
 import { zeigeTaktik } from './ui/taktik.js';
@@ -27,14 +29,24 @@ import { zeigeSpielplan } from './ui/spielplan.js';
 import { zeigeSpielbericht } from './ui/spielbericht.js';
 import { zeigeFrage } from './ui/frage.js';
 
+/** @typedef {'start'|'postfach'|'tabelle'|'kader'|'taktik'|'spielplan'|'bericht'} Ansicht */
+
 /** @type {import('./engine/saison.js').SpielStand | null} */
 let stand = null;
 
-/** @type {'start'|'intro'|'tabelle'|'kader'|'taktik'|'spielplan'|'verlauf'|'bericht'} */
+/** @type {Ansicht} */
 let ansicht = 'start';
 
 /** @type {import('./engine/spielplan.js').Partie | null} */
 let offenePartie = null;
+
+/**
+ * Wohin der Spielbericht zurückführt. Er wird aus zwei Richtungen geöffnet —
+ * aus dem Postfach und aus dem Spielplan —, und „Zurück" heißt in beiden
+ * Fällen dorthin, wo man herkam.
+ * @type {Ansicht}
+ */
+let berichtZurueck = 'postfach';
 
 /** @type {string | null} */
 let hinweis = null;
@@ -65,11 +77,6 @@ function zeichne() {
     return;
   }
 
-  if (ansicht === 'intro') {
-    wurzel.append(zeigeIntro(teamById(stand.meinTeam), uebernimm, beiNeu));
-    return;
-  }
-
   wurzel.append(kopfzeile());
 
   if (hinweis) {
@@ -79,14 +86,16 @@ function zeichne() {
   if (ansicht === 'bericht' && offenePartie) {
     wurzel.append(zeigeSpielbericht(offenePartie, () => {
       offenePartie = null;
-      wechsle('spielplan');
+      wechsle(berichtZurueck);
     }));
     return;
   }
 
   wurzel.append(reiter());
 
-  if (ansicht === 'tabelle') {
+  if (ansicht === 'postfach') {
+    wurzel.append(zeigePostfach(stand, postfachAktionen));
+  } else if (ansicht === 'tabelle') {
     wurzel.append(zeigeTabelle(gruppenTabellen(stand), stand.meinTeam, playoffPartien(stand)));
   } else if (ansicht === 'kader') {
     wurzel.append(zeigeKader(stand, entwurf, {
@@ -101,15 +110,13 @@ function zeichne() {
   } else if (ansicht === 'taktik') {
     wurzel.append(zeigeTaktik(stand, beiTaktik));
   } else if (ansicht === 'spielplan') {
-    wurzel.append(zeigeSpielplan(stand.spielplan, stand.meinTeam, stand.spieltag, (p) => {
+    wurzel.append(zeigeSpielplan(stand.spielplan, stand.meinTeam, stand.tag, (p) => {
       offenePartie = p;
+      berichtZurueck = 'spielplan';
       wechsle('bericht');
     }));
-  } else if (ansicht === 'verlauf') {
-    wurzel.append(verlaufAnsicht());
   }
 
-  wurzel.append(fussleiste());
   if (frage) wurzel.append(zeigeFrage(frage));
 }
 
@@ -122,11 +129,13 @@ function playoffPartien(s) {
   ];
 }
 
+/**
+ * Die Kopfzeile trägt seit dem Kalender ein **Datum** statt einer
+ * Spieltagszahl: sie sagt, wann man ist, und rechts, wo man steht.
+ */
 function kopfzeile() {
   if (!stand) return el('div');
   const t = teamById(stand.meinTeam);
-  const gesamt = anzahlSpieltage(stand.spielplan);
-  const fertig = saisonVorbei(stand);
   const platz = meineTabelle(stand).findIndex((z) => z.teamId === stand.meinTeam) + 1;
 
   return el('div', { class: 'kopf' },
@@ -137,88 +146,48 @@ function kopfzeile() {
     el('div', {},
       el('div', { class: 'kopf-titel', text: t.name }),
       el('div', { class: 'kopf-unter', text: `Saison ${stand.jahr}` })),
+    el('div', { class: 'kopf-datum klein' }, T.datum.kurz(datum(stand.jahr, stand.tag))),
     el('div', { class: 'kopf-rechts' },
       el('div', { class: 'kopf-titel', text: `${platz}.` }),
-      el('div', {
-        class: 'kopf-unter',
-        text: fertig ? T.meldung.saisonVorbei : naechsterTermin(stand, gesamt),
-      })));
-}
-
-/**
- * Was oben rechts steht: die Spieltagszahl in der Gruppenrunde, sonst der Name
- * der Runde, die als Nächstes ansteht.
- * @param {import('./engine/saison.js').SpielStand} s @param {number} gesamt
- */
-function naechsterTermin(s, gesamt) {
-  const naechste = s.spielplan.find((p) => p.spieltag === s.spieltag);
-  return naechste && naechste.runde !== 'gruppe'
-    ? T.runde[naechste.runde]
-    : `${T.spielplan.spieltag} ${s.spieltag}/${gesamt}`;
+      el('div', { class: 'kopf-unter', text: T.gruppenKurz[t.gruppe] })));
 }
 
 function reiter() {
-  /** @type {[string, string][]} */
+  /** @type {[Ansicht, string][]} */
   const tabs = [
+    ['postfach', T.nav.postfach],
     ['tabelle', T.nav.tabelle],
     ['kader', T.nav.kader],
     ['taktik', T.nav.taktik],
     ['spielplan', T.nav.spielplan],
-    ['verlauf', T.nav.verlauf],
   ];
   return el('div', { class: 'reiter', role: 'tablist' },
     tabs.map(([id, label]) => el('button', {
       role: 'tab',
       'aria-selected': String(ansicht === id),
-      onclick: () => mitEntwurf(() => wechsle(/** @type {any} */ (id))),
+      onclick: () => mitEntwurf(() => wechsle(id)),
     }, label)));
-}
-
-function fussleiste() {
-  if (!stand) return el('div');
-  const fertig = saisonVorbei(stand);
-
-  return el('div', { class: 'fuss' },
-    fertig
-      ? el('button', { class: 'haupt', onclick: () => mitEntwurf(beiNaechsterSaison) },
-        T.aktion.naechsteSaison)
-      : el('button', { class: 'haupt', onclick: () => mitEntwurf(beiSpieltag) },
-        T.aktion.spieltagSimulieren));
-}
-
-function verlaufAnsicht() {
-  if (!stand) return el('div');
-
-  const historie = stand.historie.length > 0
-    ? el('div', { class: 'karte' },
-      el('h2', { text: 'Vergangene Saisons' }),
-      stand.historie.slice().reverse().map((h) => el('p', { class: 'klein', style: { margin: '4px 0' } },
-        `${h.jahr}: Platz ${h.meinPlatz} · Meister ${teamById(h.meister).name}`)))
-    : null;
-
-  const log = el('div', { class: 'karte' },
-    el('h2', { text: T.nav.verlauf }),
-    stand.verlauf.length === 0
-      ? el('p', { class: 'leise klein', text: 'Noch nichts passiert.' })
-      : stand.verlauf.slice().reverse().map((z) =>
-        el('p', { class: 'klein', style: { margin: '4px 0' }, text: z })));
-
-  const daten = el('div', { class: 'karte' },
-    el('h2', { text: 'Speicherstand' }),
-    el('p', { class: 'leise klein' },
-      'Der Speicherstand liegt im Browser. Exportiere ihn, um ihn zu sichern '
-      + 'oder zwischen PC und iPad zu übertragen.'),
-    el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
-      el('button', { class: 'neben', onclick: beiExport }, T.aktion.exportieren),
-      el('button', { class: 'neben', onclick: beiImport }, T.aktion.importieren),
-      el('button', { class: 'neben', onclick: beiNeu }, T.aktion.neuesSpiel)));
-
-  return el('div', {}, historie, log, daten);
 }
 
 // --- Aktionen --------------------------------------------------------------
 
-/** @param {'start'|'intro'|'tabelle'|'kader'|'taktik'|'spielplan'|'verlauf'|'bericht'} neu */
+/** @type {import('./ui/postfach.js').Aktionen} */
+const postfachAktionen = {
+  weiter: (zielTag = null) => mitEntwurf(() => beiWeiter(zielTag)),
+  beantworte: beiAntwort,
+  oeffne: beiNachricht,
+  zumBericht: (p) => {
+    offenePartie = p;
+    berichtZurueck = 'postfach';
+    wechsle('bericht');
+  },
+  exportieren: beiExport,
+  importieren: beiImport,
+  neuesSpiel: beiNeu,
+  neuZeichnen: zeichne,
+};
+
+/** @param {Ansicht} neu */
 function wechsle(neu) {
   ansicht = neu;
   hinweis = null;
@@ -230,14 +199,11 @@ function wechsle(neu) {
 function starteKarriere(teamId) {
   if (gibtEsSpeicherstand() && !confirm(T.start.neuWarnung)) return;
   stand = neuesSpiel(teamId);
-  wechsle('intro');
-}
-
-/** Die Zusage aus der Ansprache: ab hier liegt die Karriere im Speicher. */
-function uebernimm() {
-  if (!stand) return;
+  vergissAnsicht();
+  // Ab hier liegt die Karriere im Speicher. Die Ansprache des Vorstands ist
+  // kein eigener Bildschirm mehr, sondern die erste Nachricht im Postfach.
   speichere(stand);
-  wechsle('tabelle');
+  wechsle('postfach');
 }
 
 function setzeFort() {
@@ -247,24 +213,57 @@ function setzeFort() {
     return;
   }
   stand = geladen;
-  wechsle('tabelle');
+  vergissAnsicht();
+  wechsle('postfach');
 }
 
-function beiSpieltag() {
+/**
+ * Weiterspielen. Wo der Kalender anhält und warum, entscheidet die Engine —
+ * hier wird nur gespeichert und die richtige Ansicht aufgeschlagen.
+ * @param {number | null} zielTag
+ */
+function beiWeiter(zielTag) {
   if (!stand) return;
-  const bericht = spieleSpieltag(stand);
+  const meinTeam = stand.meinTeam;
+  const fortschritt = weiter(stand, zielTag);
   speichere(stand);
 
-  if (bericht) {
-    const meins = bericht.partien.find(
-      (p) => p.heim === stand?.meinTeam || p.gast === stand?.meinTeam);
-    if (meins) {
-      offenePartie = meins;
-      wechsle('bericht');
-      return;
-    }
+  const meins = fortschritt.partien
+    .filter((p) => p.heim === meinTeam || p.gast === meinTeam)
+    .pop();
+  if (meins) {
+    offenePartie = meins;
+    berichtZurueck = 'postfach';
+    wechsle('bericht');
+    return;
   }
-  wechsle('tabelle');
+  wechsle('postfach');
+}
+
+/**
+ * Eine Nachricht auf- oder zuklappen. Aufgeklappt heißt gelesen — gelesene
+ * Nachrichten sind das Archiv, und ein zweiter Knopf dafür wäre einer zu viel.
+ * @param {string} id
+ */
+function beiNachricht(id) {
+  if (!stand) return;
+  if (klappe(id)) {
+    markiereGelesen(stand, id);
+    speichere(stand);
+  }
+  if (ansicht !== 'postfach') wechsle('postfach');
+  else zeichne();
+}
+
+/**
+ * Antworten. Was eine Antwort bewirkt, weiß die Engine.
+ * @param {string} id @param {string} antwort
+ */
+function beiAntwort(id, antwort) {
+  if (!stand) return;
+  beantworteNachricht(stand, id, antwort);
+  speichere(stand);
+  zeichne();
 }
 
 /**
@@ -350,10 +349,10 @@ function beiVerwerfen() {
  * ohne dass es jemand bemerkt hätte. Ist der Entwurf vollständig, ist Speichern
  * die naheliegende Antwort; ist er es nicht, kann er gar nicht gespeichert
  * werden, und dann ist Weiterbauen die einzige, die nichts verliert.
- * @param {() => void} weiter
+ * @param {() => void} weiterMachen
  */
-function mitEntwurf(weiter) {
-  if (!entwurf || !stand) { weiter(); return; }
+function mitEntwurf(weiterMachen) {
+  if (!entwurf || !stand) { weiterMachen(); return; }
 
   const vollstaendig = entwurfVollstaendig(stand, entwurf.vorgabe);
   const offen = offenePlaetze(stand, entwurf.vorgabe);
@@ -365,7 +364,7 @@ function mitEntwurf(weiter) {
         ? {
           label: T.aufstellung.speichern,
           klasse: 'haupt',
-          wirkung: () => { frage = null; if (beiSpeichern()) weiter(); },
+          wirkung: () => { frage = null; if (beiSpeichern()) weiterMachen(); },
         }
         : {
           label: T.aufstellung.weiterBearbeiten,
@@ -374,7 +373,7 @@ function mitEntwurf(weiter) {
         },
       {
         label: T.aufstellung.verwerfen,
-        wirkung: () => { frage = null; entwurf = null; weiter(); },
+        wirkung: () => { frage = null; entwurf = null; weiterMachen(); },
       },
     ],
   };
@@ -389,20 +388,6 @@ function mitEntwurf(weiter) {
 function offenePlaetze(s, vorgabe) {
   const a = eigeneAufstellung(s, vorgabe);
   return [...a.offense, ...a.defense].filter((p) => !p.spieler).length;
-}
-
-function beiNaechsterSaison() {
-  if (!stand) return;
-  const { meister, ruecktritte } = naechsteSaison(stand);
-  speichere(stand);
-
-  const teile = [T.meldung.meister(teamById(meister).name)];
-  if (ruecktritte.length > 0) {
-    teile.push(`${T.meldung.ruecktritte}: ${ruecktritte.map((s) => s.vorname + ' ' + s.nachname).join(', ')}`);
-  }
-  wechsle('tabelle');
-  hinweis = teile.join('  ·  ');
-  zeichne();
 }
 
 function beiExport() {
@@ -425,7 +410,8 @@ function beiImport() {
       try {
         stand = importiere(text);
         speichere(stand);
-        wechsle('tabelle');
+        vergissAnsicht();
+        wechsle('postfach');
         hinweis = T.meldung.importErfolg;
         zeichne();
       } catch {
@@ -438,6 +424,7 @@ function beiImport() {
 
 function beiNeu() {
   stand = null;
+  vergissAnsicht();
   wechsle('start');
 }
 
@@ -446,7 +433,7 @@ function beiNeu() {
 const gespeichert = lade();
 if (gespeichert) {
   stand = gespeichert;
-  ansicht = 'tabelle';
+  ansicht = 'postfach';
 }
 zeichne();
 

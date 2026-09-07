@@ -38,7 +38,7 @@ import { VORNAMEN, NACHNAMEN } from './content.js';
  * @property {number} staerke         Current overall, never above LIGA_MAX_STAERKE
  * @property {number} talent          Ceiling this player could reach; may sit above the league cap
  * @property {number} ruecktrittAlter The season after this age he stops
- * @property {number} verletztBis     Matchday index the player is fit again; 0 = fit
+ * @property {number} verletztBis     Tag der Saison, ab dem er wieder fit ist; 0 = fit
  * @property {number} groesse         cm
  * @property {number} gewicht         kg
  * @property {Record<string, number>} attribute  The fifteen, on the strength scale
@@ -554,9 +554,9 @@ export function vergebeNummern(rng, kader, neuVerteilen = false) {
   return kader;
 }
 
-/** @param {Spieler} s @param {number} spieltag */
-export function istFit(s, spieltag) {
-  return s.verletztBis <= spieltag;
+/** @param {Spieler} s @param {number} tag */
+export function istFit(s, tag) {
+  return s.verletztBis <= tag;
 }
 
 /**
@@ -576,11 +576,11 @@ export function talentSterne(talent) {
  * The fit players at a position, best first.
  * @param {Spieler[]} kader
  * @param {import('./constants.js').Position} position
- * @param {number} spieltag
+ * @param {number} tag
  */
-export function verfuegbar(kader, position, spieltag) {
+export function verfuegbar(kader, position, tag) {
   return kader
-    .filter((s) => hauptPosition(s) === position && istFit(s, spieltag))
+    .filter((s) => hauptPosition(s) === position && istFit(s, tag))
     .sort((a, b) => b.staerke - a.staerke);
 }
 

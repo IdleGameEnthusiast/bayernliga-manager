@@ -1,24 +1,35 @@
 // @ts-check
 /**
- * The season: state shape, the matchday tick, and the roll into the next year.
+ * The season: state shape, the daily tick, and the roll into the next year.
  *
  * A season is ten group matchdays plus a bracket — two semi-finals on matchday
  * eleven, the final on twelve. The bracket is appended to the Spielplan the
  * moment the round before it is complete, so `spieltag` stays one continuous
  * counter and the save never has to describe a phase separately.
  *
- * Docs: docs/spec/02-core-loop.md, docs/spec/03-state-contract.md
+ * Die Uhr läuft seit dem Kalenderumbau in **Tagen**, nicht in Spieltagen: der
+ * Spieltag ist nur noch das Etikett an der Partie. Nach außen steht dafür eine
+ * einzige Funktion — `weiter()` —, die von selbst dort anhält, wo eine
+ * Entscheidung fällig ist.
+ *
+ * Docs: docs/spec/02-core-loop.md, docs/spec/03-state-contract.md,
+ * docs/umbau-kalender.md
  */
 
 import {
   SEASON_START_YEAR, ZUSATZ_SPIELER, EIGENE_VEREINSBASIS, makeRng, pick, clamp,
 } from './constants.js';
 import { TEAMS, GRUPPEN, teamById, teamsDerGruppe } from './content.js';
-import { T } from '../i18n.js';
-import { macheKader, saisonWechsel, resetSpielerIds, spieleEinsatz } from './spieler.js';
+import {
+  saisonLaenge, spieltagAmTag, phaseAmTag, phasenBeginn,
+} from './kalender.js';
+import {
+  sende, baueNachrichten, offeneAntworten, beantworte, stutzePost,
+} from './postfach.js';
+import { macheKader, saisonWechsel, resetSpielerIds, spieleEinsatz, istFit } from './spieler.js';
 import {
   macheGruppenplan, macheHalbfinale, macheFinale, sieger,
-  anzahlSpieltage, partienAmSpieltag, partienDerRunde,
+  anzahlSpieltage, partienAmTag, partienDerRunde,
 } from './spielplan.js';
 import { simuliereSpiel } from './spiel.js';
 import {
@@ -28,22 +39,23 @@ import {
 import { berechneTabelle } from './tabelle.js';
 import { teamStaerken } from './team.js';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 /**
  * @typedef {object} SpielStand
  * @property {number} version
  * @property {string} seed
- * @property {number} jahr
- * @property {number} spieltag        Next matchday to play; > anzahlSpieltage means the season is over
+ * @property {number} jahr            Saisonlabel; die Saison 2027 beginnt am 17.10.2026
+ * @property {number} tag             Tag seit Saisonbeginn, 1-basiert — die Uhr
  * @property {string} meinTeam
  * @property {Record<string, import('./spieler.js').Spieler[]>} kader  by team id
  * @property {import('./spielplan.js').Partie[]} spielplan
  * @property {Record<string, string>} personnel   Personnel-Gruppierung je Verein
  * @property {Record<string, number>} passAnteil  Ausrichtung je Verein, 0..1
  * @property {import('./aufstellung.js').Vorgabe | null} aufstellung  Von Hand, nur der eigene Verein
- * @property {string[]} verlauf       Log lines, newest last
+ * @property {import('./postfach.js').Nachricht[]} post  Der Posteingang, ältestes zuerst
  * @property {{ jahr: number, meister: string, meinPlatz: number }[]} historie
+ * @property {string[]} [altverlauf]  Fertige Sätze aus einem v4-Stand, siehe migriere()
  */
 
 /**
@@ -176,7 +188,7 @@ export function aufstellungVon(stand, teamId) {
 export function eigeneAufstellung(stand, vorgabe) {
   const id = stand.meinTeam;
   return stelleAuf(
-    stand.kader[id], stand.spieltag, personnelVon(stand, id), passAnteilVon(stand, id),
+    stand.kader[id], stand.tag, personnelVon(stand, id), passAnteilVon(stand, id),
     vorgabe === undefined ? aufstellungVon(stand, id) : vorgabe,
   );
 }
@@ -301,9 +313,9 @@ export function alsGegner(stand, teamId) {
  */
 export function naechstePartie(stand, teamId) {
   const kommende = stand.spielplan.filter(
-    (p) => p.spieltag >= stand.spieltag && (p.heim === teamId || p.gast === teamId));
+    (p) => !p.ergebnis && (p.heim === teamId || p.gast === teamId));
   if (kommende.length === 0) return null;
-  return kommende.reduce((a, b) => (b.spieltag < a.spieltag ? b : a));
+  return kommende.reduce((a, b) => (b.tag < a.tag ? b : a));
 }
 
 /**
@@ -321,7 +333,7 @@ export function ligaSchnittVerteidigung(stand) {
   let lauf = 0;
   for (const t of andere) {
     const s = teamStaerken(
-      stand.kader[t.id], stand.spieltag, personnelVon(stand, t.id), passAnteilVon(stand, t.id));
+      stand.kader[t.id], stand.tag, personnelVon(stand, t.id), passAnteilVon(stand, t.id));
     pass += s.passVerteidigung;
     lauf += s.laufVerteidigung;
   }
@@ -357,29 +369,67 @@ export function neuesSpiel(meinTeam, seed) {
   const passAnteil = {};
   for (const t of TEAMS) passAnteil[t.id] = PERSONNEL[personnel[t.id]].passAnteil;
 
-  return {
+  /** @type {SpielStand} */
+  const stand = {
     version: SAVE_VERSION,
     seed: wirklicherSeed,
     jahr: SEASON_START_YEAR,
-    spieltag: 1,
+    tag: 1,
     meinTeam,
     kader,
     personnel,
     passAnteil,
     aufstellung: null,
     spielplan: frischerGruppenplan(rng),
-    verlauf: [],
+    post: [],
     historie: [],
   };
+
+  // Der Amtsantritt ist die erste E-Mail, kein eigener Bildschirm: alles, was
+  // der Verein vom Manager will, kommt über denselben Kanal.
+  saisonEroeffnung(stand, [], true);
+  return stand;
 }
 
 /**
- * The RNG for one matchday. Derived from the save seed so replaying a season
- * from the same save produces the same results.
+ * Was an Tag 1 einer Saison im Postfach liegt: die Rückgetretenen, und das
+ * Wort des Vorstands, auf das der Manager antworten muss.
+ *
+ * Der Saisonwechsel schreibt das selbst und nicht `ereignisseAmTag()`, weil er
+ * der Einzige ist, der die Namen der Abgänge kennt — die stehen eine Zeile
+ * später in keinem Kader mehr.
  * @param {SpielStand} stand
+ * @param {import('./spieler.js').Spieler[]} ruecktritte
+ * @param {boolean} antritt Ob es der Amtsantritt ist und nicht bloß ein Jahreswechsel
  */
-function spieltagRng(stand) {
-  return makeRng(`${stand.seed}|${stand.jahr}|${stand.spieltag}`);
+function saisonEroeffnung(stand, ruecktritte, antritt) {
+  /** @type {{ art: string, daten?: Record<string, any> }[]} */
+  const eintraege = [];
+  if (ruecktritte.length > 0) {
+    eintraege.push({
+      art: 'ruecktritte',
+      daten: { namen: ruecktritte.map((s) => `${s.vorname} ${s.nachname}`) },
+    });
+  }
+  eintraege.push({
+    art: 'vorstandsziel',
+    daten: { verein: stand.meinTeam, jahr: stand.jahr, antritt },
+  });
+  return sende(stand, 1, eintraege);
+}
+
+/**
+ * Der Zufallsstrom eines Tages. Aus dem Saatgut des Standes abgeleitet, damit
+ * dieselbe Saison aus demselben Speicherstand dieselbe Saison bleibt.
+ *
+ * Der Schlüssel hängt am **Tag**, nicht mehr am Spieltag: spätere
+ * Tagesereignisse — Training, Transfers — hängen dann am selben Strom. Weil der
+ * Tag innerhalb einer Saison eindeutig ist, kann er nicht kollidieren, obwohl
+ * eine Saison über den Jahreswechsel läuft.
+ * @param {SpielStand} stand @param {number} tag
+ */
+function tagRng(stand, tag) {
+  return makeRng(`${stand.seed}|${stand.jahr}|${tag}`);
 }
 
 /**
@@ -401,9 +451,31 @@ function ohneAbgaenge(vorgabe, kader) {
     Object.entries(vorgabe).filter(([, id]) => id === null || da.has(id)));
 }
 
-/** @param {SpielStand} stand */
-export function saisonVorbei(stand) {
-  return stand.spieltag > anzahlSpieltage(stand.spielplan);
+/**
+ * Der letzte Tag der laufenden Saison.
+ *
+ * Er ist die Grenze, an der `weiter()` in die nächste Saison rollt — und mit
+ * `phaseAmTag()` zusammen das, was `saisonVorbei()` einmal war: die Saison ist
+ * nicht mehr „vorbei", sie geht in die nächste Phase über, und die nächste
+ * beginnt nicht auf Knopfdruck, sondern an Tag 1.
+ * @param {SpielStand} stand
+ */
+export function letzterTag(stand) {
+  return saisonLaenge(stand.jahr);
+}
+
+/** Die noch nicht gespielten Partien eines Tages. @param {SpielStand} stand @param {number} tag */
+function offenePartienAmTag(stand, tag) {
+  return partienAmTag(stand.spielplan, tag).filter((p) => !p.ergebnis);
+}
+
+/**
+ * Die eigene Partie eines Tages, sofern sie noch aussteht.
+ * @param {SpielStand} stand @param {number} tag
+ */
+export function eigenePartieAmTag(stand, tag) {
+  return offenePartienAmTag(stand, tag).find(
+    (p) => p.heim === stand.meinTeam || p.gast === stand.meinTeam) || null;
 }
 
 /** The last matchday of the group stage. @param {import('./spielplan.js').Partie[]} plan */
@@ -488,23 +560,24 @@ function verbucheEinsaetze(a) {
 }
 
 /**
- * Play the current matchday. Mutates `stand` and returns what happened, so the
- * UI can show a report without recomputing it.
- * @param {SpielStand} stand
- * @returns {{ partien: import('./spielplan.js').Partie[], verletzungen: import('./spiel.js').Verletzung[] } | null}
+ * Einen Kalendertag ausspielen: alle Partien, die an ihm stehen und noch kein
+ * Ergebnis haben. Intern — nach außen führt der Weg über `weiter()`.
+ * @param {SpielStand} stand @param {number} tag
+ * @returns {{ partien: import('./spielplan.js').Partie[],
+ *             nachrichten: import('./postfach.js').Nachricht[] }}
  */
-export function spieleSpieltag(stand) {
-  if (saisonVorbei(stand)) return null;
+function spieleTag(stand, tag) {
+  const partien = offenePartienAmTag(stand, tag);
+  if (partien.length === 0) return { partien: [], nachrichten: [] };
 
-  const rng = spieltagRng(stand);
-  const spieltag = stand.spieltag;
-  const partien = partienAmSpieltag(stand.spielplan, spieltag);
-  /** @type {import('./spiel.js').Verletzung[]} */
-  const alleVerletzungen = [];
+  const rng = tagRng(stand, tag);
+  const spieltagNr = spieltagAmTag(tag);
+  /** @type {{ art: string, daten?: Record<string, any> }[]} */
+  const eintraege = [];
 
   for (const p of partien) {
     const { aufstellungen, ...ergebnis } = simuliereSpiel(
-      rng, alsGegner(stand, p.heim), alsGegner(stand, p.gast), spieltag,
+      rng, alsGegner(stand, p.heim), alsGegner(stand, p.gast), tag,
     );
     p.ergebnis = ergebnis;
 
@@ -517,27 +590,240 @@ export function spieleSpieltag(stand) {
 
     for (const v of ergebnis.verletzungen) {
       const spieler = stand.kader[v.teamId].find((s) => s.id === v.spielerId);
-      if (spieler) spieler.verletztBis = spieltag + v.wochen;
-      alleVerletzungen.push(v);
+      // Wochen mal sieben: bei wöchentlichen Spieltagen ist das exakt dieselbe
+      // Zahl verpasster Spiele wie vorher. Nur über die spielfreie Woche hinweg
+      // kostet eine Verletzung ein Spiel weniger — das ist richtiger, nicht kaputt.
+      if (spieler) spieler.verletztBis = tag + v.wochen * 7;
+      if (v.teamId !== stand.meinTeam) continue;
+      eintraege.push({
+        art: 'verletzung',
+        daten: { name: v.name, position: v.position, wochen: v.wochen },
+      });
     }
   }
 
-  // Log only what concerns the club the player manages.
+  // Gemeldet wird, was den Verein angeht, den der Manager führt.
   const meins = partien.find((p) => p.heim === stand.meinTeam || p.gast === stand.meinTeam);
   if (meins && meins.ergebnis) {
-    const heimIstMeins = meins.heim === stand.meinTeam;
-    const eigene = heimIstMeins ? meins.ergebnis.heimPunkte : meins.ergebnis.gastPunkte;
-    const fremde = heimIstMeins ? meins.ergebnis.gastPunkte : meins.ergebnis.heimPunkte;
-    stand.verlauf.push(T.log.partie(
-      meins.runde === 'gruppe' ? `${T.spielplan.spieltag} ${spieltag}` : T.runde[meins.runde],
-      eigene > fremde ? T.log.sieg : T.log.niederlage,
-      eigene, fremde,
-    ));
+    const heim = meins.heim === stand.meinTeam;
+    eintraege.unshift({
+      art: 'spielbericht',
+      daten: {
+        spieltagNr,
+        runde: meins.runde,
+        heim,
+        gegner: heim ? meins.gast : meins.heim,
+        eigene: heim ? meins.ergebnis.heimPunkte : meins.ergebnis.gastPunkte,
+        fremde: heim ? meins.ergebnis.gastPunkte : meins.ergebnis.heimPunkte,
+      },
+    });
   }
 
-  stand.spieltag++;
+  if (partienDerRunde(stand.spielplan, 'gruppe').some((p) => p.tag === tag)) {
+    const zeile = meineTabelle(stand).find((z) => z.teamId === stand.meinTeam);
+    if (zeile) {
+      eintraege.push({
+        art: 'rundenergebnisse',
+        daten: {
+          spieltagNr,
+          platz: zeile.platz,
+          siege: zeile.siege,
+          niederlagen: zeile.niederlagen,
+        },
+      });
+    }
+  }
+
+  const hatteHalbfinale = partienDerRunde(stand.spielplan, 'halbfinale').length > 0;
   ergaenzePlayoffs(stand);
-  return { partien, verletzungen: alleVerletzungen };
+  const halbfinale = partienDerRunde(stand.spielplan, 'halbfinale');
+  if (!hatteHalbfinale && halbfinale.length > 0) {
+    eintraege.push({
+      art: 'auslosung',
+      daten: { paarungen: halbfinale.map((p) => [p.heim, p.gast]) },
+    });
+  }
+
+  const champion = meister(stand);
+  if (champion && partienDerRunde(stand.spielplan, 'finale').some((p) => p.tag === tag)) {
+    const platz = meineTabelle(stand).findIndex((z) => z.teamId === stand.meinTeam) + 1;
+    eintraege.push({ art: 'meister', daten: { meister: champion, meinPlatz: platz } });
+  }
+
+  return { partien, nachrichten: sende(stand, tag, eintraege) };
+}
+
+/**
+ * Die Vorgabe, die der Manager gestellt hat, gegen die Wirklichkeit gehalten:
+ * wer darin steht und am Spieltag nicht auflaufen kann.
+ * @param {SpielStand} stand @param {number} tag
+ * @returns {string[]} Namen, in Aufstellungsreihenfolge
+ */
+function ausfaelleInDerVorgabe(stand, tag) {
+  if (!stand.aufstellung) return [];
+  const kader = stand.kader[stand.meinTeam];
+  /** @type {string[]} */
+  const namen = [];
+  for (const id of Object.values(stand.aufstellung)) {
+    if (id === null) continue;
+    const s = kader.find((x) => x.id === id);
+    if (s && !istFit(s, tag)) namen.push(`${s.vorname} ${s.nachname}`);
+  }
+  return namen;
+}
+
+/**
+ * Was der Tagesanbruch an Post bringt — ohne den Stand zu ändern.
+ *
+ * Was aus einem Spiel folgt, schreibt `spieleTag()`; was der Saisonwechsel
+ * bringt, schreibt er selbst. Hier steht nur, was der Kalender allein weiß.
+ * @param {SpielStand} stand @param {number} tag
+ * @returns {import('./postfach.js').Nachricht[]}
+ */
+export function ereignisseAmTag(stand, tag) {
+  return baueNachrichten(stand, tag, eintraegeAmTag(stand, tag));
+}
+
+/** @param {SpielStand} stand @param {number} tag */
+function eintraegeAmTag(stand, tag) {
+  /** @type {{ art: string, daten?: Record<string, any> }[]} */
+  const eintraege = [];
+
+  if (eigenePartieAmTag(stand, tag)) {
+    // Eine verletzungsbedingt ungültige Aufstellung ist ein Stopp, kein stiller
+    // Auto-Fix. Die Automatik *könnte* das kommentarlos auffüllen — genau das
+    // ist die Regel, die man später bereut, wenn sie fehlt.
+    const ausfaelle = ausfaelleInDerVorgabe(stand, tag);
+    if (ausfaelle.length > 0) {
+      eintraege.push({
+        art: 'aufstellungUngueltig',
+        daten: { spieltagNr: spieltagAmTag(tag), namen: ausfaelle },
+      });
+    }
+  }
+
+  const morgen = eigenePartieAmTag(stand, tag + 1);
+  if (morgen) {
+    const zuhause = morgen.heim === stand.meinTeam;
+    eintraege.push({
+      art: 'spielvorschau',
+      daten: {
+        spieltagNr: spieltagAmTag(morgen.tag),
+        runde: morgen.runde,
+        heim: zuhause,
+        gegner: zuhause ? morgen.gast : morgen.heim,
+      },
+    });
+  }
+
+  return eintraege;
+}
+
+/**
+ * @typedef {object} Stopp
+ * @property {number} tag
+ * @property {'spiel'|'antwort'|'phase'|'ziel'} grund
+ */
+
+/**
+ * Wo der Kalender das nächste Mal von selbst anhält — ohne den Stand zu ändern.
+ *
+ * Für die Anzeige „Nächster Termin". Eine Nachricht mit Antwortpflicht, die
+ * unterwegs erst entsteht, kann den Termin vorverlegen; was wirklich passiert
+ * ist, sagt `weiter()` mit seinem `grund`.
+ * @param {SpielStand} stand
+ * @returns {Stopp}
+ */
+export function naechsterStopp(stand) {
+  if (offeneAntworten(stand).length > 0) return { tag: stand.tag, grund: 'antwort' };
+  if (eigenePartieAmTag(stand, stand.tag)) return { tag: stand.tag, grund: 'spiel' };
+
+  const ende = letzterTag(stand);
+  for (let tag = stand.tag + 1; tag <= ende; tag++) {
+    if (eigenePartieAmTag(stand, tag)) return { tag, grund: 'spiel' };
+    if (phasenBeginn(tag)) return { tag, grund: 'phase' };
+  }
+  // Hinter dem letzten Tag steht der Saisonwechsel — Tag 1 des nächsten Jahres,
+  // als Datum genau der Tag nach diesem.
+  return { tag: ende + 1, grund: 'phase' };
+}
+
+/**
+ * @typedef {object} Fortschritt
+ * @property {number} bisTag   Der Tag, an dem der Kalender jetzt steht
+ * @property {'spiel'|'antwort'|'phase'|'ziel'} grund
+ * @property {import('./postfach.js').Nachricht[]} nachrichten
+ * @property {import('./spielplan.js').Partie[]} partien
+ */
+
+/**
+ * Weiterspielen — bis zum nächsten Zwangsstopp, oder bis `zielTag`, je nachdem,
+ * was zuerst kommt. Die einzige Funktion, die die Uhr bewegt.
+ *
+ * Der Aufruf räumt zuerst den heutigen Tag: liegt ein ungespieltes Spiel an, ist
+ * dieser Aufruf sein Anpfiff. Eine offene Antwort räumt er **nicht** — solange
+ * eine steht, geht kein Tag weiter, und der Aufruf sagt genau das.
+ *
+ * Fremde Spieltage halten nicht an: sie werden im Vorbeigehen simuliert und
+ * landen als Ergebnismeldung im Postfach.
+ * @param {SpielStand} stand
+ * @param {number | null} [zielTag]
+ * @returns {Fortschritt}
+ */
+export function weiter(stand, zielTag = null) {
+  /** @type {import('./postfach.js').Nachricht[]} */
+  const nachrichten = [];
+  /** @type {import('./spielplan.js').Partie[]} */
+  const partien = [];
+  /** @param {'spiel'|'antwort'|'phase'|'ziel'} grund @returns {Fortschritt} */
+  const halt = (grund) => ({ bisTag: stand.tag, grund, nachrichten, partien });
+
+  if (offeneAntworten(stand).length > 0) return halt('antwort');
+  if (zielTag !== null && zielTag <= stand.tag) return halt('ziel');
+
+  const heute = spieleTag(stand, stand.tag);
+  partien.push(...heute.partien);
+  nachrichten.push(...heute.nachrichten);
+
+  for (;;) {
+    if (stand.tag >= letzterTag(stand)) {
+      const wechsel = naechsteSaison(stand);
+      nachrichten.push(...wechsel.nachrichten);
+      return halt('phase');
+    }
+
+    stand.tag++;
+    nachrichten.push(...sende(stand, stand.tag, eintraegeAmTag(stand, stand.tag)));
+
+    if (offeneAntworten(stand).length > 0) return halt('antwort');
+    // Das eigene Spiel geht dem Phasenbeginn vor: Tag 183 ist beides, und was
+    // an ihm zählt, ist der Anpfiff.
+    if (eigenePartieAmTag(stand, stand.tag)) return halt('spiel');
+    if (phasenBeginn(stand.tag)) return halt('phase');
+
+    const gespielt = spieleTag(stand, stand.tag);
+    partien.push(...gespielt.partien);
+    nachrichten.push(...gespielt.nachrichten);
+
+    if (zielTag !== null && stand.tag >= zielTag) return halt('ziel');
+  }
+}
+
+/**
+ * Eine Nachricht beantworten — und tun, was die Antwort bedeutet.
+ *
+ * Die Wirkung steht hier und nicht im Postfach, weil sie den Spielstand ändert:
+ * das Postfach verwaltet Nachrichten, keine Aufstellungen.
+ * @param {SpielStand} stand @param {string} id @param {string} antwort
+ * @returns {import('./postfach.js').Nachricht | null}
+ */
+export function beantworteNachricht(stand, id, antwort) {
+  const n = beantworte(stand, id, antwort);
+  if (!n) return null;
+  if (n.art === 'aufstellungUngueltig' && antwort === 'automatisch') {
+    automatischAufstellen(stand);
+  }
+  return n;
 }
 
 /**
@@ -545,7 +831,8 @@ export function spieleSpieltag(stand) {
  * replaced, and a new group stage is drawn. The champion is whoever won the
  * final — never the club that topped a group table.
  * @param {SpielStand} stand
- * @returns {{ meister: string, ruecktritte: import('./spieler.js').Spieler[] }}
+ * @returns {{ meister: string, ruecktritte: import('./spieler.js').Spieler[],
+ *             nachrichten: import('./postfach.js').Nachricht[] }}
  */
 export function naechsteSaison(stand) {
   const champion = meister(stand);
@@ -567,11 +854,15 @@ export function naechsteSaison(stand) {
 
   stand.aufstellung = ohneAbgaenge(stand.aufstellung, stand.kader[stand.meinTeam]);
   stand.jahr++;
-  stand.spieltag = 1;
+  stand.tag = 1;
   stand.spielplan = frischerGruppenplan(rng);
-  stand.verlauf.push(T.log.saisonEnde(stand.jahr - 1, teamById(champion).name));
 
-  return { meister: champion, ruecktritte: alleRuecktritte };
+  // Erst stutzen, dann eröffnen: die Post des neuen Jahres soll die Schere
+  // nicht zu sehen bekommen.
+  stutzePost(stand);
+  const nachrichten = saisonEroeffnung(stand, alleRuecktritte, false);
+
+  return { meister: champion, ruecktritte: alleRuecktritte, nachrichten };
 }
 
 export { anzahlSpieltage };

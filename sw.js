@@ -22,6 +22,7 @@ const SHELL = [
   './manifest.json',
   './engine/constants.js',
   './engine/content.js',
+  './engine/kalender.js',
   './engine/positionen.js',
   './engine/spieler.js',
   './engine/aufstellung.js',
@@ -29,11 +30,11 @@ const SHELL = [
   './engine/spielplan.js',
   './engine/spiel.js',
   './engine/tabelle.js',
+  './engine/postfach.js',
   './engine/saison.js',
   './engine/save.js',
   './ui/dom.js',
   './ui/frage.js',
-  './ui/intro.js',
   './ui/start.js',
   './ui/bracket.js',
   './ui/tabelle.js',
@@ -42,6 +43,7 @@ const SHELL = [
   './ui/taktik.js',
   './ui/spielplan.js',
   './ui/spielbericht.js',
+  './ui/postfach.js',
 ];
 
 self.addEventListener('install', (e) => {

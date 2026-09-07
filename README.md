@@ -48,6 +48,7 @@ in Millisekunden durchspielen können.
 | --- | --- |
 | `engine/constants.js` | Balance-Zahlen, Positionen, gesäter Zufall, `clamp` |
 | `engine/content.js` | Die Kataloge: Vereine, Vor- und Nachnamen |
+| `engine/kalender.js` | Die Uhr: Saisonstart, Tagesnummern, Spieltagstermine, Phasen. Der einzige Ort mit `Date` |
 | `engine/positionen.js` | Körperkorridore, Positionsformeln, Plätze, die Eignung |
 | `engine/spieler.js` | Spieler erzeugen, Attribute, Alterskurve, Verletzungen, Saisonwechsel |
 | `engine/aufstellung.js` | Personnel, die zweiundzwanzig Plätze, der Doppeleinsatz, die Vorgabe des Managers |
@@ -55,7 +56,8 @@ in Millisekunden durchspielen können.
 | `engine/spielplan.js` | Gruppenrunde nach dem Kreisverfahren, dazu das Bracket |
 | `engine/spiel.js` | Die Spielsimulation: Endstand, Viertel, Box Score |
 | `engine/tabelle.js` | Die Gruppentabellen — immer neu berechnet, nie gespeichert |
-| `engine/saison.js` | Zustandsform, der Spieltag-Tick, das Bracket, der Sprung ins nächste Jahr |
+| `engine/postfach.js` | Nachrichten: Schlüssel und Daten, Antwortpflicht, das Stutzen |
+| `engine/saison.js` | Zustandsform, der Tages-Tick `weiter()`, das Bracket, der Sprung ins nächste Jahr |
 | `engine/save.js` | Speichern, Migration, Export und Import |
 | `i18n.js` | Alle sichtbaren Texte. Nur Daten |
 | `ui/*.js` | Jeder DOM-Aufruf |
@@ -71,10 +73,12 @@ Roster** und die Positionsnamen bleiben, wie sie auf dem Feld gesprochen
 werden. Ein deutsches Wort dafür wäre nur ein zweiter Name für etwas, das der
 Manager schon unter seinem ersten kennt.
 
-Ausnahme von der Richtung „engine kennt kein außen": `engine/saison.js`
-importiert `i18n.js`, weil es die Zeilen für den Verlauf schreibt. Das ist
-zulässig — `i18n.js` sind reine Daten, kein DOM —, und die Alternative wäre,
-dieselben Wörter ein zweites Mal in der Engine zu halten.
+Eine Ausnahme von der Richtung „engine kennt kein außen" gab es einmal:
+`engine/saison.js` importierte `i18n.js`, um die fertigen Zeilen des Verlaufs zu
+schreiben. Sie ist mit dem Postfach entfallen — eine Nachricht speichert einen
+**Schlüssel und ihre Daten, nie einen Satz**, und der Satz dazu steht in
+`T.post`. Damit lassen sich Texte ändern, ohne alte Speicherstände zu
+verfälschen. Heute importiert kein Modul in `engine/` etwas von außerhalb.
 
 ## Zufall und Tests
 
@@ -82,23 +86,33 @@ Die Engine bekommt ihren Zufall injiziert (`makeRng(seed)`). Derselbe Seed ergib
 dieselbe Saison, deshalb sind die Tests reproduzierbar. In Tests nie auf eine
 Verteilung prüfen, ohne den Seed festzunageln.
 
-Der Spieltag-Zufall leitet sich aus `seed | jahr | spieltag` ab: ein Speicherstand
-liefert beim erneuten Spielen dasselbe Ergebnis.
+Der Tages-Zufall leitet sich aus `seed | jahr | tag` ab: ein Speicherstand
+liefert beim erneuten Spielen dasselbe Ergebnis. Weil der Tag innerhalb einer
+Saison eindeutig ist, kann der Schlüssel nicht kollidieren, obwohl eine Saison
+über den Jahreswechsel läuft.
 
 ## Speicherstände
 
 Der laufende Stand liegt im `localStorage` (rund 150 KB). Das ist für eine
 installierte Web-App haltbar, aber nicht unantastbar — der **Export** unter
-*Verlauf → Speicherstand* ist die eigentliche Sicherung und zugleich der Weg,
-eine Karriere zwischen PC und iPad zu tragen.
+*Posteingang → Speicherstand* ist die eigentliche Sicherung und zugleich der
+Weg, eine Karriere zwischen PC und iPad zu tragen.
+
+Der Schlüssel heißt `bayernliga.save.v5`. Ein Stand von vor dem Kalender
+(`…v4`) wird beim Laden auf Tage umgerechnet und unter dem neuen Schlüssel
+abgelegt; der alte bleibt liegen, damit eine misslungene Migration nicht die
+einzige Kopie der Karriere ist.
 
 ## Stand und was als Nächstes käme
 
 Der Fahrplan mit allen gefallenen Entscheidungen steht in
 [`docs/naechste-schritte.md`](docs/naechste-schritte.md).
 
-Gespielt werden kann: Verein wählen, die Ansprache zum Amtsantritt, Spieltage
-simulieren, zwei Gruppentabellen, Kader mit Depth Chart, sortierbaren Spalten
+Gespielt werden kann: Verein wählen, den **Posteingang** als ersten Bildschirm
+— Monatsraster, Tageskarte und die Post des Vereins, in dem auch die Ansprache
+zum Amtsantritt als erste Nachricht liegt —, mit „Weiter" und „bis hierhin"
+durch den Kalender laufen, der von selbst vor jedem eigenen Spiel, vor jeder
+Antwortpflicht und an jedem Phasenwechsel anhält, zwei Gruppentabellen, Kader mit Depth Chart, sortierbaren Spalten
 und Verletzungen — aufgeklappt zeigt eine Zeile die fünfzehn Attribute und die
 fünf Plätze, auf denen der Mann gerade am meisten wert wäre —, Taktik mit Personnel und Ausrichtung, **die Aufstellung von
 Hand** — Platz antippen und aus den fünf Besten wählen, oder einen Spieler
@@ -111,6 +125,16 @@ Plätze schon während der Gruppenrunde benennt und sagt, wer sie gerade hält �
 Saisonwechsel mit Alterung und Rücktritten, Export und Import.
 
 ## Wie eine Saison aussieht
+
+Eine Saison läuft von einem **dritten Oktobersamstag zum nächsten** — die Saison
+2027 beginnt am 17.10.2026 — und dauert deshalb immer volle Wochen: 364 Tage,
+alle paar Jahre 371. Tag 1 ist immer ein Samstag, und jeder Spieltag liegt auf
+`tag ≡ 1 (mod 7)`; der Wochentag ist eine Modulorechnung und kein Kalender.
+Gespielt wird von Mitte April bis Ende Juli, davor liegt die Vorbereitung und
+dahinter die Sommerpause. Die Termine stehen als Liste in
+[`engine/kalender.js`](engine/kalender.js) — beim nächsten Formatwechsel ist das
+die eine Stelle, an der die Antwort steht. Alles Weitere in
+[`docs/umbau-kalender.md`](docs/umbau-kalender.md).
 
 Zwölf Vereine in zwei Gruppen zu sechs. **Zehn Spieltage** doppelte Runde
 *innerhalb* der Gruppe, dann das Bracket:

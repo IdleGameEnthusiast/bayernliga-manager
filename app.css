@@ -66,7 +66,16 @@ body {
 
 .kopf-titel { font-weight: 700; font-size: 17px; }
 .kopf-unter { color: var(--text-leise); font-size: 13px; }
-.kopf-rechts { margin-left: auto; text-align: right; }
+/* Das Datum steht in der Mitte und weicht als Erstes: auf einem schmalen
+   Gerät zählt, welcher Verein und welcher Platz — wann, sagt der Kalender
+   eine Zeile tiefer noch einmal. */
+.kopf-datum { margin-left: auto; color: var(--text-leise); white-space: nowrap; }
+.kopf-rechts { text-align: right; }
+
+@media (max-width: 520px) {
+  .kopf-datum { display: none; }
+  .kopf-rechts { margin-left: auto; }
+}
 
 /* --- Reiter -------------------------------------------------------------- */
 
@@ -665,6 +674,86 @@ tr.wertezeile td { padding: 0 8px 12px; text-align: left; white-space: normal; }
 /* Sein eigener Platz, damit sichtbar wird, ob er überhaupt darunter steht. */
 .platzwert.heim { border-color: var(--akzent); }
 .platzwert.heim b { color: var(--akzent-hell); }
+
+/* --- Posteingang: Kalender, Tageskarte, Nachrichten -----------------------
+   Der erste Bildschirm. Das Monatsraster oben sagt, wo man im Jahr steht, die
+   Tageskarte darunter trägt die Handlung — ohne Fußleiste ist sie die einzige
+   Oberfläche, die einen Zwangsstopp wieder auflöst. */
+
+.kalkopf { display: flex; align-items: center; gap: 8px; }
+.kalkopf h2 { flex: 1; text-align: center; margin: 0 0 6px; }
+
+.kalpfeil {
+  min-width: var(--tap); min-height: var(--tap);
+  border: 1px solid var(--rand); border-radius: var(--radius);
+  background: var(--bg-erhoben); color: var(--text);
+  font: inherit; cursor: pointer;
+}
+.kalpfeil:active { background: var(--bg-zeile); }
+
+.kalraster { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.kalkopfzeile { margin-bottom: 3px; }
+.kalwochentag {
+  text-align: center; font-size: 12px; font-weight: 600;
+  color: var(--text-leise);
+}
+
+.kaltag {
+  min-height: 46px;
+  padding: 3px 2px 2px;
+  border: 1px solid transparent; border-radius: 8px;
+  background: var(--bg-zeile);
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  font-variant-numeric: tabular-nums;
+}
+.kaltag.leer { background: none; }
+/* Ein Tag außerhalb der Saison: er steht im Monat, aber nicht im Jahr. */
+.kaltag.aussen { background: none; color: var(--text-leise); opacity: .4; }
+.kaltag.heute { border-color: var(--akzent); background: rgba(214, 73, 51, .18); }
+.kaltag.springbar { cursor: pointer; }
+.kaltag.springbar:hover { border-color: var(--rand); }
+.kaltag.springbar:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
+
+.kalzahl { font-size: 13px; }
+.kalzeichen { font-size: 11px; line-height: 1; display: flex; gap: 2px; }
+.kalzeichen .antwort { color: var(--akzent-hell); }
+
+.kallegende { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+.kallegende-teil { display: inline-flex; align-items: center; gap: 4px; }
+
+/* Die Tageskarte. Ein Satz links, der Knopf rechts — und auf dem Telefon
+   untereinander, damit der Knopf seine 44 Pixel behält. */
+.tageskarte { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tageskarte > div:first-child { flex: 1; min-width: 180px; }
+.tageskarte-titel { font-weight: 700; }
+.tageskarte button.haupt { flex: 0 0 auto; max-width: none; }
+
+.postliste { display: flex; flex-direction: column; }
+
+.postzeile { border-top: 1px solid var(--rand); }
+.postzeile:first-child { border-top: none; }
+
+.postkopf {
+  display: flex; align-items: center; gap: 10px;
+  min-height: var(--tap);
+  padding: 6px 0;
+  cursor: pointer;
+}
+.postkopf:focus-visible { outline: 2px solid var(--akzent); outline-offset: -2px; }
+
+.postzeichen { flex: 0 0 auto; width: 16px; text-align: center; color: var(--text-leise); }
+.postzeichen.antwort { color: var(--akzent-hell); }
+.postzeile.neu .postbetreff { font-weight: 700; }
+
+.postnamen { flex: 1; min-width: 0; }
+.postbetreff { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.postdatum { flex: 0 0 auto; }
+
+.posttext { padding: 0 0 10px 26px; }
+.posttext p { margin: 0 0 8px; font-size: 14px; }
+.postknoepfe { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.marke.postmarke { background: rgba(255, 255, 255, .08); color: var(--text-leise); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

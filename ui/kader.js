@@ -35,7 +35,7 @@ import { aufstellungKarte, wechselLeiste } from './aufstellung.js';
  * @typedef {{
  *   id: string,
  *   kopf: string,
- *   wert: (sp: import('../engine/spieler.js').Spieler, spieltag: number) => number|string,
+ *   wert: (sp: import('../engine/spieler.js').Spieler, tag: number) => number|string,
  * }} Spalte
  */
 
@@ -48,7 +48,7 @@ const SPALTEN = [
   { id: 'alter', kopf: T.kader.alter, wert: (sp) => sp.alter },
   { id: 'staerke', kopf: T.kader.staerke, wert: (sp) => sp.staerke },
   { id: 'talent', kopf: T.kader.talent, wert: (sp) => sp.talent },
-  { id: 'status', kopf: T.kader.status, wert: (sp, spieltag) => (istFit(sp, spieltag) ? 0 : sp.verletztBis - spieltag) },
+  { id: 'status', kopf: T.kader.status, wert: (sp, tag) => (istFit(sp, tag) ? 0 : sp.verletztBis - tag) },
 ];
 
 /**
@@ -92,7 +92,7 @@ const KANDIDATEN = 5;
  */
 export function zeigeKader(stand, entwurf, aktionen) {
   const kader = stand.kader[stand.meinTeam];
-  const spieltag = stand.spieltag;
+  const tag = stand.tag;
   const personnel = personnelVon(stand, stand.meinTeam);
   const anteil = passAnteilVon(stand, stand.meinTeam);
 
@@ -100,8 +100,8 @@ export function zeigeKader(stand, entwurf, aktionen) {
   // Manager jetzt speichert — Mannschaftsteile eingerechnet.
   const vorgabe = entwurf ? entwurf.vorgabe : aufstellungVon(stand, stand.meinTeam);
 
-  const s = teamStaerken(kader, spieltag, personnel, anteil, vorgabe);
-  const verletzt = verletzte(kader, spieltag);
+  const s = teamStaerken(kader, tag, personnel, anteil, vorgabe);
+  const verletzt = verletzte(kader, tag);
 
   // Ein Platz, den es nicht mehr gibt — der Manager hat zwischendurch das
   // System gewechselt. Ohne diese Zeile bliebe der Roster im Auswahlmodus
@@ -163,7 +163,7 @@ export function zeigeKader(stand, entwurf, aktionen) {
     // Die fünf Besten sind sonst fast immer dieselben, die ohnehin schon spielen.
     kandidaten: (platz, stehtDort) => bestenFuer(
       starterZeigen ? kader : kader.filter((sp) => !starter.has(sp.id)),
-      spieltag, platz, anteil, KANDIDATEN, stehtDort),
+      tag, platz, anteil, KANDIDATEN, stehtDort),
   };
 
   // Eine Rosterzeile wählt immer aus — mit offenem Platz für die Bestätigung
@@ -190,11 +190,11 @@ export function zeigeKader(stand, entwurf, aktionen) {
   const halter = el('div', {});
   const male = () => {
     leere(halter);
-    const liste = sortiere(kader, spieltag);
+    const liste = sortiere(kader, tag);
     halter.append(machTabelle(
       [...SPALTEN.map((sp) => kopfzelle(sp, male)), el('th', { 'aria-label': T.kader.werte })],
       liste.flatMap((spieler, i) => [
-        zeile(spieler, spieltag, male, trennerVor(liste, i),
+        zeile(spieler, tag, male, trennerVor(liste, i),
           waehleSpieler, auswahl.spieler, starter.get(spieler.id)),
         offeneWerte.has(spieler.id) ? werteZeile(spieler, anteil) : null,
       ].filter(Boolean))));
@@ -247,17 +247,17 @@ function kopfzelle(spalte, male) {
  * Der Kader in der gewünschten Reihenfolge. Ohne Sortierung bleibt es bei dem,
  * was die Engine liefert; sonst wird stabil sortiert, sodass Gleichstände in
  * der Depth-Chart-Reihenfolge stehen bleiben.
- * @param {import('../engine/spieler.js').Spieler[]} kader @param {number} spieltag
+ * @param {import('../engine/spieler.js').Spieler[]} kader @param {number} tag
  */
-function sortiere(kader, spieltag) {
+function sortiere(kader, tag) {
   if (!sortierung) return kader;
   const spalte = SPALTEN.find((sp) => sp.id === sortierung?.spalte);
   if (!spalte) return kader;
   const vorzeichen = sortierung.richtung === 'ab' ? -1 : 1;
 
   return kader.slice().sort((a, b) => {
-    const x = spalte.wert(a, spieltag);
-    const y = spalte.wert(b, spieltag);
+    const x = spalte.wert(a, tag);
+    const y = spalte.wert(b, tag);
     if (typeof x === 'string' || typeof y === 'string') {
       return vorzeichen * String(x).localeCompare(String(y), 'de');
     }
@@ -306,15 +306,15 @@ const offeneWerte = new Set();
  * beantwortet die Frage rückwärts, wie sie gestellt wird: nicht „wer steht",
  * sondern „wer steht **nicht**".
  * @param {import('../engine/spieler.js').Spieler} sp
- * @param {number} spieltag
+ * @param {number} tag
  * @param {() => void} male
  * @param {string} [trenner] Zusatzklasse für die Linie über der Zeile
  * @param {(id: string) => void} [waehle]
  * @param {string | null} [gewaehlt] Die Id des vorgemerkten Manns
  * @param {string[]} [plaetze] Die Plätze, die er in der Elf hält
  */
-function zeile(sp, spieltag, male, trenner, waehle, gewaehlt, plaetze) {
-  const fit = istFit(sp, spieltag);
+function zeile(sp, tag, male, trenner, waehle, gewaehlt, plaetze) {
+  const fit = istFit(sp, tag);
   const offen = offeneWerte.has(sp.id);
   const markiert = gewaehlt === sp.id;
   const waehlen = () => waehle && waehle(sp.id);
@@ -354,7 +354,7 @@ function zeile(sp, spieltag, male, trenner, waehle, gewaehlt, plaetze) {
     el('td', { style: { fontWeight: '600' }, text: String(sp.staerke) }),
     el('td', {}, sterne(talentSterne(sp.talent), T.kader.talentTitel(sp.talent))),
     el('td', { class: fit ? 'leise' : 'verletzt' },
-      fit ? T.kader.fit : T.kader.verletztBis(sp.verletztBis - spieltag)),
+      fit ? T.kader.fit : T.kader.verletztBis(sp.verletztBis - tag)),
     el('td', { class: 'werteknopf' }, el('button', {
       class: 'chevron',
       'aria-expanded': String(offen),

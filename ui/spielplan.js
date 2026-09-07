@@ -10,10 +10,10 @@ import { anzahlSpieltage } from '../engine/spielplan.js';
 /**
  * @param {import('../engine/spielplan.js').Partie[]} plan
  * @param {string} meinTeam
- * @param {number} aktuellerSpieltag
+ * @param {number} aktuellerTag
  * @param {(partie: import('../engine/spielplan.js').Partie) => void} beiPartie
  */
-export function zeigeSpielplan(plan, meinTeam, aktuellerSpieltag, beiPartie) {
+export function zeigeSpielplan(plan, meinTeam, aktuellerTag, beiPartie) {
   const gesamt = anzahlSpieltage(plan);
   const karten = [];
 
@@ -24,7 +24,7 @@ export function zeigeSpielplan(plan, meinTeam, aktuellerSpieltag, beiPartie) {
     const runde = partien[0].runde;
     const titel = runde === 'gruppe' ? `${T.spielplan.spieltag} ${st}` : T.runde[runde];
     karten.push(el('div', { class: 'karte' },
-      el('h2', { text: titel + (st === aktuellerSpieltag ? ' ·' : '') }),
+      el('h2', { text: titel + (partien[0].tag === aktuellerTag ? ' ·' : '') }),
       partien.map((p) => zeilePartie(p, meinTeam, beiPartie))));
   }
 

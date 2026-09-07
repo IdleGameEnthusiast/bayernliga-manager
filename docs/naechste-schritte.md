@@ -160,8 +160,11 @@ darunter noch nicht stand:
   Gruppenrunde, 11 Halbfinale, 12 Finale. Jede Partie trägt zusätzlich ihre
   `runde` (`gruppe` | `halbfinale` | `finale`). Das Bracket wird von
   `ergaenzePlayoffs()` angehängt, sobald die Runde davor vollständig gespielt
-  ist — der Zustand muss deshalb keine Phase kennen, und `saisonVorbei()`
-  bleibt „Spieltag größer als der letzte im Plan".
+  ist — der Zustand muss deshalb keine Phase kennen, und ~~`saisonVorbei()`
+  bleibt „Spieltag größer als der letzte im Plan"~~. **Beides gilt seit dem
+  Kalender nicht mehr**: der Zustand kennt Phasen, `saisonVorbei()` ist
+  entfallen, und der `spieltag` ist vom Zähler zum Etikett geworden. Siehe
+  Block 6.
 - **Die Verlängerung hat kein Rundenlimit mehr.** Sie terminiert von selbst,
   weil jeder Besitz je Seite mit mindestens 9 % einen Touchdown bringt. Die
   `OT_NOTBREMSE_RUNDEN` = 50 existiert nur, damit ein kaputter Zufall das Spiel
@@ -301,6 +304,43 @@ Setzt auf 2 und 3 auf:
 
 ---
 
+## Block 6 — Kalender und Postfach ✅ fertig
+
+> **Umgesetzt nach [`umbau-kalender.md`](umbau-kalender.md)** — dort stehen die
+> Entscheidungen, die Zustandsform v5, die Migration und die Nachrichtenarten.
+> Was hier steht, ist nur der Umriss.
+
+Aus dem Spieltag-Ticker ist ein Tagesspiel geworden. Drei Dinge, die vorher
+`spieltag` in einer Zahl vermischt hatte, sind auseinandergebrochen:
+
+- **Die Uhr** ist der `tag` seit Saisonbeginn. Eine Saison läuft von einem
+  dritten Oktobersamstag zum nächsten und dauert deshalb immer volle Wochen;
+  Tag 1 ist immer ein Samstag, und der Wochentag ist eine Modulorechnung.
+  [`engine/kalender.js`](../engine/kalender.js) ist der einzige Ort mit `Date`.
+- **Der Zufallsschlüssel** heißt jetzt `seed | jahr | tag`. Der Preis stand
+  fest und war gewollt: jede seed-festgenagelte Zahl in den Tests wird neu.
+- **Der Spieltag** ist nur noch das Etikett an der Partie — beim Auslosen
+  vergeben, nie neu gerechnet.
+
+Nach außen bewegt eine einzige Funktion die Uhr: `weiter(stand, zielTag)`. Sie
+hält von selbst dort an, wo eine Entscheidung fällig ist — vor dem eigenen
+Spiel, vor einer offenen Antwort, an jedem Phasenwechsel. Fremde Spieltage
+halten nicht an, sie werden im Vorbeigehen simuliert.
+
+Der `verlauf` ist im **Postfach** aufgegangen. Eine Nachricht speichert einen
+Schlüssel und ihre Daten, nie einen fertigen Satz — damit ist die einzige
+dokumentierte Ausnahme von „engine kennt kein außen" (der `i18n`-Import in
+`engine/saison.js`) aufgelöst. Der Posteingang ist der erste Reiter und die
+Startansicht, mit Monatsraster und Tageskarte; die Ansprache zum Amtsantritt
+ist die erste E-Mail statt eines eigenen Bildschirms, und die Fußleiste ist
+weggefallen.
+
+**Offen geblieben:** die Vorbereitung (Tag 2–182) und die Sommerpause sind
+noch leer. Sie sind der Haken, an dem Transfers, Training und Rekrutierung
+hängen — das ist der nächste Block, nicht mehr dieser.
+
+---
+
 ## Block 5 und später — was im Gespräch fiel, aber noch keinen Platz hat
 
 - **Rekrutierung.** Neue Spieler zwischen den Saisons. Solange es die nicht
@@ -318,8 +358,10 @@ Setzt auf 2 und 3 auf:
 - **Nummernwunsch.** Nummern bleiben am Spieler. Das Einzige, was sich ändern
   darf: ein guter Spieler will beim Jahreswechsel auf eine frei gewordene
   einstellige Nummer wechseln. Das kommt als **Anfrage an den Manager** und
-  muss genehmigt werden. Braucht ein Postfach/Genehmigungs-Konzept, das es noch
-  nicht gibt. Datenfeld wäre `nummerWunsch` neben `nummer`.
+  muss genehmigt werden. ~~Braucht ein Postfach/Genehmigungs-Konzept, das es
+  noch nicht gibt.~~ **Das Postfach steht seit Block 6** — eine Nummernanfrage
+  wäre eine weitere Art mit Antwortpflicht in `ANTWORTEN`. Datenfeld wäre
+  `nummerWunsch` neben `nummer`.
 - ~~**Aufstellung selbst bestimmen** statt Depth Chart nach Stärke.~~
   **Erledigt**, dokumentiert in [`umbau-aufstellung.md`](umbau-aufstellung.md).
   Umgesetzt wie geplant — Runde null, die Runden 1–3 als Reparaturweg, keine

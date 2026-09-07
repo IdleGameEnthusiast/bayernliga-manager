@@ -4,20 +4,26 @@
 <link rel="stylesheet" href="app.css"></head>
 <body><div id="app" class="app"></div>
 <script type="module">
-  import { neuesSpiel, spieleSpieltag } from './engine/saison.js';
+  import { neuesSpiel, weiter, beantworteNachricht } from './engine/saison.js';
+  import { tagVonSpieltag } from './engine/kalender.js';
   import { speichere } from './engine/save.js';
   const q = new URLSearchParams(location.search);
   const s = neuesSpiel('heg', 'vis-seed');
+  // Der Vorstand hält den Kalender an, bis er eine Antwort hat — auch hier.
+  beantworteNachricht(s, s.post[s.post.length - 1].id, 'ja');
   // Ohne ?ende steht die Saison mitten in der Gruppenrunde, mit ?ende hinter
   // dem Finale — die einzige Stelle, an der das Bracket vollständig zu sehen ist.
-  const bis = q.has('ende') ? 12 : 7;
-  for (let i = 0; i < bis; i++) spieleSpieltag(s);
+  // Jeder eigene Spieltag hält an, also wird so oft weitergespielt, bis der
+  // Kalender am Ziel steht; die Schranke fängt einen Stopp ab, der nicht weicht.
+  const ziel = tagVonSpieltag(q.has('ende') ? 12 : 8);
+  for (let i = 0; i < 40 && s.tag < ziel; i++) weiter(s, ziel);
+  if (q.has('ende')) weiter(s);
   speichere(s);
   await import('./app.js');
   const v = q.get('v');
   const tabs = document.querySelectorAll('.reiter button');
-  if (v === 'kader') tabs[1].click();
-  if (v === 'taktik') tabs[2].click();
-  if (v === 'spielplan') tabs[3].click();
-  if (v === 'bericht') { tabs[3].click(); document.querySelector('.paarung[role=button]').click(); }
+  if (v === 'kader') tabs[2].click();
+  if (v === 'taktik') tabs[3].click();
+  if (v === 'spielplan') tabs[4].click();
+  if (v === 'bericht') { tabs[4].click(); document.querySelector('.paarung[role=button]').click(); }
 </script></body></html>

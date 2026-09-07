@@ -78,7 +78,7 @@ function ausrichtungKarte(stand, personnel, anteil, setze) {
   const prozent = (w) => Math.round(w * 100);
 
   const staerkenBei = (/** @type {number} */ a) =>
-    teamStaerken(kader, stand.spieltag, personnel, a);
+    teamStaerken(kader, stand.tag, personnel, a);
 
   // Der Gegner steht fest, während der Regler läuft — nur die eigene Seite
   // hängt an ihm. Und das Optimum wird einmal aus der gespeicherten Ausrichtung
@@ -175,7 +175,7 @@ function gegnerSeite(stand) {
   return {
     titel: T.taktik.duell(`${teamById(gegnerId).name} (${wo})`),
     werte: teamStaerken(
-      stand.kader[gegnerId], stand.spieltag,
+      stand.kader[gegnerId], stand.tag,
       personnelVon(stand, gegnerId), passAnteilVon(stand, gegnerId)),
   };
 }

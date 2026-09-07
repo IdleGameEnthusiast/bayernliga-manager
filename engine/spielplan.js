@@ -11,13 +11,17 @@
  */
 
 import { shuffle } from './constants.js';
+import { tagVonSpieltag } from './kalender.js';
 import { heimrecht } from './tabelle.js';
 
 /** @typedef {'gruppe'|'halbfinale'|'finale'} Runde */
 
 /**
  * @typedef {object} Partie
- * @property {number} spieltag  1-based, continuous across group stage and bracket
+ * @property {number} tag       Der Tag der Saison, an dem sie steigt — das Autoritative
+ * @property {number} spieltag  Das Etikett: 1-basiert, durchlaufend über Gruppe und Bracket.
+ *   Beim Auslosen vergeben und nie neu gerechnet, weil „Spieltag 5" ein Begriff
+ *   des Sports ist und nicht nur eine Zählung.
  * @property {Runde} runde
  * @property {string} heim      team id
  * @property {string} gast      team id
@@ -51,6 +55,7 @@ export function macheSpielplan(rng, teamIds, runde = 'gruppe') {
       // Alternate who hosts, so nobody piles up home games in the Hinrunde.
       const heimZuerst = (r + i) % 2 === 0;
       partien.push({
+        tag: tagVonSpieltag(r + 1),
         spieltag: r + 1,
         runde,
         heim: heimZuerst ? a : b,
@@ -65,6 +70,7 @@ export function macheSpielplan(rng, teamIds, runde = 'gruppe') {
   const hinrunde = partien.slice();
   for (const p of hinrunde) {
     partien.push({
+      tag: tagVonSpieltag(p.spieltag + runden),
       spieltag: p.spieltag + runden,
       runde,
       heim: p.gast,
@@ -129,6 +135,7 @@ export function macheHalbfinale(nord, sued, spieltag) {
   }
   const tabellen = { nord, sued };
   return HALBFINAL_SETZUNG.map((s) => ({
+    tag: tagVonSpieltag(spieltag),
     spieltag,
     runde: /** @type {Runde} */ ('halbfinale'),
     heim: tabellen[s.heim.gruppe][s.heim.platz - 1].teamId,
@@ -149,6 +156,7 @@ export function macheFinale(a, b, spieltag) {
   const zuhause = heimrecht(a, b);
   const auswaerts = zuhause === a ? b : a;
   return {
+    tag: tagVonSpieltag(spieltag),
     spieltag,
     runde: 'finale',
     heim: zuhause.teamId,
@@ -176,6 +184,16 @@ export function partienDerRunde(plan, runde) {
 /** @param {Partie[]} plan @param {number} spieltag */
 export function partienAmSpieltag(plan, spieltag) {
   return plan.filter((p) => p.spieltag === spieltag);
+}
+
+/**
+ * Die Partien eines Kalendertages. Das ist die Abfrage, die der Tick stellt —
+ * `partienAmSpieltag` beantwortet die Frage nach dem Etikett, diese die nach
+ * der Uhr.
+ * @param {Partie[]} plan @param {number} tag
+ */
+export function partienAmTag(plan, tag) {
+  return plan.filter((p) => p.tag === tag);
 }
 
 /** @param {Partie[]} plan @param {string} teamId */

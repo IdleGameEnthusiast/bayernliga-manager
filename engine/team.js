@@ -51,13 +51,13 @@ function block(plaetze, schluessel) {
  * Bayernligaverein hält einen Spezialisten. Ein Mann darf beide Aufgaben
  * haben — das ist der eine Doppeleinsatz, den die Regeln ungefragt erlauben.
  * @param {import('./spieler.js').Spieler[]} kader
- * @param {number} spieltag
+ * @param {number} tag
  * @param {(s: import('./spieler.js').Spieler) => number} wert
  */
-export function besterFuss(kader, spieltag, wert) {
+export function besterFuss(kader, tag, wert) {
   let bester = ERSATZ_STAERKE;
   for (const s of kader) {
-    if (!istFit(s, spieltag)) continue;
+    if (!istFit(s, tag)) continue;
     const w = wert(s);
     if (w > bester) bester = w;
   }
@@ -96,15 +96,15 @@ function spreize(pass, lauf, neigung) {
  * Verteidigung ist es spiegelbildlich — gegen den Lauf stehen Line und
  * Linebacker, gegen den Pass die Secondary.
  * @param {import('./spieler.js').Spieler[]} kader
- * @param {number} spieltag
+ * @param {number} tag
  * @param {string} [personnel]
  * @param {number} [passAnteil]
  * @param {import('./aufstellung.js').Vorgabe | null} [vorgabe] Die Aufstellung von Hand
  * @returns {Staerken}
  */
-export function teamStaerken(kader, spieltag, personnel = STANDARD_PERSONNEL, passAnteil, vorgabe) {
+export function teamStaerken(kader, tag, personnel = STANDARD_PERSONNEL, passAnteil, vorgabe) {
   const gruppierung = PERSONNEL[personnel] || PERSONNEL[STANDARD_PERSONNEL];
-  const aufstellung = stelleAuf(kader, spieltag, personnel, passAnteil, vorgabe);
+  const aufstellung = stelleAuf(kader, tag, personnel, passAnteil, vorgabe);
 
   const qb = block(aufstellung.offense, [QB_PLATZ]);
   const ol = block(aufstellung.offense, OL_PLAETZE);
@@ -181,8 +181,8 @@ export function gesamtStaerke(s) {
 /**
  * Wie viele Spieler gerade nicht zur Verfügung stehen.
  * @param {import('./spieler.js').Spieler[]} kader
- * @param {number} spieltag
+ * @param {number} tag
  */
-export function verletzte(kader, spieltag) {
-  return kader.filter((s) => s.verletztBis > spieltag);
+export function verletzte(kader, tag) {
+  return kader.filter((s) => s.verletztBis > tag);
 }

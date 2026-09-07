@@ -428,13 +428,13 @@ function plaetzeMit(namen, zaehler) {
  * Zurückgetretenen und die Plätze, die es nach einem Systemwechsel vorher
  * nicht gab. Es braucht dafür keine zweite Regel — es ist dieselbe.
  * @param {import('./spieler.js').Spieler[]} kader
- * @param {number} spieltag
+ * @param {number} tag
  * @param {string} [personnel]
  * @param {number} [passAnteil]
  * @param {Vorgabe | null} [vorgabe]
  * @returns {Aufstellung}
  */
-export function stelleAuf(kader, spieltag, personnel = STANDARD_PERSONNEL, passAnteil, vorgabe) {
+export function stelleAuf(kader, tag, personnel = STANDARD_PERSONNEL, passAnteil, vorgabe) {
   const gruppierung = PERSONNEL[personnel] || PERSONNEL[STANDARD_PERSONNEL];
   const anteil = passAnteil == null ? gruppierung.passAnteil : clamp(passAnteil, 0, 1);
 
@@ -448,7 +448,7 @@ export function stelleAuf(kader, spieltag, personnel = STANDARD_PERSONNEL, passA
   const defense = plaetzeMit(DEFENSE_PLAETZE, zaehler);
   const alle = [...offense, ...defense];
 
-  const fit = kader.filter((s) => istFit(s, spieltag));
+  const fit = kader.filter((s) => istFit(s, tag));
   /** @type {Set<string>} */
   const benutzt = new Set();
 
@@ -791,16 +791,16 @@ export function entferneSpieler(vorgabe, spielerId) {
  * vergleichen. Sie hängen hinten an, in ihrer Wertreihenfolge; die Liste ist
  * damit bis zu zwei Zeilen länger als `anzahl`.
  * @param {import('./spieler.js').Spieler[]} kader
- * @param {number} spieltag
+ * @param {number} tag
  * @param {string} platz Platzname, nicht Schlüssel — `TE#2` wird wie `TE` bewertet
  * @param {number} passAnteil
  * @param {number} [anzahl]
  * @param {string | null} [stehtDort] Id des Manns, der den Platz gerade hält
  * @returns {{ spieler: import('./spieler.js').Spieler, wert: number }[]}
  */
-export function bestenFuer(kader, spieltag, platz, passAnteil, anzahl = 5, stehtDort = null) {
+export function bestenFuer(kader, tag, platz, passAnteil, anzahl = 5, stehtDort = null) {
   const bewertet = kader
-    .filter((s) => istFit(s, spieltag))
+    .filter((s) => istFit(s, tag))
     .map((s) => ({ spieler: s, wert: wertAuf(s, platz, passAnteil) }))
     .sort((a, b) => b.wert - a.wert);
 

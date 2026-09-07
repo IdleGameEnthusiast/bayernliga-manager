@@ -16,11 +16,11 @@ export const DE = {
   titel: 'Bayernliga Football Manager',
 
   nav: {
+    postfach: 'Posteingang',
     tabelle: 'Tabelle',
     kader: 'Roster',
     taktik: 'Taktik',
     spielplan: 'Spielplan',
-    verlauf: 'Verlauf',
   },
 
   start: {
@@ -32,18 +32,172 @@ export const DE = {
     staerke: 'Stärke',
   },
 
-  intro: {
-    anrede: 'Hallo Manager!',
-    absaetze: (verein) => [
-      `Du übernimmst die ${verein} und schützt sie damit vor der Auflösung.`,
-      'In der letzten Zeit gab es einige Verstimmungen, und am Ende ist der alte '
-        + 'Vorstand nach einem großen Streit aus dem Verein ausgetreten — sein Ego war '
-        + 'größer als der Verein. Alle beteiligten Spieler sind mit ihm gegangen.',
-      'Es ist also alles bereit für einen Neustart. Nur: Das Team muss komplett neu '
-        + 'aufgebaut werden.',
-    ],
-    frage: 'Bist du dafür bereit?',
-    weiter: 'Ja, ich bin bereit',
+  // Der Kalender rechnet in Tagesnummern; hier stehen die Namen dazu. Die
+  // Reihenfolge von `tage` folgt `wochentag()` — 0 ist der Samstag, weil Tag 1
+  // jeder Saison einer ist. `rasterTage` ist die Kopfzeile des Monatsrasters
+  // und fängt montags an, wie ein deutscher Kalender.
+  datum: {
+    tage: ['Sa', 'So', 'Mo', 'Di', 'Mi', 'Do', 'Fr'],
+    rasterTage: ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'],
+    monate: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+      'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
+    monateKurz: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+    kurz: (d) => `${T.datum.tage[d.wochentag]} ${d.t}. ${T.datum.monateKurz[d.m - 1]} ${d.j}`,
+    ohneJahr: (d) => `${T.datum.tage[d.wochentag]} ${d.t}. ${T.datum.monateKurz[d.m - 1]}`,
+    monatJahr: (j, m) => `${T.datum.monate[m - 1]} ${j}`,
+  },
+
+  phase: {
+    vorbereitung: 'Vorbereitung',
+    gruppe: 'Gruppenrunde',
+    playoffs: 'Playoffs',
+    sommerpause: 'Sommerpause',
+  },
+
+  postfach: {
+    heute: 'Heute',
+    monatZurueck: 'Voriger Monat',
+    monatVor: 'Nächster Monat',
+    zumTag: (datum) => `Bis ${datum} weiterspielen`,
+    zeichenSpiel: '⚽',
+    zeichenPost: '✉',
+    zeichenAntwort: '●',
+    legendeSpiel: 'Spiel',
+    legendePost: 'Post',
+    legendeAntwort: 'Antwort nötig',
+    saisonEnde: 'Die Saison ist gespielt.',
+    heuteMit: (was) => `Heute · ${was}`,
+    spielfrei: 'Kein Spiel angesetzt.',
+    anpfiff: 'Anpfiff',
+    zurNachricht: 'Zur Nachricht ›',
+    bisDahin: 'Bis dahin',
+    weiter: 'Weiter',
+    naechsterTermin: (datum, was) => `Nächster Termin: ${datum} — ${was}`,
+    kommendesSpiel: (gegner, wo) => `gegen ${gegner} (${wo})`,
+    heimZeichen: 'H',
+    auswaertsZeichen: 'A',
+    antwortOffen: 'Der Vorstand wartet auf eine Antwort.',
+    phasenWechsel: (phase) => `Weiter in die ${phase}`,
+    saisonwechsel: 'Saisonwechsel',
+    posteingang: 'Posteingang',
+    archiv: 'Archiv',
+    keinePost: 'Nichts Neues.',
+    keinArchiv: 'Noch nichts gelesen.',
+    ungelesen: (anzahl) => `${anzahl} ungelesen`,
+    altverlauf: 'Aus früheren Saisons',
+    zumBericht: 'Spielbericht ansehen',
+    vergangeneSaisons: 'Vergangene Saisons',
+    saisonZeile: (jahr, platz, meister) => `${jahr}: Platz ${platz} · Meister ${meister}`,
+    speicherstand: 'Speicherstand',
+    speicherstandHinweis: 'Der Speicherstand liegt im Browser. Exportiere ihn, um ihn zu '
+      + 'sichern oder zwischen PC und iPad zu übertragen.',
+  },
+
+  // Der Posteingang. Eine Nachricht speichert einen Schlüssel und ihre Daten —
+  // der Satz dazu steht ausschließlich hier, damit sich Texte ändern lassen,
+  // ohne alte Speicherstände zu verfälschen. `text` liefert immer Absätze.
+  post: {
+    vorstandsziel: {
+      von: 'Der Vorstand',
+      betreff: (d) => (d.antritt
+        ? `Willkommen bei ${d.verein}`
+        : `Ihre Ziele für ${d.jahr}`),
+      text: (d) => (d.antritt
+        ? [
+          'Hallo Manager!',
+          `Du übernimmst die ${d.verein} und schützt sie damit vor der Auflösung.`,
+          'In der letzten Zeit gab es einige Verstimmungen, und am Ende ist der alte '
+            + 'Vorstand nach einem großen Streit aus dem Verein ausgetreten — sein Ego war '
+            + 'größer als der Verein. Alle beteiligten Spieler sind mit ihm gegangen.',
+          'Es ist also alles bereit für einen Neustart. Nur: Das Team muss komplett neu '
+            + 'aufgebaut werden.',
+          'Bist du dafür bereit?',
+        ]
+        : [
+          `Die Saison ${d.jahr} steht an, und der Vorstand erwartet, dass ${d.verein} `
+            + 'oben mitspielt.',
+          'Die Vorbereitung läuft ab heute. Wir hören von dir.',
+        ]),
+      antworten: { ja: 'Ja, ich bin bereit' },
+    },
+
+    aufstellungUngueltig: {
+      von: 'Trainerstab',
+      betreff: (d) => `Aufstellung für ${d.spieltagNr ? 'Spieltag ' + d.spieltagNr : 'das Spiel'}`,
+      text: (d) => [
+        d.namen.length === 1
+          ? `${d.namen[0]} steht in deiner Aufstellung und kann heute nicht auflaufen.`
+          : `${d.namen.join(', ')} stehen in deiner Aufstellung und können heute nicht auflaufen.`,
+        'Sollen wir die Lücken füllen, oder stellst du selbst um?',
+      ],
+      antworten: { automatisch: 'Aufstellen lassen', selbst: 'Ich stelle selbst um' },
+    },
+
+    spielvorschau: {
+      von: 'Trainerstab',
+      betreff: (d) => `Morgen: ${d.gegner}`,
+      text: (d) => [
+        `Morgen ${d.spieltagNr ? 'steht Spieltag ' + d.spieltagNr + ' an' : 'geht es weiter'}: `
+          + `${d.heim ? 'zuhause gegen' : 'auswärts bei'} ${d.gegner}.`,
+        'Wer aufläuft, entscheidest du bis zum Anpfiff.',
+      ],
+    },
+
+    spielbericht: {
+      von: 'Trainerstab',
+      betreff: (d) => `${d.eigene > d.fremde ? 'Sieg' : 'Niederlage'} gegen ${d.gegner} `
+        + `${d.eigene}:${d.fremde}`,
+      text: (d) => [
+        `${d.heim ? 'Zuhause gegen' : 'Auswärts bei'} ${d.gegner} steht es am Ende `
+          + `${d.eigene}:${d.fremde}.`,
+      ],
+    },
+
+    rundenergebnisse: {
+      von: 'Die Liga',
+      betreff: (d) => `Spieltag ${d.spieltagNr} ist gespielt`,
+      text: (d) => [
+        `Nach Spieltag ${d.spieltagNr} stehst du auf Platz ${d.platz} — `
+          + `${d.siege} ${d.siege === 1 ? 'Sieg' : 'Siege'}, `
+          + `${d.niederlagen} ${d.niederlagen === 1 ? 'Niederlage' : 'Niederlagen'}.`,
+      ],
+    },
+
+    verletzung: {
+      von: 'Mannschaftsarzt',
+      betreff: (d) => `${d.name} fällt aus`,
+      text: (d) => [
+        `${d.name} (${d.position}) hat sich verletzt und fehlt uns `
+          + `${d.wochen} ${d.wochen === 1 ? 'Woche' : 'Wochen'}.`,
+      ],
+    },
+
+    auslosung: {
+      von: 'Die Liga',
+      betreff: () => 'Die Halbfinals stehen',
+      text: (d) => d.paarungen.map(([heim, gast]) => `${heim} — ${gast}`),
+    },
+
+    meister: {
+      von: 'Die Liga',
+      betreff: (d) => `${d.meister} ist Bayernligameister`,
+      text: (d) => [
+        `${d.meister} gewinnt das Finale und ist Meister.`,
+        `Du hast die Gruppenrunde auf Platz ${d.meinPlatz} beendet.`,
+      ],
+    },
+
+    ruecktritte: {
+      von: 'Trainerstab',
+      betreff: (d) => (d.namen.length === 1
+        ? 'Ein Spieler hört auf'
+        : `${d.namen.length} Spieler hören auf`),
+      text: (d) => [
+        'Diese Männer haben ihre Karriere beendet:',
+        d.namen.join(', '),
+      ],
+    },
   },
 
   tabelle: {
@@ -99,7 +253,7 @@ export const DE = {
     fit: 'fit',
     verletzt: 'verletzt',
     keineVerletzungen: 'Keine Verletzungen',
-    verletztBis: (wochen) => `noch ${wochen} ${wochen === 1 ? 'Spieltag' : 'Spieltage'}`,
+    verletztBis: (tage) => `noch ${tage} ${tage === 1 ? 'Tag' : 'Tage'}`,
     einheiten: 'Mannschaftsteile',
     angriff: 'Offense',
     verteidigung: 'Defense',
@@ -144,30 +298,17 @@ export const DE = {
     versuche: 'Vers',
     faenge: 'Fänge',
     verletzung: 'Verletzung',
+    wochen: (n) => `${n} ${n === 1 ? 'Woche' : 'Wochen'}`,
   },
 
   aktion: {
-    spieltagSimulieren: 'Spieltag simulieren',
-    saisonBeenden: 'Saison abschließen',
-    naechsteSaison: 'Nächste Saison starten',
     exportieren: 'Speicherstand exportieren',
     importieren: 'Speicherstand importieren',
     neuesSpiel: 'Neue Karriere',
     zurueck: 'Zurück',
   },
 
-  log: {
-    sieg: 'Sieg',
-    niederlage: 'Niederlage',
-    partie: (wo, ausgang, eigene, fremde) => `${wo}: ${ausgang} ${eigene}:${fremde}`,
-    saisonEnde: (jahr, verein) => `Saison ${jahr} beendet — Meister: ${verein}`,
-  },
-
   meldung: {
-    saisonVorbei: 'Die Saison ist gespielt.',
-    meister: (verein) => `${verein} ist Bayernligameister!`,
-    deinPlatz: (platz) => `Du hast die Saison auf Platz ${platz} beendet.`,
-    ruecktritte: 'Karriereende',
     keinSpeicherstand: 'Kein Speicherstand gefunden.',
     importFehler: 'Diese Datei konnte nicht gelesen werden.',
     importErfolg: 'Speicherstand geladen.',

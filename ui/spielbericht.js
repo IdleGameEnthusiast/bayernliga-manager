@@ -56,7 +56,7 @@ export function zeigeSpielbericht(p, beiZurueck) {
     ? el('div', { class: 'karte' },
       el('h2', { text: T.spiel.verletzung }),
       e.verletzungen.map((v) => el('p', { class: 'verletzt klein', style: { margin: '4px 0' } },
-        `${v.name} (${v.position}) — ${v.wochen} ${v.wochen === 1 ? 'Spieltag' : 'Spieltage'}`)))
+        `${v.name} (${v.position}) — ${T.spiel.wochen(v.wochen)}`)))
     : null;
 
   return el('div', {},
