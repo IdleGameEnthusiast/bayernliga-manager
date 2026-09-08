@@ -16,7 +16,8 @@
  */
 
 import {
-  SEASON_START_YEAR, ZUSATZ_SPIELER, EIGENE_VEREINSBASIS, makeRng, pick, clamp,
+  SEASON_START_YEAR, ZUSATZ_SPIELER, EIGENE_VEREINSBASIS, WERTUNG_PUNKTE,
+  makeRng, pick, clamp,
 } from './constants.js';
 import { TEAMS, GRUPPEN, teamById, teamsDerGruppe } from './content.js';
 import {
@@ -33,7 +34,7 @@ import {
 import { simuliereSpiel } from './spiel.js';
 import {
   PERSONNEL, STANDARD_PERSONNEL, stelleAuf, alsVorgabe, setzePlatz, vollstaendig,
-  leereVorgabe, entferneSpieler, loesePlatz,
+  leereVorgabe, raeumePlatz, loesePlatz,
 } from './aufstellung.js';
 import { berechneTabelle } from './tabelle.js';
 import { teamStaerken } from './team.js';
@@ -46,7 +47,7 @@ import { teamStaerken } from './team.js';
  * der vorigen Nummer auf diese hebt. Ohne diesen Schritt wird ein solcher Stand
  * beim Laden weggeworfen — der Sprung ist billig, der Verlust nicht.
  */
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 /**
  * @typedef {object} SpielStand
@@ -183,11 +184,12 @@ export function aufstellungVon(stand, teamId) {
 
 /**
  * Die Aufstellung, die der eigene Verein am nächsten Spieltag stellen würde:
- * die Vorgabe, repariert um alles, was ihr fehlt.
+ * die Vorgabe, repariert um alles, was ihr fehlt — bis auf die Plätze, die der
+ * Manager ausdrücklich leer gelassen hat. Die bleiben leer.
  *
- * Mit `vorgabe` rechnet sie stattdessen einen **Entwurf** durch, der noch nicht
- * im Stand steht. Das ist der Weg, auf dem die Ansicht zeigen kann, was eine
- * Änderung ausmachen *würde*, ohne sie schon zu tun.
+ * Mit `vorgabe` rechnet sie stattdessen eine andere durch, ohne sie in den
+ * Stand zu schreiben. Davon lebt `aufstellungLeeren()`, das die heutige Elf
+ * kennen muss, um sie Platz für Platz auf `null` zu setzen.
  * @param {SpielStand} stand
  * @param {import('./aufstellung.js').Vorgabe | null} [vorgabe]
  */
@@ -202,96 +204,113 @@ export function eigeneAufstellung(stand, vorgabe) {
 /**
  * Woran das Bearbeiten anfängt: die Elf, die gerade steht, als Vorgabe.
  *
- * Der Manager sieht die reparierte Aufstellung vor sich und meint sie auch.
+ * Der Manager sieht die reparierte Aufstellung vor sich und meint auch sie.
  * Der erste Handgriff friert deshalb ein, was die Automatik gestellt hatte —
  * und ändert daran genau einen Platz.
  * @param {SpielStand} stand
  * @param {import('./aufstellung.js').Vorgabe | null} [vorgabe]
  */
-export function entwurfVon(stand, vorgabe) {
+export function vorgabeVon(stand, vorgabe) {
   return alsVorgabe(eigeneAufstellung(stand, vorgabe));
 }
 
 /**
- * Einen Spieler auf einen Platz stellen — im Entwurf, nicht im Stand.
+ * Einen Spieler auf einen Platz stellen — sofort und endgültig.
  *
- * Nichts hiervon berührt den Speicherstand. Erst `setzeAufstellung()` schreibt,
- * und dazwischen liegt der Knopf „Speichern": eine halb gebaute Aufstellung
- * soll nicht schon gelten, während sie noch gebaut wird.
+ * Es gibt keinen Entwurf mehr und keinen Knopf „Speichern". Früher lag zwischen
+ * dem Tipp und dem Stand ein zweiter Zustand, den die Ansicht mitführen, der
+ * Reiterwechsel abfragen und der Manager bestätigen musste — drei Stellen, an
+ * denen eine Aufstellung verlorengehen konnte, für einen Gewinn, den niemand
+ * wollte. Wer sich vertut, tippt zurück; das kostet denselben einen Griff.
+ *
+ * Ein Spieler, den es im Kader nicht gibt, ändert nichts. Das ist keine
+ * Höflichkeit, sondern der Schutz davor, dass eine Vorgabe eine Id festhält,
+ * zu der kein Mann mehr gehört.
  * @param {SpielStand} stand
- * @param {import('./aufstellung.js').Vorgabe | null} entwurf Der bisherige, oder null
  * @param {string} schluessel Platz-Schlüssel aus der Aufstellung
  * @param {string} spielerId
- * @returns {import('./aufstellung.js').Vorgabe} der neue Entwurf
  */
-export function entwurfSetze(stand, entwurf, schluessel, spielerId) {
-  const basis = entwurf || entwurfVon(stand);
-  if (!stand.kader[stand.meinTeam].some((s) => s.id === spielerId)) return basis;
-  return setzePlatz(basis, schluessel, spielerId);
+export function aufstellungSetze(stand, schluessel, spielerId) {
+  if (!stand.kader[stand.meinTeam].some((sp) => sp.id === spielerId)) return stand;
+  stand.aufstellung = setzePlatz(vorgabeVon(stand), schluessel, spielerId);
+  return stand;
 }
 
 /**
- * Einen Mann aus dem Entwurf nehmen. Sein Platz bleibt frei stehen.
+ * Einen Platz räumen. Er bleibt leer, bis der Manager ihn besetzt oder
+ * „Automatisch aufstellen" drückt — die Reparaturrunden fassen ihn nicht an.
  * @param {SpielStand} stand
- * @param {import('./aufstellung.js').Vorgabe | null} entwurf
- * @param {string} spielerId
- * @returns {import('./aufstellung.js').Vorgabe}
+ * @param {string} schluessel
  */
-export function entwurfEntferne(stand, entwurf, spielerId) {
-  return entferneSpieler(entwurf || entwurfVon(stand), spielerId);
+export function aufstellungRaeume(stand, schluessel) {
+  stand.aufstellung = raeumePlatz(vorgabeVon(stand), schluessel);
+  return stand;
 }
 
 /**
- * Einen Platz im Entwurf an die Automatik zurückgeben.
+ * Einen Platz an die Automatik zurückgeben.
  *
  * Gemeint sind die drei Special-Teams-Plätze: dort ist „leer" nicht „niemand",
  * sondern „entscheide du", und dieser Weg zurück gehört dazu. Bei den
- * zweiundzwanzig ginge es auch — nur bietet die Ansicht es dort nicht an, weil
- * Herausnehmen die Handlung ist, die der Manager dort meint.
+ * zweiundzwanzig ist Räumen die Handlung, die der Manager meint — dort hieße
+ * Zurückgeben, dass die Automatik denselben Mann sofort wieder hinstellt.
  * @param {SpielStand} stand
- * @param {import('./aufstellung.js').Vorgabe | null} entwurf
  * @param {string} schluessel
- * @returns {import('./aufstellung.js').Vorgabe}
  */
-export function entwurfLoese(stand, entwurf, schluessel) {
-  return loesePlatz(entwurf || entwurfVon(stand), schluessel);
+export function aufstellungLoese(stand, schluessel) {
+  stand.aufstellung = loesePlatz(vorgabeVon(stand), schluessel);
+  return stand;
 }
 
 /**
- * Der Entwurf, in dem niemand steht — der Anfang für eine Elf von Grund auf.
+ * Die Aufstellung leeren: jeder der zweiundzwanzig Plätze ausdrücklich frei.
  *
- * Er ist ausdrücklich kein Speicherzustand: solange auch nur ein Platz frei
- * ist, lehnt `setzeAufstellung()` ihn ab. Das Leeren ist ein Arbeitsschritt,
- * kein Ergebnis.
+ * Der Anfang für den Manager, der seine Elf von Grund auf bauen will. Er darf
+ * so auch antreten — es wird dann 0:36 gegen ihn gewertet, und das ist seine
+ * Entscheidung und nicht die einer gesperrten Schaltfläche.
  * @param {SpielStand} stand
  */
-export function entwurfLeeren(stand) {
-  return leereVorgabe(eigeneAufstellung(stand, null));
+export function aufstellungLeeren(stand) {
+  stand.aufstellung = leereVorgabe(eigeneAufstellung(stand, null));
+  return stand;
 }
 
 /**
- * Ob ein Entwurf eine vollständige Elf ergibt — die Bedingung fürs Speichern.
- * @param {SpielStand} stand
- * @param {import('./aufstellung.js').Vorgabe | null} entwurf
- */
-export function entwurfVollstaendig(stand, entwurf) {
-  return vollstaendig(eigeneAufstellung(stand, entwurf));
-}
-
-/**
- * Einen Entwurf in den Stand schreiben. `null` heißt: keine Vorgabe mehr,
- * danach stellt die Automatik wieder alles.
+ * Ob die Elf, die heute aufliefe, vollständig ist.
  *
- * Eine unvollständige Elf wird abgelehnt statt halb gespeichert. Die Regel steht
- * hier und nicht in der Ansicht — die fragt sie nur, um ihren Knopf zu sperren.
+ * Keine Bedingung fürs Speichern mehr — gespeichert wird jeder Zwischenstand —,
+ * sondern die Frage vor dem Anpfiff: wer sie mit Nein beantwortet, tritt nicht
+ * an. Die Special Teams zählen dabei nicht mit; sie laufen außerhalb der Elf,
+ * und ihre Automatik findet immer einen Fuß.
  * @param {SpielStand} stand
- * @param {import('./aufstellung.js').Vorgabe | null} entwurf
- * @returns {boolean} ob geschrieben wurde
  */
-export function setzeAufstellung(stand, entwurf) {
-  if (entwurf && !entwurfVollstaendig(stand, entwurf)) return false;
-  stand.aufstellung = entwurf;
-  return true;
+export function aufstellungVollstaendig(stand) {
+  return vollstaendig(eigeneAufstellung(stand));
+}
+
+/**
+ * Wie viele Plätze der eigenen Elf leer stehen — für den Hinweis in der
+ * Ansicht und für die Nachricht vor dem Spiel.
+ * @param {SpielStand} stand
+ */
+export function offenePlaetze(stand) {
+  const a = eigeneAufstellung(stand);
+  return [...a.offense, ...a.defense].filter((p) => !p.spieler).length;
+}
+
+/**
+ * Eine Vorgabe von außen in den Stand schreiben. `null` heißt: keine Vorgabe
+ * mehr, danach stellt die Automatik wieder alles.
+ *
+ * Geprüft wird dabei nichts. Eine unvollständige Elf war früher nicht
+ * speicherbar; seit ein Platz leer bleiben darf, ist sie ein gültiger Stand mit
+ * einer Folge — der Wertung am Spieltag.
+ * @param {SpielStand} stand
+ * @param {import('./aufstellung.js').Vorgabe | null} vorgabe
+ */
+export function setzeAufstellung(stand, vorgabe) {
+  stand.aufstellung = vorgabe;
+  return stand;
 }
 
 /**
@@ -604,6 +623,12 @@ function spieleTag(stand, tag) {
     );
     p.ergebnis = ergebnis;
 
+    // Ein gewertetes Spiel hat nicht stattgefunden: niemand sammelt Einsätze,
+    // niemand verletzt sich, auch der Gegner nicht. Er verliert seinen
+    // Spieltag mit — das ist der Preis dafür, dass eine Wertung keine
+    // Simulation mit anderen Zahlen ist.
+    if (ergebnis.nichtAngetreten) continue;
+
     // Wer gespielt hat, hat dort gespielt: der Zähler wächst und die Attribute
     // rücken ein Stück auf das Sollprofil des Platzes zu. Für alle zwölf
     // Vereine, nicht nur den eigenen — sonst versteinert die Liga, während der
@@ -638,6 +663,9 @@ function spieleTag(stand, tag) {
         gegner: heim ? meins.gast : meins.heim,
         eigene: heim ? meins.ergebnis.heimPunkte : meins.ergebnis.gastPunkte,
         fremde: heim ? meins.ergebnis.gastPunkte : meins.ergebnis.heimPunkte,
+        // Nicht angetreten heißt: nicht verloren, sondern gar nicht erst
+        // gespielt. Die Betreffzeile soll den Unterschied nennen.
+        nichtAngetreten: meins.ergebnis.nichtAngetreten === (heim ? 'heim' : 'gast'),
       },
     });
   }
@@ -721,6 +749,18 @@ function eintraegeAmTag(stand, tag) {
       eintraege.push({
         art: 'aufstellungUngueltig',
         daten: { spieltagNr: spieltagAmTag(tag), namen: ausfaelle },
+      });
+    }
+
+    // Leere Plätze sind etwas anderes als Ausfälle: sie sind gewollt, und die
+    // Reparaturrunden fassen sie nicht an. Trotzdem muss der Manager gefragt
+    // werden, bevor sie ihn das Spiel kosten — die Wertung soll seine
+    // Entscheidung sein und keine Überraschung.
+    const offen = offenePlaetze(stand);
+    if (offen > 0) {
+      eintraege.push({
+        art: 'aufstellungUnvollstaendig',
+        daten: { spieltagNr: spieltagAmTag(tag), offen, wertung: WERTUNG_PUNKTE },
       });
     }
   }
@@ -843,7 +883,8 @@ export function weiter(stand, zielTag = null) {
 export function beantworteNachricht(stand, id, antwort) {
   const n = beantworte(stand, id, antwort);
   if (!n) return null;
-  if (n.art === 'aufstellungUngueltig' && antwort === 'automatisch') {
+  if ((n.art === 'aufstellungUngueltig' || n.art === 'aufstellungUnvollstaendig')
+    && antwort === 'automatisch') {
     automatischAufstellen(stand);
   }
   return n;

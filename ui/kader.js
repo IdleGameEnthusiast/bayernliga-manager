@@ -28,12 +28,12 @@ import {
   teamStaerken, gesamtStaerke, angriffStaerke, verteidigungStaerke, verletzte,
 } from '../engine/team.js';
 import { istFit } from '../engine/spieler.js';
-import { GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE } from '../engine/constants.js';
+import { GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE, WERTUNG_PUNKTE } from '../engine/constants.js';
 import { hauptPosition } from '../engine/positionen.js';
-import { wertAuf, vollstaendig, SPECIAL_PLAETZE, SPECIAL_WERT } from '../engine/aufstellung.js';
+import { wertAuf, SPECIAL_PLAETZE, SPECIAL_WERT } from '../engine/aufstellung.js';
 import { personnelVon, passAnteilVon, aufstellungVon } from '../engine/saison.js';
 import {
-  einheitBereich, specialBereich, wechselLeiste, aktionsknoepfe, hinweisText, hinweisKlasse,
+  einheitBereich, specialBereich, aktionsknoepfe, hinweisText, hinweisKlasse,
 } from './aufstellung.js';
 
 /**
@@ -66,22 +66,20 @@ const HOECHSTENS = 40;
 
 /**
  * @param {import('../engine/saison.js').SpielStand} stand
- * @param {{ vorgabe: import('../engine/aufstellung.js').Vorgabe | null } | null} entwurf
  * @param {{ setze: (schluessel: string, spielerId: string) => void,
- *           automatisch: () => void, entferne: (spielerId: string) => void,
+ *           automatisch: () => void, raeume: (schluessel: string) => void,
  *           loese: (schluessel: string) => void,
- *           leeren: () => void, speichern: () => boolean, verwerfen: () => void,
- *           neuZeichnen: () => void }} aktionen
+ *           leeren: () => void, neuZeichnen: () => void }} aktionen
  */
-export function zeigeKader(stand, entwurf, aktionen) {
+export function zeigeKader(stand, aktionen) {
   const kader = stand.kader[stand.meinTeam];
   const tag = stand.tag;
   const personnel = personnelVon(stand, stand.meinTeam);
   const anteil = passAnteilVon(stand, stand.meinTeam);
 
-  // Der Entwurf schlägt den Stand: die Ansicht zeigt, was gälte, wenn der
-  // Manager jetzt speichert — Mannschaftsteile eingerechnet.
-  const vorgabe = entwurf ? entwurf.vorgabe : aufstellungVon(stand, stand.meinTeam);
+  // Was im Stand steht, ist das, was gilt: es gibt keinen Entwurf mehr, hinter
+  // dem sich eine andere Elf verstecken könnte.
+  const vorgabe = aufstellungVon(stand, stand.meinTeam);
 
   const s = teamStaerken(kader, tag, personnel, anteil, vorgabe);
   const a = s.aufstellung;
@@ -104,18 +102,23 @@ export function zeigeKader(stand, entwurf, aktionen) {
 
   const gewaehlterSpieler = kader.find((sp) => sp.id === auswahl.spieler) || null;
 
+  // Der Schlüssel eines Platzes ist nicht sein Name: 11 personnel stellt zwei
+  // Receiver auf, und der zweite heißt `WR#2`. Zum Bewerten taugt nur der Name
+  // — `PLAETZE['WR#2']` gibt es nicht, und wer den Schlüssel hineinreichte,
+  // ließ die halbe Ansicht mit „Unbekannter Platz" stehenbleiben.
+  const gewaehlterPlatz = auswahl.platz === null ? null : platzVon(plaetze, auswahl.platz);
+
+  const offen = plaetze.filter((p) => !p.spieler).length;
+
   /** @type {import('./aufstellung.js').Steuerung} */
   const steuerung = {
     platz: auswahl.platz,
     spieler: auswahl.spieler,
     vonHand: !!vorgabe,
-    veraendert: !!entwurf,
-    vollstaendig: vollstaendig(a),
-    speichern: () => { aktionen.speichern(); },
-    verwerfen: aktionen.verwerfen,
-    entferne: (spielerId) => {
+    offen,
+    raeume: (schluessel) => {
       nichtsGewaehlt();
-      aktionen.entferne(spielerId);
+      aktionen.raeume(schluessel);
     },
     loese: (schluessel) => {
       nichtsGewaehlt();
@@ -125,7 +128,7 @@ export function zeigeKader(stand, entwurf, aktionen) {
       nichtsGewaehlt();
       aktionen.leeren();
     },
-    wertFuer: (platz) => (gewaehlterSpieler ? wertVon(gewaehlterSpieler, platz, anteil) : 0),
+    wertFuer: (platz) => (gewaehlterSpieler ? wertVon(gewaehlterSpieler, platz) : 0),
     gewaehlterName: gewaehlterSpieler ? gewaehlterSpieler.nachname : '',
     waehlePlatz: (schluessel) => {
       auswahl = { platz: schluessel, spieler: null };
@@ -157,18 +160,26 @@ export function zeigeKader(stand, entwurf, aktionen) {
 
   /** Die Liste links für einen der drei Bereiche.
    * @param {'offense'|'defense'|'special'} bereich */
-  const verfuegbare = (bereich) => liste(kader, tag, stehen, bereich, anteil, auswahl.platz);
+  const verfuegbare = (bereich) => liste(kader, tag, stehen, bereich, gewaehlterPlatz);
 
   return el('div', {},
-    wechselLeiste(a, steuerung, gewaehlterSpieler),
     el('div', { class: 'karte rosterkopf' },
       el('div', { class: 'kartenkopf' },
         el('h2', { text: T.nav.kader }),
         aktionsknoepfe(steuerung)),
       el('p', { class: hinweisKlasse(steuerung), style: { margin: '0' } },
         hinweisText(steuerung, a)),
+      // Diese Zeile steht immer und trägt deshalb die Warnung: sie schiebt
+      // nichts, wenn sie erscheint, und verschwindet nicht, sobald der Manager
+      // einen Mann anfasst.
       el('p', { class: 'klein', style: { margin: '8px 0 0' } },
-        el('strong', { text: `${T.kader.gesamt}: ${gesamtStaerke(s)}` }),
+        el('strong', {
+          text: `${T.kader.gesamt}: ${offen > 0 ? T.roster.ohneZahl : gesamtStaerke(s)}`,
+        }),
+        offen > 0
+          ? el('span', { class: 'warnung',
+            text: `  ·  ${T.aufstellung.offeneWertung(offen, WERTUNG_PUNKTE)}` })
+          : null,
         verletzt.length > 0
           ? el('span', { class: 'verletzt', text: `  ·  ${verletzt.length} ${T.kader.verletzt}` })
           : el('span', { class: 'leise', text: `  ·  ${T.kader.keineVerletzungen}` }))),
@@ -185,10 +196,17 @@ export function zeigeKader(stand, entwurf, aktionen) {
  * der Engine; hier steht nur, welche gerade gemeint ist.
  * @param {import('../engine/spieler.js').Spieler} spieler
  * @param {string} platz Platzname oder Special-Teams-Schlüssel
- * @param {number} anteil
  */
-function wertVon(spieler, platz, anteil) {
-  return SPECIAL_WERT[platz] ? SPECIAL_WERT[platz](spieler) : wertAuf(spieler, platz, anteil);
+function wertVon(spieler, platz) {
+  return SPECIAL_WERT[platz] ? SPECIAL_WERT[platz](spieler) : wertAuf(spieler, platz);
+}
+
+/** Der Platzname zu einem Schlüssel — Special-Teams-Schlüssel bleiben sie selbst.
+ * @param {import('../engine/aufstellung.js').Platz[]} plaetze
+ * @param {string} schluessel */
+function platzVon(plaetze, schluessel) {
+  const treffer = plaetze.find((p) => p.schluessel === schluessel);
+  return treffer ? treffer.platz : schluessel;
 }
 
 /**
@@ -205,11 +223,10 @@ function wertVon(spieler, platz, anteil) {
  * @param {number} tag
  * @param {Set<string>} stehen Wer in der Elf steht
  * @param {'offense'|'defense'|'special'} bereich
- * @param {number} anteil
- * @param {string | null} platz Der gewählte Platz, falls einer gewählt ist
+ * @param {string | null} platz Der gewählte Platz — sein **Name**, nicht sein Schlüssel
  * @returns {import('./aufstellung.js').Kandidat[]}
  */
-function liste(kader, tag, stehen, bereich, anteil, platz) {
+function liste(kader, tag, stehen, bereich, platz) {
   const passt = (/** @type {import('../engine/spieler.js').Spieler} */ sp) => {
     if (!istFit(sp, tag)) return false;
     // Bei den Special Teams filtert nichts. Gekickt wird aus der Elf heraus —
@@ -228,9 +245,13 @@ function liste(kader, tag, stehen, bereich, anteil, platz) {
 
   return kader
     .filter(passt)
+    // Ohne gewählten Platz steht die rohe Stärke da. Sie ist dieselbe Zahl, die
+    // `wertAuf()` auf seinem Hauptplatz liefert — beide messen mit dem Profil
+    // seiner Position —, also vergleicht die linke Spalte hier nicht mehr
+    // Äpfel mit Birnen, sondern spart sich nur die Rechnung.
     .map((spieler) => ({
       spieler,
-      wert: eigener ? wertVon(spieler, eigener, anteil) : spieler.staerke,
+      wert: eigener ? wertVon(spieler, eigener) : spieler.staerke,
     }))
     .sort((x, y) => y.wert - x.wert)
     .slice(0, HOECHSTENS);

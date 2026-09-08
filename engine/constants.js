@@ -212,8 +212,15 @@ export const LIGA_MAX_STAERKE = 79;    // no Bayernliga strength is ever compute
 export const RATING_UNTERGRENZE = 1;   // not a skill floor — only keeps a rating positive
 export const TALENT_STREUUNG = 6;      // standard deviation of talent around the club baseline
 
-/** What an empty slot in a unit is worth. A body, not a player. */
-export const ERSATZ_STAERKE = 20;
+/**
+ * Ein unbesetzter Platz trägt nichts. Früher standen hier zwanzig Punkte
+ * „Ersatzstärke" — ein Notnagel für eine Elf, die es nicht gab, und in der
+ * Anzeige eine Lüge: eine leere Aufstellung sah nach Stärke 20 aus statt nach
+ * gar nichts. Seit ein Verein mit unvollständiger Elf nicht mehr antritt,
+ * sondern gewertet wird (`WERTUNG_PUNKTE`), kommt eine Lücke ohnehin in kein
+ * Spiel mehr, und die Null ist die ehrlichere Zahl.
+ */
+export const LEERER_PLATZ_WERT = 0;
 
 /**
  * Kicking. Every player carries two values instead of a K or P slot, because
@@ -315,6 +322,13 @@ export const RAND = 0.03;           // Breite des Bandes, in dem die Klippe grei
  */
 export const POINTS_WIN = 2;
 export const POINTS_LOSS = 0;
+
+/**
+ * Was ein Verein bekommt, der nicht antritt: null, der Gegner sechs Touchdowns.
+ * Die Zahl ist gesetzt und nicht gerechnet — sie soll wehtun und als Ergebnis
+ * sofort erkennbar sein, statt sich unter die knappen Spiele zu mischen.
+ */
+export const WERTUNG_PUNKTE = 36;
 
 /** Injuries. */
 export const INJURY_CHANCE_PER_GAME = 0.055; // per team, per match

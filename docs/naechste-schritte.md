@@ -393,6 +393,19 @@ hängen — das ist der nächste Block, nicht mehr dieser.
   statt Drag-and-drop geht es über zwei Tipps, in beide Richtungen: Platz und
   dann Mann, oder Mann und dann Platz, wobei jeder der zweiundzwanzig Plätze
   zeigt, was der Gewählte dort brächte. Das Spiel läuft auf einem iPad.
+  **Nachgezogen:** der Entwurf ist wieder weg — es wird sofort gespeichert, ein
+  Papierkorb räumt einen einzelnen Platz, ein Platz darf leer bleiben, und wer
+  so antritt, verliert 0:36 am grünen Tisch. ~~**Offen:** Ziehen als *Zugabe*
+  neben den zwei Tipps, über Pointer Events, damit Maus und Finger denselben
+  Weg gehen.~~ **Auch das steht** — [`ui/ziehen.js`](../ui/ziehen.js), eine
+  Zustandsmaschine für Maus, Finger und Stift. Gezogen wird von einer Zeile mit
+  einem Mann auf jeden Platz (`data-ziel`), und der Zug endet auf derselben
+  Regel wie der zweite Tipp. Unterschiedlich ist nur der **Anfang**: die Maus
+  zieht ab sechs Pixeln, der Finger erst, nachdem er 350 ms gelegen hat — ohne
+  das wäre jedes Wischen über der Kandidatenliste ein angefangener Zug und die
+  Liste auf dem iPad nicht mehr scrollbar. Geprüft in
+  [`tests/smoke/ziehen.html`](../tests/smoke/ziehen.html), der einzigen Stelle,
+  die ohne echtes Layout nicht zu prüfen ist.
 - **Auf- und Abstieg**, zweite Liga darüber. `MAX_RATING` steht deshalb noch
   auf 99, obwohl die Bayernliga bei 79 gedeckelt ist.
 - Transfers und Verträge, Play-by-Play, Finanzen.
@@ -477,3 +490,7 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Reparatur | eine Vorgabe darf lückenhaft und zu weit sein; Verletzte und fremde Plätze werden überlesen, nicht gelöscht |
 | Einsetzen | Tausch statt Verdrängung |
 | Bedienung | zwei Tipps statt Ziehen, weil das Spiel auf einem iPad läuft |
+| Speichern | gar nicht — jeder Handgriff steht sofort im Stand. Es gibt keinen Entwurf, keinen Knopf und keinen Wächter beim Reiterwechsel mehr |
+| Leerer Platz | erlaubt, zählt null und wird von den Reparaturrunden nicht angefasst. „Automatisch aufstellen" ist der Weg zurück |
+| Nicht angetreten | eine Elf mit Loch wird `WERTUNG_PUNKTE` = 0:36 gegen sich gewertet; kein Einsatz, keine Verletzung, keine Box — für beide Vereine. Der Kalender fragt vorher |
+| Rosterzahl | nach dem Profilanteil der **Zielposition**, nie nach der Ausrichtung des Vereins. Damit liest ein Mann auf seinem Hauptplatz wieder genau seine Stärke, und der Taktikregler bewertet keine Spieler um |

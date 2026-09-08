@@ -1,6 +1,14 @@
 /* Nur für den Rauchtest: der Bericht legt sich über die App, damit die Seite
    von Hand aufgemacht auch etwas sagt. Das Skript liest ihn nicht, es bekommt
    ihn per POST — das hier ist für Augen. */
+
+/* Solange nichts darin steht, ist er gar nicht da. Ein leerer Kasten über
+   `inset: 0` liegt trotzdem über der ganzen App, und damit liegt er in jeder
+   Trefferfrage im Weg: `document.elementFromPoint()` meldet ihn statt der
+   Zeile darunter. Wer mit dem Zeiger prüft, findet dann nichts — genau daran
+   fand der Zug in `ziehen.html` keinen einzigen Platz. */
+#bericht:empty { display: none; }
+
 #bericht {
   position: fixed; inset: 0; z-index: 9999; overflow: auto; padding: 12px;
   background: #fff; color: #111;

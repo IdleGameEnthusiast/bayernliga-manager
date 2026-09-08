@@ -150,6 +150,26 @@ abzulesen, ob ein Mann überhaupt dort steht, wo er am meisten kann.
 Ein Knopf **Automatisch** wirft die Vorgabe weg. Er steht nur da, wenn es eine
 gibt — er *ist* das Vergessen, keine zweite Aufstellungslogik.
 
+**Nachgezogen: gezogen wird doch** — als Zugabe, nicht als Ersatz. Die
+Überschrift dieses Abschnitts bleibt trotzdem stehen, denn sie stimmt für den
+Weg, den die Ansicht *anbietet*: ohne Ziehen kommt jeder aus, mit Maus wie mit
+Finger. Wer aber eine Maus hat, legt einen Mann in **einer** Bewegung auf seinen
+Platz, und „nimm den von dort und stell ihn hierher" ist gezogen ein Handgriff
+statt zweier Tipps. Das Wie steht in [`ui/ziehen.js`](../ui/ziehen.js): Pointer
+Events, eine Zustandsmaschine für Maus, Finger und Stift, ein Ziel ist ein
+`data-ziel`, und der Zug endet auf derselben `aufstellungSetze()` wie der zweite
+Tipp. Nichts daran ist eine zweite Regel.
+
+Ein Unterschied bleibt, und er musste sein: der **Anfang**. Die Maus zieht, wenn
+sie sechs Pixel gewandert ist; der Finger erst, wenn er 350 ms gelegen hat. Ohne
+dieses Halten wäre jedes Wischen über der Kandidatenliste ein angefangener Zug,
+und die Liste ließe sich auf dem iPad nicht mehr scrollen — das Gerät, für das
+diese Ansicht gebaut ist, verlöre seine Bedienung an eine Zugabe. Wandert der
+Finger, bevor er lag, war es ein Wischen; dann ist der Zug vergessen, und weil
+bis dahin nichts abgefangen wurde, scrollt die Liste wie immer. Das Ziehen
+**räumt nicht**: von einem Special-Teams-Platz lässt sich deshalb nichts
+wegziehen, denn wer dort steht, steht vielleicht nur automatisch dort.
+
 ## 4a — Entwurf, Speichern, Rückfrage
 
 Bearbeitet wird nicht mehr im Spielstand. Jeder Handgriff wächst in einem
@@ -245,7 +265,7 @@ retten, nur etwas nachzutragen, und dafür ist die Migration da.
 | Fremder Platz | überlesen, nicht gelöscht — das System kann zurückgestellt werden |
 | Saisonwechsel | Zurückgetretene fallen aus der Karte |
 | Einsetzen | Tausch, nicht Verdrängung; von der Bank fällt der Alte an die Automatik |
-| Bedienung | zwei Tipps, kein Ziehen — Tablet zuerst |
+| Bedienung | zwei Tipps — Tablet zuerst; Ziehen kam nachträglich als Zugabe dazu, über Pointer Events, und bleibt verzichtbar |
 | Richtung | beide: Platz zuerst *und* Mann zuerst; kein Platz muss frei oder vorgemerkt sein |
 | Kandidatenliste | die fünf Besten **für diesen Platz**, nicht global optimiert |
 | Gesetzte Zeilen | wer dort steht und der Beste, der dort zu Hause ist — sie hängen hinten an, statt unter die Kante zu fallen |

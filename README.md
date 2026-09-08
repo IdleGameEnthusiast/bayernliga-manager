@@ -140,9 +140,10 @@ Phasenwechsel anhält, zwei Gruppentabellen, Kader mit Depth Chart, sortierbaren
 und Verletzungen — aufgeklappt zeigt eine Zeile die fünfzehn Attribute und die
 fünf Plätze, auf denen der Mann gerade am meisten wert wäre —, Taktik mit Personnel und Ausrichtung, **die Aufstellung von
 Hand** — Platz antippen und aus den fünf Besten wählen, oder einen Spieler
-antippen und sehen, was er auf jedem der zweiundzwanzig Plätze brächte; die
-Elf lässt sich auch ganz leeren und von Grund auf bauen, gespeichert wird sie
-erst, wenn jeder Platz besetzt ist (siehe
+antippen und sehen, was er auf jedem der zweiundzwanzig Plätze brächte; jeder
+Handgriff steht sofort im Speicherstand, ein Papierkorb räumt einen einzelnen
+Platz, und die Elf lässt sich ganz leeren und von Grund auf bauen — wer mit
+einem Loch antritt, verliert das Spiel mit 0:36 am grünen Tisch (siehe
 [`docs/umbau-aufstellung.md`](docs/umbau-aufstellung.md)), Spielplan,
 Spielbericht mit Box Score, Halbfinale und Finale als Bracket — das seine vier
 Plätze schon während der Gruppenrunde benennt und sagt, wer sie gerade hält —,

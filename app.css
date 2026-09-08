@@ -370,6 +370,8 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
 .leise { color: var(--text-leise); }
 .klein { font-size: 13px; }
 .verletzt { color: var(--gelb); }
+/* Was nicht nur schlecht, sondern kaputt ist: die Elf mit Loch. */
+.warnung { color: var(--rot); font-weight: 600; }
 .balkenreihe { display: grid; grid-template-columns: 120px 1fr 40px; gap: 10px; align-items: center; margin-bottom: 8px; }
 .balkenreihe .spur { height: 8px; background: var(--bg-zeile); border-radius: 4px; overflow: hidden; }
 .balkenreihe .spur i { display: block; height: 100%; background: var(--akzent); }
@@ -524,8 +526,9 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
 }
 
 /* --- Aufstellen ----------------------------------------------------------
-   Zwei Tipps, kein Ziehen: der Platz, dann der Mann. Jede Trefferfläche hält
-   deshalb die 44 Pixel ein, auch innerhalb der engen Aufstellungsliste. */
+   Zwei Tipps: der Platz, dann der Mann. Jede Trefferfläche hält deshalb die 44
+   Pixel ein, auch innerhalb der engen Aufstellungsliste. Das Ziehen kommt als
+   Zugabe dazu und hat seinen eigenen Abschnitt weiter unten. */
 
 .kartenkopf { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .kartenkopf h2 { flex: 1; margin-bottom: 4px; }
@@ -592,18 +595,58 @@ button.klein {
 
 .marke.steht { background: rgba(255, 255, 255, .08); color: var(--text-leise); }
 
-/* Die Leiste klebt oben, weil der zweite Tipp unten im Roster passiert. */
-.wechselleiste {
-  position: sticky; top: 6px; z-index: 5;
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  margin-bottom: 12px; padding: 8px 12px;
-  background: var(--bg-zeile);
-  border: 1px solid var(--akzent); border-radius: var(--radius);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+/* Der Papierkorb räumt einen einzelnen Platz. Er sitzt am rechten Rand der
+   Zeile, hinter der Stärke, und ist so blass, bis die Zeile berührt wird, dass
+   er die Zahlenspalte nicht stört — auf dem Finger-Schirm bleibt er sichtbar,
+   denn dort gibt es kein Darüberfahren. */
+.aufstellung .papierkorb {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  align-self: center;
+  width: 28px; min-height: 28px; padding: 0; margin-left: 2px;
+  background: none; border: 1px solid transparent; border-radius: var(--radius);
+  color: var(--rot); opacity: .55; cursor: pointer;
 }
-.wechseltext { display: flex; align-items: baseline; gap: 8px; flex: 1; min-width: 140px; }
-.wechseltext strong { font-size: 13px; letter-spacing: .04em; }
-.wechselknoepfe { display: flex; gap: 8px; }
+.aufstellung li:hover .papierkorb, .aufstellung .papierkorb:focus-visible { opacity: 1; }
+.aufstellung .papierkorb:hover { background: rgba(209, 73, 91, .16); }
+@media (hover: none) {
+  .aufstellung .papierkorb { opacity: .8; }
+}
+
+/* --- Ziehen ---------------------------------------------------------------
+   Die Zugabe neben den zwei Tipps. Sichtbar ist davon dreierlei: die Schleppe
+   am Zeiger, ein Rand an jedem Platz, solange gezogen wird, und der Kasten um
+   den Platz unter dem Zeiger. Ohne das Erste weiß niemand, dass er etwas in
+   der Hand hält; ohne das Zweite nicht, wohin er damit darf. */
+
+/* Kein Markieren von Text, während ein Name über den Schirm geht — sonst
+   schleift die Maus eine blaue Auswahl durch die halbe Liste. */
+.verfuegbare li, .aufstellung li.waehlbar { user-select: none; -webkit-user-select: none; }
+body.zieht { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+
+.schleppe {
+  position: fixed; top: 0; left: 0; z-index: 40;
+  /* Nimmt keine Zeiger an: sie hängt unter dem Finger und würde sonst bei jeder
+     Trefferfrage sich selbst melden statt des Platzes darunter. */
+  pointer-events: none;
+  max-width: 220px; padding: 4px 10px;
+  background: var(--akzent); color: #fff;
+  border-radius: 6px;
+  font-size: 13px; font-weight: 600; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+}
+
+body.zieht .aufstellung li[data-ziel] {
+  border-color: rgba(255, 255, 255, .18);
+  border-radius: 6px;
+}
+/* Der Platz unter dem Zeiger — dieselbe Farbe wie der angetippte Platz, weil es
+   dieselbe Frage ist: hierher. */
+.aufstellung li.drueber {
+  background: rgba(214, 73, 51, .22);
+  border-color: var(--akzent);
+  border-radius: 6px;
+}
 
 tr.spielerzeile.waehlbar td { cursor: pointer; }
 

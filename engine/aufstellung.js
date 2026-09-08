@@ -14,10 +14,10 @@
  * Docs: docs/umbau-positionsmodell.md, Abschnitte 5, 6 und 7
  */
 
-import { ERSATZ_STAERKE, SPECIAL_POSITIONEN, clamp, interpoliere } from './constants.js';
+import { LEERER_PLATZ_WERT, SPECIAL_POSITIONEN, clamp, interpoliere } from './constants.js';
 import { istFit } from './spieler.js';
 import {
-  eignung, eignungGemischt, PLAETZE, PLATZ_JE_KUERZEL, hauptPosition,
+  eignung, eignungGemischt, PLAETZE, PLATZ_JE_KUERZEL, hauptPosition, profilPassAnteil,
 } from './positionen.js';
 
 // --- Formationen -----------------------------------------------------------
@@ -361,6 +361,18 @@ function nachPosition(alle) {
  * @returns {[Platz, import('./spieler.js').Spieler][]}
  */
 function verteile(kandidaten, plaetze, passAnteil) {
+  /**
+   * Nach welchem Passanteil hier **entschieden** wird: der Angriff nach dem
+   * eigenen, die Verteidigung hälftig. Dieselbe Unterscheidung wie in
+   * `platzGewicht()` — die Verteidigung steht nicht gegen sich selbst.
+   *
+   * Nicht zu verwechseln mit `anzeigeAnteil()`: wer aufläuft, hängt an der
+   * Ausrichtung des Vereins, was im Roster hinter seinem Namen steht, nicht.
+   * @param {string} platz
+   */
+  const anteilFuer = (platz) =>
+    (DEFENSE_PLAETZE.includes(/** @type {any} */ (platz)) ? 0.5 : passAnteil);
+
   /** @type {{ platz: Platz, spieler: import('./spieler.js').Spieler, wert: number }[]} */
   const paare = [];
   for (const platz of plaetze) {
@@ -368,7 +380,7 @@ function verteile(kandidaten, plaetze, passAnteil) {
       paare.push({
         platz,
         spieler,
-        wert: eignungGemischt(spieler, platz.platz, bewertungsAnteil(platz.platz, passAnteil)),
+        wert: eignungGemischt(spieler, platz.platz, anteilFuer(platz.platz)),
       });
     }
   }
@@ -393,7 +405,7 @@ function verteile(kandidaten, plaetze, passAnteil) {
 function leererPlatz(platz, schluessel) {
   return /** @type {Platz} */ ({
     platz, schluessel, position: PLAETZE[platz].position, spieler: null,
-    umgestellt: false, doppel: false, frei: false, staerke: ERSATZ_STAERKE,
+    umgestellt: false, doppel: false, frei: false, staerke: LEERER_PLATZ_WERT,
   });
 }
 
@@ -535,35 +547,45 @@ export function stelleAuf(kader, tag, personnel = STANDARD_PERSONNEL, passAnteil
     platz.umgestellt = hauptPosition(bester) !== platz.position;
   }
 
-  for (const platz of alle) platz.staerke = platzStaerke(platz, anteil);
+  for (const platz of alle) platz.staerke = platzStaerke(platz);
 
   return { offense, defense, ...besetzeSpecial(fit, vorgabe) };
 }
 
 /**
- * Nach welchem Passanteil ein Platz bewertet wird: der Angriff nach dem
- * eigenen, die Verteidigung hälftig. Dieselbe Unterscheidung wie in
- * `platzGewicht()` — die Verteidigung steht nicht gegen sich selbst.
+ * Nach welchem Passanteil ein Platz **angezeigt** wird: nach dem Profilanteil
+ * seiner eigenen Position, nie nach dem des Vereins.
+ *
+ * Das ist die Zahl im Roster, nicht die der Rechnung. `stelleAuf()` entscheidet
+ * weiter mit dem Anteil, den der Verein wirklich spielt — wer aufläuft, hängt
+ * an der Ausrichtung, und das soll es auch.
+ *
+ * Der Profilanteil ist genau der, gegen den `spieler.staerke` beim Ziehen
+ * geeicht wurde (`generierungsProfil()`). Deshalb liest die Anzeige einen Mann
+ * auf seinem Hauptplatz wieder als seine Stärke, und die linke Spalte des
+ * Rosters zeigt dieselbe Zahl wie die rechte. Vorher stand der Angriff nach
+ * dem Vereinsanteil und die Verteidigung fest auf 0,5 da; die Folge waren
+ * Sprünge von drei Punkten zwischen zwei Spalten, die dasselbe meinten, und
+ * ein Taktikregler, der die Spieler umbewertete, statt den Verein umzustellen.
  * @param {string} platz
- * @param {number} passAnteil
  */
-function bewertungsAnteil(platz, passAnteil) {
-  return DEFENSE_PLAETZE.includes(/** @type {any} */ (platz)) ? 0.5 : passAnteil;
+function anzeigeAnteil(platz) {
+  return profilPassAnteil(PLAETZE[platz].position);
 }
 
 /**
  * Was ein Spieler auf dem Platz wert ist, auf dem er wirklich steht — beide
- * Spielarten nach dem Passanteil gemischt, der Doppeleinsatz abgezogen.
+ * Spielarten nach dem Anzeigeanteil gemischt, der Doppeleinsatz abgezogen.
  *
- * Das ist die Zahl, die die Aufstellung anzeigt. Sie ist nicht `spieler.staerke`:
- * die ist gezogen und positionsfrei, diese hier sagt, was aus ihm **hier**
- * herauskommt, und fällt bei einem Umsteller entsprechend ab.
+ * Das ist die Zahl, die die Aufstellung anzeigt. Sie ist beinahe
+ * `spieler.staerke`, solange er zu Hause steht — und fällt bei einem Umsteller
+ * genau um das ab, was ihn die Umstellung kostet. Ein leerer Platz trägt
+ * nichts; angezeigt wird er gar nicht.
  * @param {Platz} platz
- * @param {number} passAnteil
  */
-export function platzStaerke(platz, passAnteil) {
-  if (!platz.spieler) return ERSATZ_STAERKE;
-  const roh = eignungGemischt(platz.spieler, platz.platz, bewertungsAnteil(platz.platz, passAnteil));
+export function platzStaerke(platz) {
+  if (!platz.spieler) return LEERER_PLATZ_WERT;
+  const roh = eignungGemischt(platz.spieler, platz.platz, anzeigeAnteil(platz.platz));
   return platz.doppel ? roh * (1 - doppelAbzug(platz.spieler.attribute.ausdauer)) : roh;
 }
 
@@ -712,13 +734,14 @@ function besetzeSpecial(fit, vorgabe) {
 
 /**
  * Was ein besetzter Platz in einer Spielart wert ist. Ein Platz ohne Spieler
- * zählt ERSATZ_STAERKE — den gibt es nur noch für den buchstäblich leeren
- * Kader, damit `teamStaerken([])` eine Zahl bleibt.
+ * trägt nichts — und kommt in kein Spiel: eine unvollständige Elf tritt nicht
+ * an, sie wird gewertet. Die Null steht damit nur noch in der Vorschau und im
+ * buchstäblich leeren Kader.
  * @param {Platz} platz
  * @param {'pass'|'lauf'} art
  */
 export function platzWert(platz, art) {
-  if (!platz.spieler) return ERSATZ_STAERKE;
+  if (!platz.spieler) return LEERER_PLATZ_WERT;
   const roh = eignung(platz.spieler, platz.platz, art);
   return platz.doppel ? roh * (1 - doppelAbzug(platz.spieler.attribute.ausdauer)) : roh;
 }
@@ -877,10 +900,9 @@ export function setzePlatz(vorgabe, schluessel, spielerId) {
  * wird, zieht dorthin um, statt zweimal zu spielen.
  * @param {import('./spieler.js').Spieler} spieler
  * @param {string} platz
- * @param {number} passAnteil
  */
-export function wertAuf(spieler, platz, passAnteil) {
-  return eignungGemischt(spieler, platz, bewertungsAnteil(platz, passAnteil));
+export function wertAuf(spieler, platz) {
+  return eignungGemischt(spieler, platz, anzeigeAnteil(platz));
 }
 
 /**
@@ -889,46 +911,43 @@ export function wertAuf(spieler, platz, passAnteil) {
  *
  * Die Gegenfrage zu `bestenFuer()`: nicht „wer ist hier der Beste", sondern
  * „wo ist er der Beste". Gerechnet wird mit derselben Zahl, die die Aufstellung
- * hinter einem Namen zeigt — also mit der Ausrichtung, die der Verein gerade
- * fährt, und ohne Doppeleinsatz.
+ * hinter einem Namen zeigt — ohne Doppeleinsatz und ohne die Ausrichtung des
+ * Vereins: wo ein Mann hingehört, ist keine Frage der Taktik.
  *
  * Ein Platz je Kürzel: `CB1` und `CB2` sind derselbe Platz und stünden sonst
  * zweimal in der Liste. `LT` und `RT` bleiben zwei, denn der Seitenwechsel
  * kostet.
  * @param {import('./spieler.js').Spieler} spieler
- * @param {number} passAnteil
  * @param {number} [anzahl]
  * @returns {{ kuerzel: string, platz: string, wert: number }[]}
  */
-export function bestePlaetze(spieler, passAnteil, anzahl = 5) {
+export function bestePlaetze(spieler, anzahl = 5) {
   return Object.entries(PLATZ_JE_KUERZEL)
-    .map(([kuerzel, platz]) => ({ kuerzel, platz, wert: wertAuf(spieler, platz, passAnteil) }))
+    .map(([kuerzel, platz]) => ({ kuerzel, platz, wert: wertAuf(spieler, platz) }))
     .sort((a, b) => b.wert - a.wert)
     .slice(0, anzahl);
 }
 
 /**
- * Einen Mann aus der Aufstellung nehmen. Seine Plätze werden **frei**, nicht
- * nachbesetzt.
+ * Einen Platz räumen: er wird **frei** und bleibt es.
  *
- * Nachbesetzen wäre hier wirkungslos: die Automatik stellt auf jeden Platz den
- * Stärksten seiner Position, und das ist in aller Regel genau der, den der
- * Manager gerade heruntergenommen hat. Der Knopf sähe aus, als täte er nichts.
- * Frei bleibt der Platz sichtbar offen — und die Elf so lange nicht speicherbar.
+ * Der Unterschied zu `loesePlatz()` ist der ganze Sinn dieser Funktion. Dort
+ * fällt der Schlüssel aus der Vorgabe, der Platz heißt danach „entscheide du",
+ * und Runde eins von `stelleAuf()` stellt den stärksten Mann seiner Position
+ * darauf — in aller Regel genau den, den der Manager gerade weggeklickt hat.
+ * Der Papierkorb sähe aus, als täte er nichts. Hier steht stattdessen ein
+ * `null`: ausdrücklich niemand, und die drei Reparaturrunden gehen daran
+ * vorbei, bis der Manager selbst jemanden hinstellt oder „Automatisch
+ * aufstellen" drückt.
  *
- * Steht er doppelt, geht er von beiden Plätzen. Aus den Special Teams geht er
- * nicht mit: der Knopf heißt „aus der Elf nehmen", und der Kicker steht nicht
- * in der Elf. Wer ihn auch dort loswerden will, räumt den Platz dort.
+ * Steht ein Mann doppelt, räumt das nur diesen einen seiner Plätze. Der andere
+ * ist eine eigene Entscheidung und hat einen eigenen Papierkorb.
  * @param {Vorgabe} vorgabe
- * @param {string} spielerId
+ * @param {string} schluessel
  * @returns {Vorgabe} eine neue Karte
  */
-export function entferneSpieler(vorgabe, spielerId) {
-  const neu = { ...vorgabe };
-  for (const [platz, id] of Object.entries(neu)) {
-    if (id === spielerId && !SPECIAL_PLAETZE.includes(platz)) neu[platz] = null;
-  }
-  return neu;
+export function raeumePlatz(vorgabe, schluessel) {
+  return { ...vorgabe, [schluessel]: null };
 }
 
 /**
@@ -968,15 +987,14 @@ export function loesePlatz(vorgabe, schluessel) {
  * @param {import('./spieler.js').Spieler[]} kader
  * @param {number} tag
  * @param {string} platz Platzname, nicht Schlüssel — `TE#2` wird wie `TE` bewertet
- * @param {number} passAnteil
  * @param {number} [anzahl]
  * @param {string | null} [stehtDort] Id des Manns, der den Platz gerade hält
  * @returns {{ spieler: import('./spieler.js').Spieler, wert: number }[]}
  */
-export function bestenFuer(kader, tag, platz, passAnteil, anzahl = 5, stehtDort = null) {
+export function bestenFuer(kader, tag, platz, anzahl = 5, stehtDort = null) {
   const bewertet = kader
     .filter((s) => istFit(s, tag))
-    .map((s) => ({ spieler: s, wert: wertAuf(s, platz, passAnteil) }))
+    .map((s) => ({ spieler: s, wert: wertAuf(s, platz) }))
     .sort((a, b) => b.wert - a.wert);
 
   const liste = bewertet.slice(0, anzahl);

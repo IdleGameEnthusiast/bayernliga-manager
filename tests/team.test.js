@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { makeRng, ERSATZ_STAERKE, KICK_FUSS_AUSSCHLUSS } from '../engine/constants.js';
+import { makeRng, LEERER_PLATZ_WERT, KICK_FUSS_AUSSCHLUSS } from '../engine/constants.js';
 import { macheKader, macheSpieler, ziehKickWerte, resetSpielerIds } from '../engine/spieler.js';
 import {
   teamStaerken, gesamtStaerke, angriffStaerke, verteidigungStaerke,
@@ -115,7 +115,7 @@ test('gekickt wird aus dem ganzen Kader, nicht aus einem K-Slot', () => {
   assert.equal(s.special, besterKicker * 0.4
     + Math.max(...kader.map(punterWert)) * 0.4
     + Math.max(...kader.map(longSnapperWert)) * 0.2);
-  assert.ok(s.special > ERSATZ_STAERKE, 'Special Teams sind kein toter Wert mehr');
+  assert.ok(s.special > 20, 'Special Teams sind kein toter Wert mehr');
 });
 
 test('ein verletzter Kicker steht nicht auf dem Feld', () => {
@@ -129,9 +129,9 @@ test('ein verletzter Kicker steht nicht auf dem Feld', () => {
   assert.ok(nachher < vorher, 'ohne den besten Fuß sinken die Special Teams');
 });
 
-test('ein leerer Kader fällt auf die Ersatzstärke zurück', () => {
-  assert.equal(besterFuss([], 1, kickerWert), ERSATZ_STAERKE);
-  assert.equal(teamStaerken([], 1).special, ERSATZ_STAERKE);
+test('ein leerer Kader hat keinen Fuß und keine Special Teams', () => {
+  assert.equal(besterFuss([], 1, kickerWert), LEERER_PLATZ_WERT);
+  assert.equal(teamStaerken([], 1).special, LEERER_PLATZ_WERT);
 });
 
 test('aus der Line kommt kein Kicker', () => {

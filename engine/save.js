@@ -37,6 +37,16 @@ export const STORAGE_KEY = 'bayernliga.save';
  * @type {Record<number, (roh: any) => any>}
  */
 const MIGRATIONEN = {
+  // 7 → 8: jedes Ergebnis trägt jetzt `nichtAngetreten` — wer keine vollständige
+  // Elf stellte, wird 0:36 gewertet statt gespielt. Alte Partien wurden alle
+  // gespielt, und das Fehlen des Feldes heißt genau das. Der Schritt hebt
+  // deshalb nur die Nummer; er ist trotzdem einer, denn ohne ihn flöge jede
+  // Karriere von gestern beim Laden weg.
+  7: (roh) => {
+    roh.version = 8;
+    return roh;
+  },
+
   // 6 → 7: der Posteingang bekam den Ordner „Gelöscht". Bis dahin galt
   // gelesen = archiviert; jetzt entscheidet der Manager, und dafür braucht
   // jede Nachricht ein eigenes Feld. Alles Bestehende liegt im Eingang —

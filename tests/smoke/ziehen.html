@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<title>Ziehen: ein Mann an seinen Platz, mit der Maus und mit dem Finger</title>
+<link rel="stylesheet" href="../../app.css">
+<link rel="stylesheet" href="melder.css">
+<script src="./melder.js"></script>
+</head>
+<body><div id="app" class="app"></div><div id="bericht"></div>
+
+<script type="module">
+localStorage.clear();
+</script>
+
+<script type="module">
+import '../../app.js';
+
+/**
+ * Das Ziehen ist die eine Stelle der App, die ohne echten Browser gar nicht zu
+ * prüfen ist: es hängt an Pointer Events, an `elementFromPoint` und damit an
+ * einem Layout, das wirklich gerechnet wurde. `node --test` sieht davon nichts.
+ *
+ * Die Zeiger werden von Hand losgeschickt, und zwar an `window` — genau dort
+ * hört `ui/ziehen.js` zu. Ein echter Browser schickt sie an die Zeile und sie
+ * steigen auf; beides kommt an derselben Stelle an.
+ *
+ * Wo der Zeiger beim Loslassen steht, entscheidet über den Platz. Also muss das
+ * **Ziel** wirklich im Bild stehen, sonst trifft `elementFromPoint` daneben;
+ * die Quelle darf liegen, wo sie will, denn ein `pointerdown` fragt nicht nach
+ * Koordinaten. Deshalb scrollt jeder Zug sein Ziel zuerst in die Mitte.
+ */
+const mitte = (n) => {
+  const r = n.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+};
+
+const zeiger = (art, p, typ = 'mouse') => new PointerEvent(art, {
+  pointerId: 7, pointerType: typ, button: 0, buttons: 1,
+  clientX: p.x, clientY: p.y, bubbles: true, cancelable: true,
+});
+
+// Jeder Zug zeichnet neu: ein festgehaltenes Element ist danach abgehängt.
+// Deshalb ist hier alles eine Funktion und nichts eine Variable.
+const offense = () => alle('.karte')[1];
+const plaetze = () => [...offense().querySelectorAll('.aufstellung li')];
+const platzName = (i) => plaetze()[i].querySelector('.platz-name').textContent;
+const ersterFreie = () => offense().querySelector('.verfuegbare li');
+const freierName = () => ersterFreie().querySelector('.verfuegbar-name').textContent;
+const kopfLinks = () => offense().querySelector('.verfuegbarkopf h3').textContent;
+
+/** Ein ganzer Zug mit der Maus: anfassen, hinüber, loslassen. */
+function ziehe(von, nach, typ = 'mouse') {
+  nach.scrollIntoView({ block: 'center' });
+  von.dispatchEvent(zeiger('pointerdown', mitte(von), typ));
+  dispatchEvent(zeiger('pointermove', mitte(nach), typ));
+  dispatchEvent(zeiger('pointerup', mitte(nach), typ));
+}
+
+try {
+  // 1 — Auf den Roster, wo die Plätze stehen
+  q('.start-team').click();
+  q('.fuss button.haupt').click();
+  alle('.reiter button').find((b) => b.textContent === 'Roster').click();
+  gleich('der Roster steht', alle('.karte h2')[1].textContent, 'Offense');
+  gleich('und jeder der fünfundzwanzig Plätze nimmt einen Gezogenen an',
+    alle('.aufstellung li[data-ziel]').length, 25);
+  enthaelt('der Hinweis verrät die Geste', txt('.rosterkopf'), 'Ziehen geht auch');
+
+  // 2 — Von der Bank auf einen Platz: ein Zug statt zweier Tipps
+  const neuer = freierName();
+  const vorher = platzName(0);
+  ziehe(ersterFreie(), plaetze()[0]);
+  gleich('ein gezogener Mann steht auf dem Platz', platzName(0), neuer);
+  pruefe('und stand vorher nicht dort', vorher !== neuer, vorher);
+  gleich('der Zug hinterlässt keine angefangene Wahl',
+    alle('.verfuegbare li.gewaehlt').length + alle('.aufstellung li.gewaehlt').length, 0);
+  gleich('und auch keine Schleppe', alle('.schleppe').length, 0);
+  gleich('gezogen wird im Stand, nicht in einem Entwurf', alle('.wechselleiste').length, 0);
+
+  // 3 — Platz auf Platz ist ein Tausch. Das ist der Zug, für den das Ziehen
+  // wirklich kürzer ist als zwei Tipps.
+  const oben = platzName(0);
+  const unten = platzName(1);
+  ziehe(plaetze()[0], plaetze()[1]);
+  gleich('Platz auf Platz stellt den Gezogenen dorthin', platzName(1), oben);
+  gleich('und schickt den Verdrängten auf dessen Platz', platzName(0), unten);
+
+  // 4 — Mitten im Zug: die Schleppe am Zeiger, das Ziel markiert, der eigene
+  // Platz ausgenommen — und Escape als Rückweg.
+  const eigen = 2;
+  const ziel = 3;
+  plaetze()[ziel].scrollIntoView({ block: 'center' });
+  const stand = platzName(ziel);
+  const gegriffen = platzName(eigen);
+  plaetze()[eigen].dispatchEvent(zeiger('pointerdown', mitte(plaetze()[eigen])));
+  dispatchEvent(zeiger('pointermove', mitte(plaetze()[ziel])));
+  gleich('im Zug hängt eine Schleppe am Zeiger', alle('.schleppe').length, 1);
+  gleich('und sie trägt seinen Namen', txt('.schleppe'), gegriffen);
+  gleich('der Platz unter dem Zeiger ist markiert',
+    alle('.aufstellung li.drueber').length, 1);
+  pruefe('und es ist der, über dem er steht', plaetze()[ziel].classList.contains('drueber'));
+  dispatchEvent(zeiger('pointermove', mitte(plaetze()[eigen])));
+  gleich('sein eigener Platz ist kein Ziel', alle('.aufstellung li.drueber').length, 0);
+  dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  gleich('Escape räumt die Schleppe weg', alle('.schleppe').length, 0);
+  dispatchEvent(zeiger('pointerup', mitte(plaetze()[ziel])));
+  gleich('und der abgebrochene Zug hat niemanden gestellt', platzName(ziel), stand);
+
+  // 5 — Daneben losgelassen heißt: nichts. Auch nicht der Klick, den der
+  // Browser hinterherschickt — er würde sonst als Tipp zählen und die Auswahl
+  // aufmachen, die der Zug gerade nicht wollte.
+  const unberuehrt = platzName(0);
+  const quelle = ersterFreie();
+  ziehe(quelle, q('.rosterkopf h2'));
+  quelle.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  gleich('ein Zug ins Leere stellt niemanden', platzName(0), unberuehrt);
+  gleich('und öffnet keine Auswahl', alle('.verfuegbare li.gewaehlt').length, 0);
+} catch (e) { merkeFehler(e); }
+
+// Der Klickfänger aus `ziehen.js` lebt bis zum Ende dieser Runde — er soll
+// genau einen Klick schlucken und dann weg sein. Was hier noch getippt werden
+// soll, wartet deshalb eine Runde ab; ein Mensch wartet ohnehin länger.
+setTimeout(() => {
+  try {
+    // 6 — Das Ziehen nimmt dem Tippen nichts weg
+    plaetze()[0].click();
+    enthaelt('ein Tipp wählt den Platz weiterhin', kopfLinks(), 'Die Besten');
+    plaetze()[0].click();
+    gleich('und der zweite nimmt die Wahl zurück', kopfLinks(), 'Verfügbar');
+
+    // 7 — Der Finger, der wischt, zieht nicht. Sonst wäre die Liste links auf
+    // dem iPad nicht mehr zu scrollen — das Gerät, für das die Ansicht gebaut
+    // ist, verlöre seine Bedienung an eine Zugabe.
+    const steht = platzName(5);
+    const wischQuelle = ersterFreie();
+    plaetze()[5].scrollIntoView({ block: 'center' });
+    wischQuelle.dispatchEvent(zeiger('pointerdown', mitte(wischQuelle), 'touch'));
+    dispatchEvent(zeiger('pointermove', mitte(plaetze()[5]), 'touch'));
+    gleich('ein Wischen über der Liste zieht nichts', alle('.schleppe').length, 0);
+    dispatchEvent(zeiger('pointerup', mitte(plaetze()[5]), 'touch'));
+    gleich('und stellt niemanden um', platzName(5), steht);
+
+    // 8 — Derselbe Finger, der erst liegen bleibt, zieht. Das Halten dauert
+    // echte Millisekunden, also geht der Rest des Zugs in einen Timer.
+    const gehalten = freierName();
+    const griff = ersterFreie();
+    plaetze()[7].scrollIntoView({ block: 'center' });
+    griff.dispatchEvent(zeiger('pointerdown', mitte(griff), 'touch'));
+    setTimeout(() => {
+      try {
+        // Das Liegenbleiben allein entscheidet die Geste: die Schleppe hängt
+        // schon am Finger, bevor er sich bewegt hat.
+        gleich('der liegende Finger zieht von selbst an', alle('.schleppe').length, 1);
+        dispatchEvent(zeiger('pointermove', mitte(plaetze()[7]), 'touch'));
+        gleich('und findet den Platz unter sich',
+          alle('.aufstellung li.drueber').length, 1);
+        dispatchEvent(zeiger('pointerup', mitte(plaetze()[7]), 'touch'));
+        gleich('und legt ihn auf den Platz', platzName(7), gehalten);
+        gleich('die Schleppe ist wieder weg', alle('.schleppe').length, 0);
+      } catch (e) { merkeFehler(e); }
+      melde();
+    }, 450);
+  } catch (e) { merkeFehler(e); melde(); }
+}, 0);
+</script></body></html>

@@ -13,8 +13,8 @@ import { datum } from './engine/kalender.js';
 import { markiereGelesen, loescheNachricht, stelleWiederHer } from './engine/postfach.js';
 import {
   neuesSpiel, weiter, beantworteNachricht, gruppenTabellen, meineTabelle,
-  setzeTaktik, setzeAufstellung, entwurfSetze, entwurfVollstaendig,
-  eigeneAufstellung, entwurfLeeren, entwurfEntferne, entwurfLoese,
+  setzeTaktik, automatischAufstellen,
+  aufstellungSetze, aufstellungRaeume, aufstellungLoese, aufstellungLeeren,
 } from './engine/saison.js';
 import { partienDerRunde } from './engine/spielplan.js';
 import {
@@ -52,17 +52,6 @@ let berichtZurueck = 'postfach';
 /** @type {string | null} */
 let hinweis = null;
 
-/**
- * Die Aufstellung, während sie gebaut wird — noch nicht im Spielstand.
- *
- * `null` heißt: nichts Ungespeichertes. `{ vorgabe: null }` ist etwas anderes,
- * nämlich der Entwurf „gar keine Vorgabe, stell automatisch auf". Beides muss
- * sich unterscheiden lassen, sonst wäre das Zurücknehmen einer Aufstellung
- * nicht speicherbar.
- * @type {{ vorgabe: import('./engine/aufstellung.js').Vorgabe | null } | null}
- */
-let entwurf = null;
-
 /** @type {import('./ui/frage.js').Frage | null} */
 let frage = null;
 
@@ -99,14 +88,12 @@ function zeichne() {
   } else if (ansicht === 'tabelle') {
     wurzel.append(zeigeTabelle(gruppenTabellen(stand), stand.meinTeam, playoffPartien(stand)));
   } else if (ansicht === 'kader') {
-    wurzel.append(zeigeKader(stand, entwurf, {
+    wurzel.append(zeigeKader(stand, {
       setze: beiAufstellung,
       automatisch: beiAutomatisch,
-      entferne: beiEntfernen,
+      raeume: beiRaeumen,
       loese: beiLoesen,
       leeren: beiLeeren,
-      speichern: beiSpeichern,
-      verwerfen: beiVerwerfen,
       neuZeichnen: zeichne,
     }));
   } else if (ansicht === 'personal') {
@@ -173,7 +160,7 @@ function reiter() {
     tabs.map(([id, label]) => el('button', {
       role: 'tab',
       'aria-selected': String(ansicht === id),
-      onclick: () => mitEntwurf(() => wechsle(id)),
+      onclick: () => wechsle(id),
     }, label)));
 }
 
@@ -181,7 +168,7 @@ function reiter() {
 
 /** @type {import('./ui/postfach.js').Aktionen} */
 const postfachAktionen = {
-  weiter: (zielTag = null) => mitEntwurf(() => beiWeiter(zielTag)),
+  weiter: beiWeiter,
   beantworte: beiAntwort,
   oeffne: beiNachricht,
   loesche: beiLoeschen,
@@ -320,128 +307,59 @@ function beiTaktik(taktik) {
 }
 
 /**
- * Einen Spieler auf einen Platz stellen. Wer dabei wohin rutscht, entscheidet
- * die Engine; hier wächst nur der Entwurf. Geschrieben wird beim Speichern.
+ * Einen Spieler auf einen Platz stellen — und sofort speichern.
+ *
+ * Es gibt keinen Entwurf mehr. Jeder Handgriff steht danach im Speicherstand,
+ * jeder ist einzeln zurückzunehmen, und keiner geht beim nächsten Reitertipp
+ * verloren. Wer dabei wohin rutscht, entscheidet die Engine.
  * @param {string} schluessel @param {string} spielerId
  */
 function beiAufstellung(schluessel, spielerId) {
-  if (!stand) return;
-  entwurf = { vorgabe: entwurfSetze(stand, entwurf && entwurf.vorgabe, schluessel, spielerId) };
-  zeichne();
+  schreibe((s) => aufstellungSetze(s, schluessel, spielerId));
 }
 
-/**
- * „Automatisch aufstellen": die Vorgabe fällt weg. Steht ohnehin keine im
- * Stand, ist das keine Änderung und wird auch nicht als eine geführt.
- */
+/** „Automatisch aufstellen": die Vorgabe fällt weg, die Automatik füllt wieder alles. */
 function beiAutomatisch() {
-  if (!stand) return;
-  entwurf = stand.aufstellung === null ? null : { vorgabe: null };
-  zeichne();
+  schreibe(automatischAufstellen);
 }
 
 /**
- * Einen Mann aus der Elf nehmen. Sein Platz bleibt frei — bis der Manager ihn
- * besetzt, ist die Aufstellung nicht speicherbar.
- * @param {string} spielerId
+ * Einen Platz räumen. Er bleibt leer — auch über den Anpfiff hinaus, und dann
+ * wird das Spiel gewertet statt gespielt.
+ * @param {string} schluessel
  */
-function beiEntfernen(spielerId) {
-  if (!stand) return;
-  entwurf = { vorgabe: entwurfEntferne(stand, entwurf && entwurf.vorgabe, spielerId) };
-  zeichne();
+function beiRaeumen(schluessel) {
+  schreibe((s) => aufstellungRaeume(s, schluessel));
 }
 
 /**
  * Einen Special-Teams-Platz wieder der Automatik überlassen.
  *
- * Nicht dasselbe wie Herausnehmen: dort bleibt der Platz sichtbar frei, hier
- * fällt die Entscheidung ganz weg und der beste Fuß im Kader rückt nach.
+ * Nicht dasselbe wie Räumen: dort bleibt der Platz leer, hier fällt die
+ * Entscheidung ganz weg und der beste Fuß im Kader rückt nach.
  * @param {string} schluessel
  */
 function beiLoesen(schluessel) {
-  if (!stand) return;
-  entwurf = { vorgabe: entwurfLoese(stand, entwurf && entwurf.vorgabe, schluessel) };
-  zeichne();
+  schreibe((s) => aufstellungLoese(s, schluessel));
 }
 
-/**
- * „Aufstellung löschen": ein Entwurf, auf dem niemand steht. Speicherbar ist er
- * nicht — das ist der Anfang einer Elf, nicht eine.
- */
+/** „Aufstellung löschen": niemand steht mehr. Der Anfang einer Elf, nicht eine. */
 function beiLeeren() {
-  if (!stand) return;
-  entwurf = { vorgabe: entwurfLeeren(stand) };
-  zeichne();
+  schreibe(aufstellungLeeren);
 }
 
 /**
- * Den Entwurf in den Stand schreiben. Die Engine lehnt eine unvollständige Elf
- * ab; die Ansicht sperrt ihren Knopf deshalb schon vorher.
- * @returns {boolean} ob geschrieben wurde
- */
-function beiSpeichern() {
-  if (!stand || !entwurf) return true;
-  if (!setzeAufstellung(stand, entwurf.vorgabe)) return false;
-
-  speichere(stand);
-  entwurf = null;
-  hinweis = T.aufstellung.gespeichert;
-  zeichne();
-  return true;
-}
-
-/** Den Entwurf wegwerfen. Es stand nie etwas davon im Speicherstand. */
-function beiVerwerfen() {
-  entwurf = null;
-  zeichne();
-}
-
-/**
- * Der Wächter vor jeder Handlung, die die Kaderansicht verlässt.
+ * Eine Änderung an der Aufstellung: tun, speichern, zeichnen.
  *
- * Ohne ihn verschwände eine halb gebaute Aufstellung beim nächsten Reitertipp,
- * ohne dass es jemand bemerkt hätte. Ist der Entwurf vollständig, ist Speichern
- * die naheliegende Antwort; ist er es nicht, kann er gar nicht gespeichert
- * werden, und dann ist Weiterbauen die einzige, die nichts verliert.
- * @param {() => void} weiterMachen
+ * Die drei Schritte stehen an einer Stelle, weil das Vergessen des mittleren
+ * genau der Fehler wäre, den niemand bemerkt — bis der Browser neu lädt.
+ * @param {(stand: import('./engine/saison.js').SpielStand) => void} wirkung
  */
-function mitEntwurf(weiterMachen) {
-  if (!entwurf || !stand) { weiterMachen(); return; }
-
-  const vollstaendig = entwurfVollstaendig(stand, entwurf.vorgabe);
-  const offen = offenePlaetze(stand, entwurf.vorgabe);
-  frage = {
-    titel: T.aufstellung.ungesichert,
-    text: vollstaendig ? T.aufstellung.ungesichertText : T.aufstellung.unvollstaendigText(offen),
-    knoepfe: [
-      vollstaendig
-        ? {
-          label: T.aufstellung.speichern,
-          klasse: 'haupt',
-          wirkung: () => { frage = null; if (beiSpeichern()) weiterMachen(); },
-        }
-        : {
-          label: T.aufstellung.weiterBearbeiten,
-          klasse: 'haupt',
-          wirkung: () => { frage = null; zeichne(); },
-        },
-      {
-        label: T.aufstellung.verwerfen,
-        wirkung: () => { frage = null; entwurf = null; weiterMachen(); },
-      },
-    ],
-  };
+function schreibe(wirkung) {
+  if (!stand) return;
+  wirkung(stand);
+  speichere(stand);
   zeichne();
-}
-
-/**
- * Wie viele Plätze der Entwurf frei lässt — nur für den Satz in der Rückfrage.
- * @param {import('./engine/saison.js').SpielStand} s
- * @param {import('./engine/aufstellung.js').Vorgabe | null} vorgabe
- */
-function offenePlaetze(s, vorgabe) {
-  const a = eigeneAufstellung(s, vorgabe);
-  return [...a.offense, ...a.defense].filter((p) => !p.spieler).length;
 }
 
 function beiExport() {

@@ -3,15 +3,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { TEAMS, GRUPPEN, teamsDerGruppe, teamById } from '../engine/content.js';
-import { KADER_GROESSE_EIGEN, KADER_GROESSE_FREMD, EIGENE_VEREINSBASIS } from '../engine/constants.js';
+import {
+  KADER_GROESSE_EIGEN, KADER_GROESSE_FREMD, EIGENE_VEREINSBASIS, WERTUNG_PUNKTE,
+} from '../engine/constants.js';
 import {
   neuesSpiel, weiter, letzterTag, naechsterStopp, beantworteNachricht,
   naechsteSaison, anzahlSpieltage,
   vereinsBasen, gruppenTabelle, gruppenTabellen, meineTabelle, meister,
   gruppenSpieltage, losePersonnel, personnelVon, passAnteilVon, setzeTaktik,
   erlaubterPassAnteil, alsGegner, eigeneAufstellung, aufstellungVon,
-  setzeAufstellung, automatischAufstellen, entwurfSetze, entwurfVon,
-  entwurfVollstaendig, entwurfLeeren, naechstePartie, ligaSchnittVerteidigung,
+  setzeAufstellung, automatischAufstellen, aufstellungSetze, vorgabeVon,
+  aufstellungVollstaendig, aufstellungLeeren, aufstellungRaeume, offenePlaetze,
+  naechstePartie, ligaSchnittVerteidigung,
 } from '../engine/saison.js';
 import {
   offeneAntworten, antwortenZu, sende, markiereGelesen, loescheNachricht,
@@ -569,11 +572,12 @@ test('Export und Import nehmen die Taktik mit', () => {
 });
 
 /**
- * Der Weg, den die Ansicht geht: einen Platz im Entwurf setzen und speichern.
+ * Der Weg, den die Ansicht geht: einen Platz setzen. Es gibt nichts dazwischen —
+ * der Handgriff steht sofort im Stand.
  * @param {any} stand @param {string} schluessel @param {string} spielerId
  */
 function stelleVonHand(stand, schluessel, spielerId) {
-  return setzeAufstellung(stand, entwurfSetze(stand, stand.aufstellung, schluessel, spielerId));
+  return aufstellungSetze(stand, schluessel, spielerId);
 }
 
 test('der erste Handgriff friert die Aufstellung ein und tauscht einen Platz', () => {
@@ -584,7 +588,7 @@ test('der erste Handgriff friert die Aufstellung ein und tauscht einen Platz', (
   const skill = vorher.offense[1];                      // der erste Skill-Platz
   const cb = vorher.defense.find((p) => p.schluessel === 'CB1');
 
-  assert.equal(stelleVonHand(stand, skill.schluessel, cb.spieler.id), true);
+  stelleVonHand(stand, skill.schluessel, cb.spieler.id);
   assert.ok(stand.aufstellung, 'die Vorgabe steht nicht im Stand');
 
   const nachher = eigeneAufstellung(stand);
@@ -602,36 +606,42 @@ test('der erste Handgriff friert die Aufstellung ein und tauscht einen Platz', (
 
 test('ein unbekannter Spieler wird nicht aufgestellt', () => {
   const stand = neuesSpiel('heg', 'fremd');
-  const vorher = entwurfVon(stand);
-  assert.deepEqual(entwurfSetze(stand, null, 'QB', 'gibtesnicht'), vorher);
+  aufstellungSetze(stand, 'QB', 'gibtesnicht');
+  assert.equal(stand.aufstellung, null, 'eine Id ohne Mann hat eine Vorgabe erzeugt');
 });
 
-test('ein Entwurf lässt den Spielstand in Ruhe, bis gespeichert wird', () => {
-  const stand = neuesSpiel('heg', 'entwurf');
+test('jeder Handgriff steht sofort im Stand', () => {
+  const stand = neuesSpiel('heg', 'sofort');
   const cb = eigeneAufstellung(stand).defense[0].spieler;
 
-  const entwurf = entwurfSetze(stand, null, 'QB', cb.id);
-  assert.equal(stand.aufstellung, null, 'der Entwurf ist schon im Stand gelandet');
-  assert.equal(eigeneAufstellung(stand).offense[0].spieler.id !== cb.id, true);
-
-  // Die Ansicht rechnet ihn trotzdem durch — sie zeigt, was gälte.
-  assert.equal(eigeneAufstellung(stand, entwurf).offense[0].spieler.id, cb.id);
-
-  assert.equal(setzeAufstellung(stand, entwurf), true);
+  aufstellungSetze(stand, 'QB', cb.id);
+  assert.ok(stand.aufstellung, 'der Handgriff ist nicht im Stand gelandet');
   assert.equal(eigeneAufstellung(stand).offense[0].spieler.id, cb.id);
 });
 
-test('eine unvollständige Elf wird nicht gespeichert', () => {
+test('eine unvollständige Elf ist ein gültiger Stand', () => {
+  // Sie war es nicht: `setzeAufstellung()` lehnte sie ab, und der Knopf
+  // „Speichern" war gesperrt, solange ein Platz offen stand. Seit ein Platz
+  // leer bleiben darf, ist die Lücke eine Entscheidung mit einer Folge — der
+  // Wertung am Spieltag — und kein ungültiger Zustand mehr.
   const stand = neuesSpiel('heg', 'unvollstaendig');
-  const voll = entwurfVon(stand);
-  assert.equal(entwurfVollstaendig(stand, voll), true);
-  assert.equal(setzeAufstellung(stand, voll), true);
+  assert.equal(aufstellungVollstaendig(stand), true);
+  assert.equal(offenePlaetze(stand), 0);
 
-  // Ein Platz, den die Vorgabe ausdrücklich frei lässt, ist keine Elf.
-  const halb = { ...voll, QB: null };
-  assert.equal(entwurfVollstaendig(stand, halb), false);
-  assert.equal(setzeAufstellung(stand, halb), false);
-  assert.deepEqual(stand.aufstellung, voll, 'der alte Stand wurde überschrieben');
+  aufstellungRaeume(stand, 'QB');
+  assert.equal(stand.aufstellung.QB, null);
+  assert.equal(aufstellungVollstaendig(stand), false);
+  assert.equal(offenePlaetze(stand), 1);
+  assert.equal(eigeneAufstellung(stand).offense[0].spieler, null,
+    'die Automatik hat den geräumten Platz wieder besetzt');
+
+  // Die übrigen einundzwanzig stehen unberührt.
+  const a = eigeneAufstellung(stand);
+  assert.equal([...a.offense, ...a.defense].filter((p) => p.spieler).length, 21);
+
+  // Und „Automatisch aufstellen" ist der Weg zurück.
+  automatischAufstellen(stand);
+  assert.equal(aufstellungVollstaendig(stand), true);
 });
 
 test('automatisch aufstellen vergisst die Vorgabe', () => {
@@ -685,18 +695,104 @@ test('Export und Import nehmen die Aufstellung mit', () => {
   assert.deepEqual(zurueck.aufstellung, stand.aufstellung);
 });
 
-test('das Leeren ist ein Entwurf und kein Speicherzustand', () => {
+test('das Leeren steht sofort im Stand und lässt jeden Platz offen', () => {
   const stand = neuesSpiel('heg', 'leeren');
-  const leer = entwurfLeeren(stand);
+  aufstellungLeeren(stand);
 
-  assert.equal(Object.keys(leer).length, 22);
-  assert.ok(Object.values(leer).every((id) => id === null));
-  assert.equal(entwurfVollstaendig(stand, leer), false);
-  assert.equal(setzeAufstellung(stand, leer), false);
-  assert.equal(stand.aufstellung, null, 'die leere Aufstellung ist im Stand gelandet');
+  assert.equal(Object.keys(stand.aufstellung).length, 22);
+  assert.ok(Object.values(stand.aufstellung).every((id) => id === null));
+  assert.equal(aufstellungVollstaendig(stand), false);
+  assert.equal(offenePlaetze(stand), 22);
 
   // Von dort aus besetzt jeder Handgriff genau einen Platz.
-  const einer = entwurfSetze(stand, leer, 'QB', stand.kader.heg[0].id);
-  const a = eigeneAufstellung(stand, einer);
+  aufstellungSetze(stand, 'QB', stand.kader.heg[0].id);
+  const a = eigeneAufstellung(stand);
   assert.equal([...a.offense, ...a.defense].filter((p) => p.spieler).length, 1);
+  assert.equal(offenePlaetze(stand), 21);
+});
+
+// --- Wer nicht antritt, wird gewertet ---------------------------------------
+
+test('eine Elf mit Loch tritt nicht an und wird 0:36 gewertet', () => {
+  const stand = neuesSpiel('heg', 'wertung');
+  const partie = naechstePartie(stand, 'heg');
+  const heim = partie.heim === 'heg';
+
+  aufstellungLeeren(stand);
+
+  // Der Kalender hält vorher an und fragt. „Dabei bleibt es" heißt: so antreten.
+  bisSpieltag(stand, 1, (a) => a[a.length - 1]);
+
+  assert.ok(partie.ergebnis, 'die Partie wurde nicht gespielt');
+  assert.equal(partie.ergebnis.nichtAngetreten, heim ? 'heim' : 'gast');
+  assert.equal(heim ? partie.ergebnis.heimPunkte : partie.ergebnis.gastPunkte, 0);
+  assert.equal(heim ? partie.ergebnis.gastPunkte : partie.ergebnis.heimPunkte, WERTUNG_PUNKTE);
+
+  // Nicht gespielt heißt nicht gespielt: keine Box, kein Viertel, keine
+  // Verletzung — und das auch für den Gegner, der angetreten wäre.
+  assert.deepEqual(partie.ergebnis.heimViertel, [0, 0, 0, 0]);
+  assert.deepEqual(partie.ergebnis.gastViertel, [0, 0, 0, 0]);
+  assert.equal(partie.ergebnis.heimStats.passing, null);
+  assert.equal(partie.ergebnis.gastStats.passing, null);
+  assert.deepEqual(partie.ergebnis.verletzungen, []);
+
+  // Und in der Tabelle steht eine Niederlage mit sechsunddreißig Gegenpunkten.
+  const zeile = meineTabelle(stand).find((z) => z.teamId === 'heg');
+  assert.equal(zeile.niederlagen, 1);
+  assert.equal(zeile.kassiert, WERTUNG_PUNKTE);
+  assert.equal(zeile.erzielt, 0);
+});
+
+test('ein gewertetes Spiel verbucht bei niemandem einen Einsatz', () => {
+  const stand = neuesSpiel('heg', 'keineeinsaetze');
+  const partie = naechstePartie(stand, 'heg');
+  const gegner = partie.heim === 'heg' ? partie.gast : partie.heim;
+  const zaehle = (/** @type {string} */ id) => stand.kader[id]
+    .reduce((summe, sp) => summe + Object.values(sp.einsaetze || {})
+      .reduce((a, b) => a + b, 0), 0);
+
+  aufstellungLeeren(stand);
+  const vorherEigen = zaehle('heg');
+  const vorherGegner = zaehle(gegner);
+
+  bisSpieltag(stand, 1, (a) => a[a.length - 1]);
+
+  assert.equal(zaehle('heg'), vorherEigen, 'der eigene Kader hat gespielt');
+  assert.equal(zaehle(gegner), vorherGegner, 'der Gegner hat gespielt');
+});
+
+test('vor dem Anpfiff wird gefragt, und die Automatik ist eine Antwort', () => {
+  const stand = neuesSpiel('heg', 'gefragt');
+  aufstellungLeeren(stand);
+
+  // Bis zum Spieltag laufen lassen, ohne zu antworten: der Kalender bleibt an
+  // der Frage stehen, statt die leere Elf stillschweigend antreten zu lassen.
+  const ziel = tagVonSpieltag(1) + 1;
+  for (let i = 0; i < 40 && stand.tag < ziel; i++) {
+    const vorher = stand.tag;
+    weiter(stand, ziel);
+    if (stand.tag === vorher) break;
+  }
+  const frage = offeneAntworten(stand).find((n) => n.art === 'aufstellungUnvollstaendig');
+  assert.ok(frage, 'niemand hat vor dem Anpfiff nach den leeren Plätzen gefragt');
+  assert.equal(frage.daten.offen, 22);
+
+  // „Aufstellen lassen" wirft die Vorgabe weg — und damit die Lücken.
+  beantworteNachricht(stand, frage.id, 'automatisch');
+  assert.equal(stand.aufstellung, null);
+  assert.equal(aufstellungVollstaendig(stand), true);
+
+  bisSpieltag(stand, 1);
+  assert.equal(naechstePartie(stand, 'heg') === null
+    || naechstePartie(stand, 'heg').spieltag > 1, true);
+});
+
+test('vorgabeVon friert ein, was die Automatik gestellt hatte', () => {
+  const stand = neuesSpiel('heg', 'einfrieren');
+  const vorgabe = vorgabeVon(stand);
+  assert.equal(Object.keys(vorgabe).length, 22);
+  assert.equal(stand.aufstellung, null, 'das Einfrieren hat schon geschrieben');
+
+  setzeAufstellung(stand, vorgabe);
+  assert.equal(aufstellungVollstaendig(stand), true);
 });

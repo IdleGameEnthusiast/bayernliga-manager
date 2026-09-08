@@ -164,13 +164,42 @@ try {
   ersterFrei.click();
   gleich('der zweite Tipp setzt ihn ein', qbName(), neuerName);
   pruefe('und er stand vorher nicht dort', vorher !== neuerName, vorher);
-  enthaelt('die Änderung ist ungespeichert', txt('.rosterkopf'), 'Ungespeicherte');
+  gleich('es steht sofort im Stand und braucht keine Leiste',
+    alle('.wechselleiste').length, 0);
+
+  // Ein Platz, den es zweimal gibt. In 11 personnel heißt der zweite Receiver
+  // `WR#2` — ein Schlüssel, kein Platzname. Wer ihn zum Bewerten weiterreichte,
+  // ließ `wertAuf()` mit „Unbekannter Platz" werfen, und die ganze Ansicht
+  // unterhalb der Reiter blieb weg. Genau deshalb steht diese Prüfung hier.
+  // Jeder Klick zeichnet neu — ein festgehaltenes Element ist danach abgehängt
+  // und sein Handler kennt den alten Zustand. Deshalb jedes Mal frisch suchen.
+  const zweiterWr = () => alle('.karte')[1].querySelectorAll('.aufstellung li')[4];
+  enthaelt('der fünfte Offense-Platz ist der zweite Receiver',
+    zweiterWr().querySelector('.platz').textContent, 'WR');
+  zweiterWr().click();
+  gleich('ein doppelt vergebener Platz lässt die Ansicht stehen',
+    alle('.karte').length, 4);
+  enthaelt('und die Liste links gilt für ihn',
+    alle('.karte')[1].querySelector('.verfuegbarkopf h3').textContent, 'WR');
+  zweiterWr().click();
+  enthaelt('der zweite Tipp nimmt die Wahl zurück',
+    alle('.karte')[1].querySelector('.verfuegbarkopf h3').textContent, 'Verfügbar');
 
   // Mann zuerst: ein Tipp links, und jeder Platz trägt seine Zahl.
   alle('.karte')[2].querySelector('.verfuegbare li').click();
-  gleich('die Leiste hält den Gewählten fest', alle('.wechselleiste').length, 1);
   pruefe('jeder Platz zeigt jetzt zwei Zahlen',
     alle('.karte')[2].querySelectorAll('.aufstellung li .platz-stk.neu').length > 0);
+  alle('.karte')[2].querySelector('.verfuegbare li').click();
+
+  // Der Papierkorb räumt genau einen Platz — und lässt ihn leer.
+  gleich('jeder besetzte Platz trägt einen Papierkorb',
+    alle('.karte')[1].querySelectorAll('.aufstellung li .papierkorb').length, 11);
+  alle('.karte')[1].querySelector('.aufstellung li .papierkorb').click();
+  gleich('der geräumte Platz steht leer', qbName(), '—');
+  enthaelt('und die Elf hat keine Stärke mehr', txt('.rosterkopf'), 'Gesamt: –');
+  enthaelt('sondern eine Warnung', txt('.rosterkopf .warnung'), 'gewertet');
+  gleich('sein Bereich zeigt statt der Zahl einen Strich',
+    alle('.staerkezahl')[0].querySelector('strong').textContent, '–');
 
   // Ein Kicker von Hand — und der Weg zurück in die Automatik.
   const specialZeile = () => alle('.karte')[3].querySelector('.aufstellung li');
@@ -183,14 +212,14 @@ try {
   gleich('der Platz ist wieder automatisch',
     alle('.karte')[3].querySelectorAll('.marke.auto').length, 3);
 
-  // Gespeichert wird ausdrücklich. Ohne diesen Schritt hielte der Wächter
-  // vor dem nächsten Reiter an und fragte nach dem Entwurf — genau so, wie er
-  // soll, und genau deshalb steht er hier im Weg.
+  // „Automatisch aufstellen" ist der Weg zurück aus einer Elf mit Loch.
   const knopfMit = (name) => alle('.aufstellungsknoepfe button')
     .find((b) => b.textContent === name);
-  pruefe('der Entwurf lässt sich speichern', !!knopfMit('Speichern'));
-  knopfMit('Speichern').click();
-  enthaelt('und sagt es', txt('.hinweis'), 'gespeichert');
+  gleich('gespeichert wird nicht mehr von Hand', !!knopfMit('Speichern'), false);
+  gleich('und verworfen auch nicht', !!knopfMit('Verwerfen'), false);
+  knopfMit('Automatisch aufstellen').click();
+  enthaelt('die Automatik füllt den geräumten Platz wieder', txt('.rosterkopf'), 'Gesamt: ');
+  gleich('und die Warnung ist weg', alle('.rosterkopf .warnung').length, 0);
 
   // 10 — Personal: die Tabelle ist umgezogen, Coaches und Orga stehen still
   reiterKnopf('Personal').click();

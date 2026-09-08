@@ -20,7 +20,7 @@ import { LIGA_MAX_STAERKE, POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_
   from '../engine/constants.js';
 import { positionsKuerzel, hauptPosition, platzKuerzel } from '../engine/positionen.js';
 import { bestePlaetze, specialTechnik } from '../engine/aufstellung.js';
-import { passAnteilVon, eigeneAufstellung, aufstellungVon } from '../engine/saison.js';
+import { eigeneAufstellung, aufstellungVon } from '../engine/saison.js';
 
 /**
  * Eine Spalte des Depth Charts: Beschriftung, Zellinhalt und der Wert, nach
@@ -79,11 +79,9 @@ const BEREICHE = /** @type {[string, string, boolean][]} */ ([
 export function zeigePersonal(stand, neuZeichnen) {
   const kader = stand.kader[stand.meinTeam];
   const tag = stand.tag;
-  const anteil = passAnteilVon(stand, stand.meinTeam);
 
   // Wer wo steht: dieselbe Marke wie im Roster, nur hier als Auskunft statt
-  // als Handlung. Gerechnet wird mit dem, was gespeichert ist — ein Entwurf
-  // gehört in den Roster, nicht in die Personalakte.
+  // als Handlung.
   const a = eigeneAufstellung(stand, aufstellungVon(stand, stand.meinTeam));
   /** @type {Map<string, string[]>} */
   const starter = new Map();
@@ -102,7 +100,7 @@ export function zeigePersonal(stand, neuZeichnen) {
       [...SPALTEN.map((sp) => kopfzelle(sp, male)), el('th', { 'aria-label': T.kader.werte })],
       liste.flatMap((spieler, i) => [
         zeile(spieler, tag, male, trennerVor(liste, i), starter.get(spieler.id)),
-        offeneWerte.has(spieler.id) ? werteZeile(spieler, anteil) : null,
+        offeneWerte.has(spieler.id) ? werteZeile(spieler) : null,
       ].filter(Boolean))));
   };
   male();
@@ -266,15 +264,14 @@ function zeile(sp, tag, male, trenner, plaetze) {
  *
  * Die Attribute sagen, was er mitbringt; die fünf Plätze sagen, wozu das
  * gerade taugt. Es ist dieselbe Zahl, die die Aufstellung hinter einem Namen
- * zeigt, also mit der Ausrichtung gerechnet, die der Verein gerade fährt — die
- * beiden Ansichten dürfen sich hier nicht widersprechen.
+ * zeigt — und die hängt nicht an der Ausrichtung des Vereins: wo ein Mann
+ * hingehört, ändert der Regler im Taktikreiter nicht.
  *
  * Bein und Zielwasser stehen abgesetzt daneben: sie gehören zu keiner der
  * fünfzehn und zu keinem der Plätze, sondern zu den Special Teams.
  * @param {import('../engine/spieler.js').Spieler} sp
- * @param {number} anteil Der Passanteil des eigenen Vereins
  */
-function werteZeile(sp, anteil) {
+function werteZeile(sp) {
   const heimat = positionsKuerzel(sp);
   const technik = specialTechnik(sp);
 
@@ -297,7 +294,7 @@ function werteZeile(sp, anteil) {
           : null),
       el('div', { class: 'plaetze' },
         el('span', { class: 'klein leise', text: T.kader.bestePositionen }),
-        bestePlaetze(sp, anteil).map((eintrag) => {
+        bestePlaetze(sp).map((eintrag) => {
           const wert = Math.round(eintrag.wert);
           const heim = eintrag.kuerzel === heimat;
           return el('span', {

@@ -14,11 +14,13 @@ import {
   BASE_POINTS, RATING_TO_POINTS, HOME_ADVANTAGE, MATCH_NOISE,
   MIN_EXPECTED, MAX_EXPECTED, INJURY_CHANCE_PER_GAME,
   INJURY_MIN_WEEKS, INJURY_MAX_WEEKS, OT_NOTBREMSE_RUNDEN,
-  AUSGEWOGENHEIT, KLIPPE, RAND,
+  AUSGEWOGENHEIT, KLIPPE, RAND, WERTUNG_PUNKTE,
   clamp, randInt, randNormal, pickWeighted,
 } from './constants.js';
 import { teamStaerken } from './team.js';
-import { doppelEinsaetze, doppelRisiko, PERSONNEL, STANDARD_PERSONNEL } from './aufstellung.js';
+import {
+  doppelEinsaetze, doppelRisiko, vollstaendig, PERSONNEL, STANDARD_PERSONNEL,
+} from './aufstellung.js';
 import { verfuegbar, kurzName } from './spieler.js';
 
 /**
@@ -78,6 +80,7 @@ import { verfuegbar, kurzName } from './spieler.js';
  * @property {TeamStats} heimStats
  * @property {TeamStats} gastStats
  * @property {Verletzung[]} verletzungen
+ * @property {'heim'|'gast'|null} nichtAngetreten Wer nicht angetreten ist — sonst `null`
  * @property {{ heim: import('./aufstellung.js').Aufstellung, gast: import('./aufstellung.js').Aufstellung }} aufstellungen
  *   Wer tatsächlich auf dem Feld stand. Flüchtig: `spieleTag()` bucht daraus
  *   die Einsätze und streift das Feld ab, bevor das Ergebnis im Spielplan landet.
@@ -406,6 +409,20 @@ export function simuliereSpiel(rng, heim, gast, tag) {
   const gastStaerken = teamStaerken(
     gast.kader, tag, gast.personnel, gast.passAnteil, gast.aufstellung);
 
+  // Wer keine vollständige Elf stellt, tritt nicht an. Dann wird gewertet
+  // statt gespielt: der Verein bekommt null, der Gegner sechs Touchdowns.
+  //
+  // Unvollständig sein kann nur der Verein des Managers — ein KI-Verein bringt
+  // keine Vorgabe mit, und ohne sie lassen die drei Reparaturrunden von
+  // `stelleAuf()` keinen Platz leer. Der Heimverein wird trotzdem zuerst
+  // gefragt, damit der Fall, den es nicht geben kann, wenigstens eindeutig
+  // ausgeht: die Liga kennt kein Unentschieden, also darf hier keins entstehen.
+  const nichtAngetreten = !vollstaendig(heimStaerken.aufstellung) ? 'heim'
+    : (!vollstaendig(gastStaerken.aufstellung) ? 'gast' : null);
+  if (nichtAngetreten) {
+    return wertung(nichtAngetreten, heimStaerken.aufstellung, gastStaerken.aufstellung);
+  }
+
   const heimErwartet = clamp(
     BASE_POINTS
       + vorteil(heimStaerken, gastStaerken, heimAnteil) * RATING_TO_POINTS
@@ -471,7 +488,44 @@ export function simuliereSpiel(rng, heim, gast, tag) {
     heimStats: baueStats(rng, heim.kader, tag, heimTds, heimStaerken, heimAnteil),
     gastStats: baueStats(rng, gast.kader, tag, gastTds, gastStaerken, gastAnteil),
     verletzungen,
+    nichtAngetreten: null,
     aufstellungen: { heim: heimStaerken.aufstellung, gast: gastStaerken.aufstellung },
+  };
+}
+
+/**
+ * Ein Spiel, das nicht stattgefunden hat.
+ *
+ * Kein Viertel, keine Box, keine Verletzung — und `spieleTag()` verbucht daraus
+ * auch keine Einsätze, für keinen der beiden. Es wurde nicht gespielt, also
+ * zieht auch niemandes Profil, und der Gegner verliert seinen Spieltag mit.
+ * Das ist der Preis dafür, dass die Wertung eine Wertung ist und keine
+ * Simulation mit einer anderen Zahl am Ende.
+ *
+ * Die Aufstellungen fahren trotzdem mit, damit der Aufrufer dieselbe Form
+ * bekommt wie bei jedem anderen Spiel — er streift sie ohnehin ab, bevor das
+ * Ergebnis im Spielplan landet, und verbucht bei einer Wertung nichts daraus.
+ * @param {'heim'|'gast'} nichtAngetreten
+ * @param {import('./aufstellung.js').Aufstellung} heim
+ * @param {import('./aufstellung.js').Aufstellung} gast
+ * @returns {Ergebnis}
+ */
+function wertung(nichtAngetreten, heim, gast) {
+  const leer = () => /** @type {TeamStats} */ ({
+    passing: null, rushing: null, receiving: null, yardsGesamt: 0,
+  });
+  const daheim = nichtAngetreten === 'heim';
+  return {
+    heimPunkte: daheim ? 0 : WERTUNG_PUNKTE,
+    gastPunkte: daheim ? WERTUNG_PUNKTE : 0,
+    heimViertel: [0, 0, 0, 0],
+    gastViertel: [0, 0, 0, 0],
+    verlaengerung: false,
+    heimStats: leer(),
+    gastStats: leer(),
+    verletzungen: [],
+    nichtAngetreten,
+    aufstellungen: { heim, gast },
   };
 }
 

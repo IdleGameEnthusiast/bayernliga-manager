@@ -40,6 +40,7 @@
  */
 export const ANTWORTEN = {
   aufstellungUngueltig: ['automatisch', 'selbst'],
+  aufstellungUnvollstaendig: ['automatisch', 'antreten'],
 };
 
 /**

@@ -11,7 +11,7 @@
  * Docs: docs/umbau-positionsmodell.md, Abschnitt 6
  */
 
-import { ERSATZ_STAERKE, SPREIZUNG } from './constants.js';
+import { LEERER_PLATZ_WERT, SPREIZUNG } from './constants.js';
 import { istFit } from './spieler.js';
 import {
   PERSONNEL, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
@@ -57,7 +57,7 @@ function block(plaetze, schluessel) {
  * @param {(s: import('./spieler.js').Spieler) => number} wert
  */
 export function besterFuss(kader, tag, wert) {
-  let bester = ERSATZ_STAERKE;
+  let bester = LEERER_PLATZ_WERT;
   for (const s of kader) {
     if (!istFit(s, tag)) continue;
     const w = wert(s);
@@ -75,7 +75,7 @@ export function besterFuss(kader, tag, wert) {
  * und `gesamtStaerke()` von der Spreizung nichts. Sie existiert nur dort, wo die
  * taktische Entscheidung fällt.
  *
- * Warum ungeklammert: `mitte` liegt nie unter ERSATZ_STAERKE, und `halb` bleibt
+ * Warum ungeklammert: `mitte` liegt bei einem besetzten Kader weit über null, und `halb` bleibt
  * darunter — die größte Neigung ist 16,4 und die größte beobachtete Rohspanne
  * gut 15, zusammen also unter 16. Eine Klammer würde nur die Invariante oben
  * kaputtmachen, ohne je zu greifen.
@@ -142,9 +142,9 @@ export function teamStaerken(kader, tag, personnel = STANDARD_PERSONNEL, passAnt
   // Kicker und Punter zu gleichen Teilen, der Long Snapper halb so schwer: er
   // gewinnt kein Spiel, aber ein Fehlsnap verliert eins, und dieses Gewicht
   // ist der Preis dafür, dass niemand den Platz beachtet.
-  const k = aufstellung.k ? kickerWert(aufstellung.k) : ERSATZ_STAERKE;
-  const p = aufstellung.p ? punterWert(aufstellung.p) : ERSATZ_STAERKE;
-  const ls = aufstellung.ls ? longSnapperWert(aufstellung.ls) : ERSATZ_STAERKE;
+  const k = aufstellung.k ? kickerWert(aufstellung.k) : LEERER_PLATZ_WERT;
+  const p = aufstellung.p ? punterWert(aufstellung.p) : LEERER_PLATZ_WERT;
+  const ls = aufstellung.ls ? longSnapperWert(aufstellung.ls) : LEERER_PLATZ_WERT;
 
   return {
     passAngriff,

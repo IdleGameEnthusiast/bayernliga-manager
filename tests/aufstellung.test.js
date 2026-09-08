@@ -2,20 +2,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { makeRng, ZUSATZ_SPIELER, ERSATZ_STAERKE } from '../engine/constants.js';
+import { makeRng, ZUSATZ_SPIELER, LEERER_PLATZ_WERT } from '../engine/constants.js';
 import {
   macheKader, macheSpieler, resetSpielerIds, setzeStaerke, spieleEinsatz, verfalleEinsaetze,
 } from '../engine/spieler.js';
 import {
-  PLAETZE, hauptPlatz, hauptPosition, positionsKuerzel, platzKuerzel, einsaetzeAuf,
-  EINGESPIELT_VOLL,
+  PLAETZE, PLATZ_JE_KUERZEL, hauptPlatz, hauptPosition, positionsKuerzel, platzKuerzel,
+  einsaetzeAuf, EINGESPIELT_VOLL,
 } from '../engine/positionen.js';
 import {
   PERSONNEL, PERSONNEL_REIHE, STANDARD_PERSONNEL, OL_PLAETZE, QB_PLATZ, DEFENSE_PLAETZE,
   BLOCK_GEWICHT, PLATZ_ANTEIL, SKILL_LEITER, SKILL_ROLLE, SKILL_NORM,
   stelleAuf, skillAnteile, doppelAbzug, doppelRisiko, doppelEinsaetze, umstellungen,
   platzStaerke, alsVorgabe, setzePlatz, bestenFuer, bestePlaetze, wertAuf, vollstaendig,
-  leereVorgabe, entferneSpieler, loesePlatz, specialSpieler, SPECIAL_PLAETZE,
+  leereVorgabe, raeumePlatz, loesePlatz, specialSpieler, SPECIAL_PLAETZE,
   kickerWert, longSnapperWert,
 } from '../engine/aufstellung.js';
 import { teamStaerken } from '../engine/team.js';
@@ -167,7 +167,7 @@ test('jeder Platz weiß, was sein Mann dort wert ist', () => {
   for (const p of [...a.offense, ...a.defense]) {
     assert.ok(p.staerke > 0, `${p.platz} hat keine Stärke`);
     assert.ok(p.staerke <= 100, `${p.platz}: ${p.staerke} liegt über der Skala`);
-    assert.equal(p.staerke, platzStaerke(p, 0.6), `${p.platz} rechnet anders als platzStaerke`);
+    assert.equal(p.staerke, platzStaerke(p), `${p.platz} rechnet anders als platzStaerke`);
   }
 });
 
@@ -176,7 +176,7 @@ test('ein Umsteller ist auf seinem Platz weniger wert als daheim', () => {
   const um = [...a.offense, ...a.defense].find((p) => p.umgestellt && !p.doppel);
   if (!um || !um.spieler) return;   // nicht jeder Kader stellt um
   const daheim = { ...um, platz: eigenerPlatz(um.spieler.position), umgestellt: false };
-  assert.ok(platzStaerke(um, 0.6) < platzStaerke(daheim, 0.6),
+  assert.ok(platzStaerke(um) < platzStaerke(daheim),
     `${um.platz}: der Umsteller steht dort nicht schlechter da`);
 });
 
@@ -191,7 +191,7 @@ test('der Doppeleinsatz kostet auch in der angezeigten Stärke', () => {
   const a = stelleAuf(kader('doppel', 58, 0), 1, '11', 0.6);
   for (const p of [...a.offense, ...a.defense]) {
     if (!p.doppel || !p.spieler) continue;
-    assert.ok(p.staerke < platzStaerke({ ...p, doppel: false }, 0.6),
+    assert.ok(p.staerke < platzStaerke({ ...p, doppel: false }),
       `${p.platz}: der zweite Einsatz kostet nichts`);
   }
 });
@@ -295,7 +295,7 @@ test('teamStaerken liefert Lauf und Pass getrennt', () => {
   const s = teamStaerken(kader('werte'), 1);
   for (const feld of ['passAngriff', 'laufAngriff', 'passVerteidigung', 'laufVerteidigung']) {
     assert.equal(typeof s[feld], 'number', feld);
-    assert.ok(s[feld] > ERSATZ_STAERKE && s[feld] < 79, `${feld} ist ${s[feld]}`);
+    assert.ok(s[feld] > 20 && s[feld] < 79, `${feld} ist ${s[feld]}`);
   }
   assert.ok(s.aufstellung, 'die Aufstellung hängt mit dran');
 });
@@ -313,20 +313,18 @@ test('dieselben elf Leute sind in verschiedenen Systemen verschieden viel wert',
   assert.ok(schwer.laufAngriff / schwer.passAngriff > leer.laufAngriff / leer.passAngriff);
 });
 
-test('ein voller Kader kommt der Ersatzstärke nie nahe', () => {
-  // ERSATZ_STAERKE ist kein Notnagel mehr. Sie steht nur noch für den
-  // buchstäblich leeren Kader.
+test('ein leerer Platz trägt nichts, und ein leerer Kader gar nichts', () => {
   const s = teamStaerken(kader('voll'), 1);
   assert.ok(Math.min(s.passAngriff, s.laufAngriff,
-    s.passVerteidigung, s.laufVerteidigung) > ERSATZ_STAERKE + 10);
+    s.passVerteidigung, s.laufVerteidigung) > 30);
 
   const leer = teamStaerken([], 1);
   // Die Gruppierung kippt auch ein leeres Feld nach ihrer Neigung. Was bleibt,
   // ist das hälftige Mittel — genau das, was `spreize()` verspricht.
-  assert.equal((leer.passAngriff + leer.laufAngriff) / 2, ERSATZ_STAERKE);
-  assert.equal(leer.laufVerteidigung, ERSATZ_STAERKE, 'die Defense kennt kein Personnel');
-  assert.equal(leer.passVerteidigung, ERSATZ_STAERKE);
-  assert.equal(leer.special, ERSATZ_STAERKE);
+  assert.equal((leer.passAngriff + leer.laufAngriff) / 2, LEERER_PLATZ_WERT);
+  assert.equal(leer.laufVerteidigung, LEERER_PLATZ_WERT, 'die Defense kennt kein Personnel');
+  assert.equal(leer.passVerteidigung, LEERER_PLATZ_WERT);
+  assert.equal(leer.special, LEERER_PLATZ_WERT);
 });
 
 test('der Passanteil des Vereins verschiebt nur, wer nachrückt', () => {
@@ -474,7 +472,7 @@ test('die Besten für einen Platz stehen absteigend und sind fit', () => {
   const k = kader('beste');
   k[0].verletztBis = 5;
 
-  const liste = bestenFuer(k, 1, 'LT', 0.5, 4);
+  const liste = bestenFuer(k, 1, 'LT', 4);
   assert.equal(liste.length, 4);
   for (let i = 1; i < liste.length; i++) {
     assert.ok(liste[i - 1].wert >= liste[i].wert, 'die Liste steht nicht absteigend');
@@ -495,14 +493,14 @@ test('der eigene Mann und der, der dort steht, fallen nicht unter die Kante', ()
   // hinein — sonst beantwortet die Liste nicht die Frage, unter der sie steht.
   const eigene = k.filter((s) => hauptPosition(s) === 'C');
   assert.ok(eigene.length > 0, 'der Kader hat gar keinen Center');
-  const liste = bestenFuer(k, 1, 'C', 0.5);
+  const liste = bestenFuer(k, 1, 'C');
   assert.ok(liste.some((e) => hauptPosition(e.spieler) === 'C'),
     'kein einziger Center unter den Besten für C');
 
   // Und wer dort steht, steht in der Liste — egal, wie weit hinten die Zahl
   // ihn führt. Er ist der Vergleichswert, gegen den der Manager liest.
-  const schwach = [...k].sort((a, b) => wertAuf(a, 'C', 0.5) - wertAuf(b, 'C', 0.5))[0];
-  const mitIhm = bestenFuer(k, 1, 'C', 0.5, 5, schwach.id);
+  const schwach = [...k].sort((a, b) => wertAuf(a, 'C') - wertAuf(b, 'C'))[0];
+  const mitIhm = bestenFuer(k, 1, 'C', 5, schwach.id);
   assert.ok(mitIhm.some((e) => e.spieler.id === schwach.id), 'der Mann auf dem Platz fehlt');
   assert.equal(mitIhm[mitIhm.length - 1].spieler.id, schwach.id, 'er steht nicht hinten an');
 
@@ -513,7 +511,7 @@ test('der eigene Mann und der, der dort steht, fallen nicht unter die Kante', ()
 
   // Ein Verletzter wird auch dann nicht gesetzt, wenn er den Platz hält.
   schwach.verletztBis = 5;
-  assert.ok(!bestenFuer(k, 1, 'C', 0.5, 5, schwach.id).some((e) => e.spieler.id === schwach.id),
+  assert.ok(!bestenFuer(k, 1, 'C', 5, schwach.id).some((e) => e.spieler.id === schwach.id),
     'ein Verletzter steht in der Liste');
 });
 
@@ -525,31 +523,54 @@ test('wertAuf ist dieselbe Zahl wie die der Aufstellung, nur für jeden Platz', 
   // sonst verspricht die Ansicht etwas anderes, als das Einsetzen einlöst.
   for (const p of [...a.offense, ...a.defense]) {
     if (!p.spieler || p.doppel) continue;
-    assert.equal(wertAuf(p.spieler, p.platz, 0.6), p.staerke, p.platz);
+    assert.equal(wertAuf(p.spieler, p.platz), p.staerke, p.platz);
   }
 
   // Die Kandidatenliste rechnet mit derselben Zahl.
-  const beste = bestenFuer(k, 1, 'LT', 0.6, 3);
-  assert.equal(beste[0].wert, wertAuf(beste[0].spieler, 'LT', 0.6));
+  const beste = bestenFuer(k, 1, 'LT', 3);
+  assert.equal(beste[0].wert, wertAuf(beste[0].spieler, 'LT'));
+});
 
-  // Und die Verteidigung wird hälftig bewertet, nicht nach dem Passanteil:
-  // sie steht nicht gegen sich selbst.
-  const mann = k[0];
-  assert.equal(wertAuf(mann, 'CB1', 0.9), wertAuf(mann, 'CB1', 0.1));
-  assert.notEqual(wertAuf(mann, 'WR', 0.9), wertAuf(mann, 'WR', 0.1));
+test('die Ausrichtung des Vereins bewegt die Rosterzahl nicht mehr', () => {
+  const k = kader('anzeige');
+  const laufig = stelleAuf(k, 1, '11', 0.2);
+  const passig = stelleAuf(k, 1, '11', 0.9);
+
+  // Wer aufläuft, darf sich mit dem Passanteil ändern — was hinter seinem
+  // Namen steht, nicht. Vorher las derselbe Receiver sich je nach Regler um
+  // Punkte anders, und die linke Rosterspalte verglich Zahlen, die dasselbe
+  // meinten und es nicht taten.
+  for (const p of laufig.offense) {
+    const gleicher = passig.offense.find((q) => q.schluessel === p.schluessel);
+    if (!p.spieler || !gleicher || !gleicher.spieler) continue;
+    if (p.spieler.id !== gleicher.spieler.id) continue;
+    assert.equal(p.staerke, gleicher.staerke, p.platz);
+  }
+});
+
+test('auf seinem Hauptplatz liest die Anzeige wieder seine Stärke', () => {
+  // Das ist die tragende Eigenschaft des Modells, und sie war kaputt: gezogen
+  // wird gegen das Profil seiner Position, angezeigt wurde nach der Ausrichtung
+  // des Vereins. Ein Cornerback stand damit dauerhaft drei Punkte unter seiner
+  // eigenen Stärke.
+  for (const s of kader('hauptplatz')) {
+    const platz = PLATZ_JE_KUERZEL[hauptPlatz(s)];
+    assert.ok(Math.abs(wertAuf(s, platz) - s.staerke) < 1,
+      `${s.position} auf ${platz}: ${wertAuf(s, platz).toFixed(1)} statt ${s.staerke}`);
+  }
 });
 
 test('bestePlaetze zeigt, wo ein Mann jetzt am meisten wert wäre', () => {
   const k = kader('bestepl');
   const mann = k[0];
-  const liste = bestePlaetze(mann, 0.6);
+  const liste = bestePlaetze(mann);
 
   assert.equal(liste.length, 5);
-  assert.equal(bestePlaetze(mann, 0.6, 3).length, 3, 'die Anzahl ist einstellbar');
+  assert.equal(bestePlaetze(mann, 3).length, 3, 'die Anzahl ist einstellbar');
 
   // Absteigend, mit genau der Zahl, die auch die Aufstellung zeigt.
   for (let i = 0; i < liste.length; i++) {
-    assert.equal(liste[i].wert, wertAuf(mann, liste[i].platz, 0.6), liste[i].kuerzel);
+    assert.equal(liste[i].wert, wertAuf(mann, liste[i].platz), liste[i].kuerzel);
     if (i > 0) assert.ok(liste[i - 1].wert >= liste[i].wert, 'absteigend');
   }
 
@@ -562,7 +583,7 @@ test('bestePlaetze zeigt, wo ein Mann jetzt am meisten wert wäre', () => {
   // Sein eigener Platz steht bei jedem im Kader darunter — auf dem ist er seine
   // Stärke wert, anderswo zahlt er Transfer und Körperabstand.
   for (const s of k) {
-    assert.ok(bestePlaetze(s, 0.6).some((e) => e.kuerzel === positionsKuerzel(s)),
+    assert.ok(bestePlaetze(s).some((e) => e.kuerzel === positionsKuerzel(s)),
       `${positionsKuerzel(s)} fehlt in seinen eigenen fünf Besten`);
   }
 });
@@ -615,27 +636,27 @@ test('wer aus der leeren Aufstellung umzieht, lässt seinen Platz frei zurück',
   assert.deepEqual(umgezogen, { QB: null, LT: null, RT: 'a' });
 });
 
-test('ein freier Platz zählt wie ein leerer Kader, nicht wie ein Mann', () => {
+test('ein freier Platz zählt gar nichts, nicht einen halben Mann', () => {
   const k = kader('freiwert');
   const voll = teamStaerken(k, 1, '11');
   const leer = teamStaerken(k, 1, '11', undefined, leereVorgabe(stelleAuf(k, 1, '11')));
 
   assert.ok(leer.passAngriff < voll.passAngriff, 'die leere Elf ist nicht schwächer');
 
-  // Genau die Ersatzstärke, und zwar im Mittel: die Gruppierung kippt Lauf
-  // gegen Pass auch dann noch, wenn niemand dasteht — der Mittelwert bleibt.
-  assert.equal((leer.passAngriff + leer.laufAngriff) / 2, ERSATZ_STAERKE);
-  assert.equal(leer.laufVerteidigung, ERSATZ_STAERKE);
+  // Genau null, und zwar im Mittel: die Gruppierung kippt Lauf gegen Pass auch
+  // dann noch, wenn niemand dasteht — der Mittelwert bleibt.
+  assert.equal((leer.passAngriff + leer.laufAngriff) / 2, LEERER_PLATZ_WERT);
+  assert.equal(leer.laufVerteidigung, LEERER_PLATZ_WERT);
   // Kicker und Punter laufen außerhalb der Elf und bleiben unberührt.
   assert.equal(leer.special, voll.special);
 });
 
-test('einen Mann herausnehmen lässt seinen Platz frei, nicht nachbesetzt', () => {
+test('einen Platz räumen heißt: er bleibt leer, nicht nachbesetzt', () => {
   const k = kader('raus');
   const vorgabe = alsVorgabe(stelleAuf(k, 1, '11'));
   const qb = vorgabe[QB_PLATZ];
 
-  const ohne = entferneSpieler(vorgabe, qb);
+  const ohne = raeumePlatz(vorgabe, QB_PLATZ);
   assert.equal(ohne[QB_PLATZ], null);
   assert.equal(vorgabe[QB_PLATZ], qb, 'die übergebene Karte wurde verändert');
 
@@ -649,9 +670,24 @@ test('einen Mann herausnehmen lässt seinen Platz frei, nicht nachbesetzt', () =
   assert.equal([...a.offense, ...a.defense].filter((p) => p.spieler).length, 21);
 });
 
-test('wer doppelt steht, geht von beiden Plätzen', () => {
-  const ohne = entferneSpieler({ QB: 'a', LT: 'b', SS: 'b' }, 'b');
-  assert.deepEqual(ohne, { QB: 'a', LT: null, SS: null });
+test('geräumt wird genau ein Platz — ein Doppeleinsatz behält den anderen', () => {
+  const ohne = raeumePlatz({ QB: 'a', LT: 'b', SS: 'b' }, 'LT');
+  assert.deepEqual(ohne, { QB: 'a', LT: null, SS: 'b' });
+});
+
+test('räumen ist nicht dasselbe wie an die Automatik zurückgeben', () => {
+  const k = kader('raeumen');
+  const vorgabe = alsVorgabe(stelleAuf(k, 1, '11'));
+  const qb = vorgabe[QB_PLATZ];
+
+  // Zurückgegeben stellt die Automatik denselben Mann wieder hin — deshalb ist
+  // das nicht der Weg, einen Platz zu leeren.
+  const zurueck = stelleAuf(k, 1, '11', undefined, loesePlatz(vorgabe, QB_PLATZ));
+  assert.equal(zurueck.offense.find((p) => p.schluessel === QB_PLATZ).spieler.id, qb);
+
+  // Geräumt bleibt er leer, bis jemand ihn besetzt.
+  const geraeumt = stelleAuf(k, 1, '11', undefined, raeumePlatz(vorgabe, QB_PLATZ));
+  assert.equal(geraeumt.offense.find((p) => p.schluessel === QB_PLATZ).spieler, null);
 });
 
 // --- Special Teams ---------------------------------------------------------
@@ -707,8 +743,8 @@ test('ein Special-Teams-Platz steht außerhalb des Tauschs', () => {
   const umgezogen = setzePlatz(alsKicker, 'RB', qb.id);
   assert.equal(umgezogen.K, qb.id, 'der Umzug in der Elf hat den Kicker mitgenommen');
 
-  // Herausnehmen heißt „aus der Elf", nicht „aus den Special Teams".
-  const raus = entferneSpieler(alsKicker, qb.id);
+  // Räumen heißt „dieser Platz", nicht „dieser Mann": sein Kickerposten bleibt.
+  const raus = raeumePlatz(alsKicker, QB_PLATZ);
   assert.equal(raus[QB_PLATZ], null);
   assert.equal(raus.K, qb.id);
 });

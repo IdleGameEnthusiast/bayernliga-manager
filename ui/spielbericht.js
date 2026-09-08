@@ -32,9 +32,16 @@ export function zeigeSpielbericht(p, beiZurueck) {
       el('div', { class: 'bericht-punkte ' + (!heimGewinnt ? 'bericht-sieger' : ''), text: String(e.gastPunkte) })),
     e.verlaengerung
       ? el('p', { class: 'leise klein', style: { margin: '0' }, text: 'Entschieden in der Verlängerung' })
+      : null,
+    // Ein gewertetes Spiel hat keinen Verlauf. Statt vier leerer Viertel und
+    // einer Box ohne einen einzigen Yard steht hier ein Satz, der sagt, warum.
+    e.nichtAngetreten
+      ? el('p', { class: 'warnung klein', style: { margin: '0' },
+        text: T.spiel.nichtAngetreten(
+          (e.nichtAngetreten === 'heim' ? heim : gast).name, e.heimPunkte, e.gastPunkte) })
       : null);
 
-  const viertel = el('div', { class: 'karte' },
+  const viertel = e.nichtAngetreten ? null : el('div', { class: 'karte' },
     el('h2', { text: T.spiel.viertel }),
     machTabelle(
       ['', 'Q1', 'Q2', 'Q3', 'Q4', T.spiel.endstand],
@@ -47,7 +54,7 @@ export function zeigeSpielbericht(p, beiZurueck) {
           el('td', { style: { fontWeight: '700' }, text: String(e.gastPunkte) })),
       ]));
 
-  const box = el('div', { class: 'karte' },
+  const box = e.nichtAngetreten ? null : el('div', { class: 'karte' },
     el('h2', { text: 'Box Score' }),
     statBlock(heim.name, e.heimStats),
     statBlock(gast.name, e.gastStats));

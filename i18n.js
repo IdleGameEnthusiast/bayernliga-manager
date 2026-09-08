@@ -146,6 +146,19 @@ export const DE = {
       antworten: { automatisch: 'Aufstellen lassen', selbst: 'Ich stelle selbst um' },
     },
 
+    aufstellungUnvollstaendig: {
+      von: 'Trainerstab',
+      betreff: (d) => `Unbesetzte Plätze für ${d.spieltagNr ? 'Spieltag ' + d.spieltagNr : 'das Spiel'}`,
+      text: (d) => [
+        d.offen === 1
+          ? 'Ein Platz in deiner Aufstellung ist unbesetzt.'
+          : `${d.offen} Plätze in deiner Aufstellung sind unbesetzt.`,
+        `So können wir nicht antreten. Das Spiel würde mit 0:${d.wertung} gegen uns gewertet.`,
+        'Sollen wir die Lücken füllen, oder bleibt es dabei?',
+      ],
+      antworten: { automatisch: 'Aufstellen lassen', antreten: 'Dabei bleibt es' },
+    },
+
     spielvorschau: {
       von: 'Trainerstab',
       betreff: (d) => `Morgen: ${d.gegner}`,
@@ -158,12 +171,20 @@ export const DE = {
 
     spielbericht: {
       von: 'Trainerstab',
-      betreff: (d) => `${d.eigene > d.fremde ? 'Sieg' : 'Niederlage'} gegen ${d.gegner} `
-        + `${d.eigene}:${d.fremde}`,
-      text: (d) => [
-        `${d.heim ? 'Zuhause gegen' : 'Auswärts bei'} ${d.gegner} steht es am Ende `
-          + `${d.eigene}:${d.fremde}.`,
-      ],
+      betreff: (d) => (d.nichtAngetreten
+        ? `Nicht angetreten gegen ${d.gegner} — ${d.eigene}:${d.fremde} gewertet`
+        : `${d.eigene > d.fremde ? 'Sieg' : 'Niederlage'} gegen ${d.gegner} `
+          + `${d.eigene}:${d.fremde}`),
+      text: (d) => (d.nichtAngetreten
+        ? [
+          `Wir sind ${d.heim ? 'zuhause gegen' : 'auswärts bei'} ${d.gegner} nicht `
+            + 'angetreten: die Elf war nicht vollzählig.',
+          `Die Liga wertet das Spiel mit ${d.eigene}:${d.fremde} gegen uns.`,
+        ]
+        : [
+          `${d.heim ? 'Zuhause gegen' : 'Auswärts bei'} ${d.gegner} steht es am Ende `
+            + `${d.eigene}:${d.fremde}.`,
+        ]),
     },
 
     rundenergebnisse: {
@@ -295,12 +316,19 @@ export const DE = {
     starter: 'Aufstellung',
     plaetze: 'Plätze',
     staerke: 'Stärke',
+    // Ein Strich, wo eine Zahl stünde, wenn die Elf vollzählig wäre. Eine Elf
+    // mit Loch hat keine Stärke, die sich hinschreiben ließe.
+    ohneZahl: '–',
+    staerkeOffen: 'Erst, wenn jeder Platz besetzt ist',
     niemandFrei: 'Es steht bereits jeder, der spielen kann.',
     filterAlle: 'Alle',
     filterAlleTitel: 'Aus: nur Spieler zeigen, die in diese Einheit gehören',
     kopfAlle: 'Verfügbar',
     kopfFuer: (platz) => `Die Besten für ${platz}`,
-    hinweis: 'Platz antippen, dann den Mann — oder umgekehrt.',
+    // Der zweite Satz ist die einzige Stelle, an der das Ziehen überhaupt
+    // steht: eine Geste, die niemand sieht, findet niemand.
+    hinweis: 'Platz antippen, dann den Mann — oder umgekehrt. Ziehen geht auch: '
+      + 'mit der Maus sofort, mit dem Finger nach kurzem Halten.',
     hinweisPlatz: (platz) => `${platz} neu besetzen — jetzt links den Mann wählen.`,
     hinweisSpieler: (name) => `Wohin mit ${name}? Rechts den Platz antippen.`,
   },
@@ -354,6 +382,9 @@ export const DE = {
     versuche: 'Vers',
     faenge: 'Fänge',
     verletzung: 'Verletzung',
+    nichtAngetreten: (verein, heim, gast) =>
+      `${verein} ist nicht angetreten — die Elf war nicht vollzählig. `
+      + `Die Liga wertet ${heim}:${gast}.`,
     wochen: (n) => `${n} ${n === 1 ? 'Woche' : 'Wochen'}`,
   },
 
@@ -404,29 +435,16 @@ export const DE = {
   },
 
   aufstellung: {
-    vonHand: 'Von Hand gestellt. Verletzte und fehlende Plätze füllt die Automatik.',
+    vonHand: 'Von Hand gestellt. Verletzte füllt die Automatik nach, geräumte Plätze nicht.',
     automatisch: 'Automatisch aufstellen',
     loeschen: 'Aufstellung löschen',
-    speichern: 'Speichern',
-    speichernGesperrt: 'Erst speicherbar, wenn jeder Platz besetzt ist',
-    verwerfen: 'Verwerfen',
-    weiterBearbeiten: 'Weiter bearbeiten',
-    gespeichert: 'Aufstellung gespeichert.',
-    ungespeichert: 'Ungespeicherte Änderungen — sie gelten erst nach dem Speichern.',
-    ungespeichertOffen: 'Ungespeicherte Änderungen. Erst wenn jeder Platz besetzt ist, lässt sich speichern.',
-    ungesichert: 'Ungespeicherte Aufstellung',
-    ungesichertText: 'Die Aufstellung ist geändert, aber noch nicht gespeichert.',
-    unvollstaendigText: (offen) => `${offen} ${offen === 1 ? 'Platz ist' : 'Plätze sind'} unbesetzt. `
-      + 'So lässt sich die Aufstellung nicht speichern — verworfen wäre die Änderung weg.',
+    offeneWertung: (offen, punkte) =>
+      `${offen} ${offen === 1 ? 'Platz' : 'Plätze'} unbesetzt — 0:${punkte} gewertet`,
+    raeumenTitel: (platz) => `${platz} räumen — der Platz bleibt leer`,
     platzTitel: (platz) => `${platz} neu besetzen`,
     starterZeigen: 'Starter',
     starterZeigenTitel: 'An: auch zeigen, wer schon in der Elf steht',
     spielerWaehlen: (name) => `${name} auswählen`,
-    waehleSpieler: 'Spieler auswählen',
-    waehlePlatz: 'Platz oben antippen',
-    stehtAuf: (platz) => `steht auf ${platz} — Platz oben antippen oder herausnehmen`,
-    entfernen: 'Spieler entfernen',
-    entfernenTitel: 'Aus der Elf nehmen. Sein Platz bleibt frei, bis jemand ihn besetzt.',
     jahre: (alter) => `${alter} J.`,
     wohinMit: (name) => `Wohin mit ${name}? Platz antippen — die zweite Zahl ist seine.`,
     hierEinsetzen: (platz, name) => `${name} auf ${platz} einsetzen`,

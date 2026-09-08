@@ -44,6 +44,18 @@ test('ein Stand aus Version 6 bekommt seinen Papierkorb', () => {
   }
 });
 
+test('ein Stand aus Version 7 überlebt die Wertung', () => {
+  // Version 7 kannte kein `nichtAngetreten`: jedes Spiel wurde gespielt. Der
+  // Schritt hebt nur die Nummer — das Fehlen des Feldes heißt genau das, was es
+  // heißen soll. Ohne ihn flöge jede Karriere von gestern beim Laden weg.
+  const alt = abzug('sieben');
+  alt.version = 7;
+
+  const neu = importiere(JSON.stringify(alt));
+  assert.equal(neu.version, SAVE_VERSION);
+  assert.deepEqual(neu.spielplan.length, alt.spielplan.length);
+});
+
 test('ein Stand aus der Zukunft wird abgelehnt', () => {
   // Rückwärts rechnet hier nichts. Ein iPad, das dem PC eine Version voraus
   // ist, braucht ein Neuladen und keinen Notbehelf.
