@@ -488,17 +488,21 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
   font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
 }
 
-/* Die drei Special-Teams-Plätze tragen mehr als ein Kürzel und einen Namen:
-   die beiden gezogenen Kickwerte stehen daneben, weil sie sonst nirgends
-   stehen. Auf schmalen Schirmen brechen sie unter den Namen. */
+/* Die drei Special-Teams-Plätze tragen neben Kürzel und Namen noch die Marke
+   „automatisch" oder den Knopf zurück in die Automatik — auf schmalen Schirmen
+   bricht die Zeile deshalb eher als eine der zweiundzwanzig. */
 .aufstellung li.special { flex-wrap: wrap; }
 .aufstellung li.special .platz { flex: 0 0 32px; }
-.kickwerte { display: flex; gap: 8px; margin-left: auto; font-variant-numeric: tabular-nums; }
-/* Auf schmalen Schirmen rutschen Bein und Zielwasser unter den Namen, statt
-   ihn in zwei Zeilen zu quetschen. */
+
+/* Die beiden Werte, an denen ein Special-Teams-Platz hängt. Sie standen früher
+   an den drei Plätzen und stehen jetzt an den Kandidaten links: dort werden
+   sie gebraucht, denn verglichen wird vor dem Einsetzen, nicht danach. */
+.specialwerte { display: flex; gap: 8px; font-variant-numeric: tabular-nums; }
+/* Auf schmalen Schirmen rutschen sie unter den Namen, statt ihn in zwei Zeilen
+   zu quetschen. */
+.verfuegbare li { flex-wrap: wrap; }
 @media (max-width: 480px) {
-  .kickwerte { flex-basis: 100%; margin-left: 32px; }
-  .aufstellung li.special .platz-name { flex: 1 0 auto; }
+  .verfuegbare .specialwerte { flex-basis: 100%; margin-left: 32px; }
 }
 .marke.auto { background: rgba(255, 255, 255, .06); color: var(--text-leise); }
 .schalter.loesen { min-height: 26px; padding: 0 8px; font-size: 11px; }

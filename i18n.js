@@ -343,13 +343,15 @@ export const DE = {
     zielTitel: 'Wie zuverlässig der Ball dorthin geht, wo er hin soll',
     technik: 'Technik',
     technikTitel: 'Das Handwerk des ausgebildeten Spezialisten — alle anderen haben es nicht',
+    ball: 'Ball',
+    ballTitel: 'Ballsicherheit — ob der Snap ankommt, ohne dass jemand hinsieht',
     automatisch: 'automatisch',
     automatischTitel: 'Nicht besetzt — der beste Fuß im Kader nimmt den Platz',
     zurueckAutomatik: 'Automatik',
     zurueckAutomatikTitel: 'Den Platz wieder dem besten Fuß im Kader überlassen',
     hinweis: 'Diese drei stehen außerhalb der Elf: wer hier steht, spielt trotzdem seine '
-      + 'Position. Die Technik hat nur ein ausgebildeter Spezialist — der Verein hat keinen, '
-      + 'bis er einen verpflichtet.',
+      + 'Position. Ein Platz darf auch leer bleiben — dann tritt der Verein ohne ihn an, '
+      + 'und die Stärke sagt es. Was für einen Platz zählt, steht bei der Auswahl links.',
   },
 
   personal: {

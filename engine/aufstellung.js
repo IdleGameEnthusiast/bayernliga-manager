@@ -728,6 +728,37 @@ export const SPECIAL_WERT =
   });
 
 /**
+ * Die beiden Werte, an denen ein Special-Teams-Platz am meisten hängt — in der
+ * Reihenfolge ihres Gewichts in seiner Formel.
+ *
+ * Sie stehen hier und nicht in der Ansicht, weil sie eine Regel sind: wer oben
+ * an den Gewichten dreht, dreht hier mit. Die Ansicht holt sich zum Schlüssel
+ * nur den Namen — die Engine kennt `i18n.js` nicht.
+ *
+ * Beim Long Snapper sind es andere zwei, und das ist der ganze Grund für diese
+ * Tabelle: Bein und Zielwasser entscheiden über einen Kick, nicht über einen
+ * Snap über fünfzehn Yards. Dass die Technik dort bei fast jedem null steht,
+ * ist keine Lücke, sondern die Antwort auf die Frage, warum kein Kandidat gut
+ * aussieht — siehe `specialTechnik()`.
+ * @type {Record<string, { schluessel: string,
+ *   wert: (s: import('./spieler.js').Spieler) => number }[]>}
+ */
+export const SPECIAL_TOP = {
+  K: [
+    { schluessel: 'bein', wert: (s) => s.kickStaerke },
+    { schluessel: 'ziel', wert: (s) => s.kickGenauigkeit },
+  ],
+  P: [
+    { schluessel: 'bein', wert: (s) => s.kickStaerke },
+    { schluessel: 'ziel', wert: (s) => s.kickGenauigkeit },
+  ],
+  LS: [
+    { schluessel: 'ball', wert: (s) => s.attribute.ballsicherheit },
+    { schluessel: 'technik', wert: specialTechnik },
+  ],
+};
+
+/**
  * Die drei Special-Teams-Plätze besetzen — vom Manager, sonst von selbst.
  *
  * Sie laufen außerhalb der zweiundzwanzig, und das bleibt so: kein

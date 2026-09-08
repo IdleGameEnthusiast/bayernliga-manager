@@ -47,7 +47,7 @@ import { anfassen } from './ziehen.js';
 import { T } from '../i18n.js';
 import { platzKuerzel, positionsKuerzel } from '../engine/positionen.js';
 import {
-  specialSpieler, specialTechnik, SPECIAL_PLAETZE, SPECIAL_WERT,
+  specialSpieler, SPECIAL_PLAETZE, SPECIAL_WERT, SPECIAL_TOP,
 } from '../engine/aufstellung.js';
 import { OHNE_NUMMER } from '../engine/spieler.js';
 
@@ -149,7 +149,7 @@ export function einheitBereich(titel, plaetze, verfuegbare, steuerung, staerke, 
         el('span', { class: 'klein leise', text: T.roster.staerke }),
         el('strong', { text: steht ? String(Math.round(staerke)) : T.roster.ohneZahl }))),
     el('div', { class: 'aufstellungsraster' },
-      verfuegbarSpalte(verfuegbare, steuerung, a, steuerung),
+      verfuegbarSpalte(verfuegbare, steuerung, a, steuerung, null),
       el('div', { class: 'plaetzespalte' },
         el('h3', { class: 'klein leise', text: T.roster.starter }),
         el('ul', { class: 'aufstellung' },
@@ -161,16 +161,27 @@ export function einheitBereich(titel, plaetze, verfuegbare, steuerung, staerke, 
  *
  * Sie stehen hier und nicht als Fußnote unter der Aufstellung, seit der
  * Manager sie besetzen darf. Was vorher eine Zeile war („Kicker: Huber ·
- * Punter: Huber"), ist jetzt eine Entscheidung — und eine, die ohne die
- * beiden gezogenen Kickwerte nicht zu treffen ist. Deshalb stehen sie
- * ausgeschrieben daneben: es sind die einzigen Werte im Spiel, die sonst
- * nirgends sichtbar wären.
+ * Punter: Huber"), ist jetzt eine Entscheidung.
+ *
+ * Die Werte, aus denen sie sich ergibt, stehen dabei **links** und nicht in
+ * den drei Zeilen. Vorher trug jede Zeile Bein und Zielwasser ausgeschrieben
+ * neben sich — drei Zahlenpaare über die Männer, die ohnehin schon dort
+ * stehen, und keins über die, die sie ablösen könnten. Gebraucht werden sie
+ * beim Vergleichen; also stehen sie an den Kandidaten, sobald ein Platz
+ * gewählt ist, und zwar die beiden, an denen **dieser** Platz hängt.
  * @param {import('../engine/aufstellung.js').Aufstellung} a
  * @param {Kandidat[]} verfuegbare
  * @param {Steuerung} steuerung
  * @param {number} staerke
  */
 export function specialBereich(a, verfuegbare, steuerung, staerke) {
+  // Nur ein gewählter Special-Teams-Platz sagt, welche zwei Werte gemeint
+  // sind. Ist stattdessen ein Platz der Elf gewählt, steht hier keiner: eine
+  // Spalte, die nach dem Bein fragte, während der Manager den linken Guard
+  // besetzt, beantwortete eine Frage, die niemand gestellt hat.
+  const gewaehlt = steuerung.platz && SPECIAL_PLAETZE.includes(steuerung.platz)
+    ? steuerung.platz : null;
+
   return el('div', { class: 'karte' },
     el('div', { class: 'kartenkopf' },
       el('h2', { text: T.kader.special }),
@@ -179,7 +190,7 @@ export function specialBereich(a, verfuegbare, steuerung, staerke) {
         el('strong', { text: String(Math.round(staerke)) }))),
     el('p', { class: 'leise klein', style: { margin: '0 0 8px' }, text: T.special.hinweis }),
     el('div', { class: 'aufstellungsraster' },
-      verfuegbarSpalte(verfuegbare, steuerung, a, null),
+      verfuegbarSpalte(verfuegbare, steuerung, a, null, gewaehlt),
       el('div', { class: 'plaetzespalte' },
         el('h3', { class: 'klein leise', text: T.roster.plaetze }),
         el('ul', { class: 'aufstellung' },
@@ -201,8 +212,10 @@ export function specialBereich(a, verfuegbare, steuerung, staerke) {
  * @param {Steuerung} steuerung
  * @param {import('../engine/aufstellung.js').Aufstellung} a
  * @param {Steuerung | null} schalter Die Steuerung, wo Filter etwas bewirken
+ * @param {string | null} specialPlatz Der gewählte Special-Teams-Platz, wenn
+ *   diese Spalte zu ihm gehört — dann trägt jede Zeile seine beiden Werte
  */
-function verfuegbarSpalte(verfuegbare, steuerung, a, schalter) {
+function verfuegbarSpalte(verfuegbare, steuerung, a, schalter, specialPlatz) {
   const kopf = steuerung.platz
     ? T.roster.kopfFuer(platzKuerzel(platzVon(a, steuerung.platz)))
     : T.roster.kopfAlle;
@@ -262,6 +275,7 @@ function verfuegbarSpalte(verfuegbare, steuerung, a, schalter) {
           el('span', { class: 'leise klein', title: T.kader.alter,
             text: T.aufstellung.jahre(spieler.alter) }),
           el('span', { class: 'leise klein', text: positionsKuerzel(spieler) }),
+          specialPlatz ? topWerte(spieler, specialPlatz) : null,
           wo ? el('span', { class: 'marke tausch', text: platzKuerzel(wo.platz) }) : null,
           el('span', { class: 'platz-stk', text: String(Math.round(wert)) }));
       })));
@@ -403,7 +417,8 @@ function platzZeile(p, steuerung) {
  * stellte auf einen freigegebenen Platz sofort wieder den stärksten Mann seiner
  * Position, und das ist in aller Regel genau der, den der Manager gerade
  * weggeklickt hat; der Knopf sähe aus, als täte er nichts. Wer die Automatik
- * zurückwill, drückt „Automatisch aufstellen".
+ * zurückwill, drückt „Automatisch aufstellen" — bei den Special Teams den
+ * Knopf „Automatik" in der Zeile selbst.
  * @param {() => void} wirkung
  * @param {string} kuerzel Für den Titel — welcher Platz hier geräumt wird
  */
@@ -432,11 +447,20 @@ const PAPIERKORB_SVG = '<svg viewBox="0 0 16 16" width="13" height="13" aria-hid
 /**
  * Eine Zeile der Special Teams.
  *
- * Sie trägt eine Marke, die keine der zweiundzwanzig hat: **automatisch**. Ein
- * leerer Special-Teams-Platz heißt nicht „niemand", sondern „nimm den besten
- * Fuß" — und deshalb steht neben einem selbst besetzten Platz der Weg zurück.
- * Ohne ihn wäre die erste Wahl endgültig, und der nächste rekrutierte Kicker
- * käme nicht mehr auf den Platz, ohne dass jemand wüsste, warum.
+ * Sie kennt drei Zustände, wo die zweiundzwanzig zwei kennen: besetzt,
+ * **automatisch** — die Marke, die keine der elf trägt — und ausdrücklich
+ * leer. Der mittlere ist der Grund für beide Knöpfe in dieser Zeile: ein
+ * leerer Platz heißt hier von Haus aus nicht „niemand", sondern „nimm den
+ * besten Fuß", und beide Richtungen daraus müssen zu erreichen sein.
+ *
+ * Der Papierkorb sagt „niemand" und meint es: kein Kicker, kein Punter, kein
+ * Long Snapper, und die fehlende Stärke ist der Preis. Er steht hier, weil ein
+ * Verein, der keinen Fuß hat, das auch aufstellen können soll — die Automatik
+ * stellt sonst irgendeinen Guard aufs Tee, und das sieht aus wie ein Kicker,
+ * ohne einer zu sein. Der Weg zurück ist die andere Richtung: „Automatik" gibt
+ * den Platz wieder her. Ohne ihn wäre die erste Wahl endgültig, und der
+ * nächste rekrutierte Kicker käme nicht mehr auf den Platz, ohne dass jemand
+ * wüsste, warum.
  * @param {import('../engine/aufstellung.js').Aufstellung} a
  * @param {string} schluessel
  * @param {Steuerung} steuerung
@@ -489,7 +513,6 @@ function specialZeile(a, schluessel, steuerung) {
       : el('span', { class: 'marke auto', title: T.special.automatischTitel,
         text: T.special.automatisch }),
     hier ? el('span', { class: 'marke steht', text: T.aufstellung.stehtSchon }) : null,
-    spieler ? kickWerte(spieler) : null,
     spieler ? el('span', {
       class: ziel ? 'platz-stk alt' : 'platz-stk',
       text: String(Math.round(SPECIAL_WERT[schluessel](spieler))),
@@ -499,25 +522,26 @@ function specialZeile(a, schluessel, steuerung) {
         + (neu > Math.round(spieler ? SPECIAL_WERT[schluessel](spieler) : 0) ? ' besser' : ''),
       title: T.aufstellung.neuerWert(steuerung.gewaehlterName, neu),
       text: String(neu),
-    }));
+    }),
+    // Nur, wo einer steht. Ein Platz, der schon leer ist, hat nichts zu
+    // räumen — und trägt statt des Korbs den Knopf zurück in die Automatik.
+    spieler ? papierkorb(() => steuerung.raeume(schluessel), T.special[schluessel]) : null);
 }
 
 /**
- * Die beiden gezogenen Kickwerte und, wo es einen gibt, die Technik des
- * Spezialisten. Bis hierher waren sie unsichtbar: sie stehen in keinem der
- * fünfzehn Attribute und tauchten nirgends auf, obwohl acht Prozent der
- * Gesamtstärke an ihnen hängen.
+ * Die beiden Werte, an denen der gewählte Special-Teams-Platz hängt.
+ *
+ * Welche zwei das sind, sagt die Engine (`SPECIAL_TOP`) — hier steht nur, wie
+ * sie aussehen. Für den Kicker und den Punter sind es die beiden gezogenen
+ * Kickwerte, die sonst nirgends im Spiel sichtbar wären; für den Long Snapper
+ * zwei andere, denn Bein und Zielwasser entscheiden über einen Snap gar
+ * nichts, und danebengestellt sähen sie aus, als täten sie es.
  * @param {import('../engine/spieler.js').Spieler} s
+ * @param {string} schluessel
  */
-function kickWerte(s) {
-  const technik = specialTechnik(s);
-  return el('span', { class: 'kickwerte' },
-    el('span', { class: 'klein leise', title: T.special.beinTitel,
-      text: `${T.special.bein} ${s.kickStaerke}` }),
-    el('span', { class: 'klein leise', title: T.special.zielTitel,
-      text: `${T.special.ziel} ${s.kickGenauigkeit}` }),
-    technik > 0
-      ? el('span', { class: 'klein', title: T.special.technikTitel,
-        text: `${T.special.technik} ${Math.round(technik)}` })
-      : null);
+function topWerte(s, schluessel) {
+  return el('span', { class: 'specialwerte' },
+    (SPECIAL_TOP[schluessel] || []).map(({ schluessel: k, wert }) =>
+      el('span', { class: 'klein leise', title: T.special[`${k}Titel`],
+        text: `${T.special[k]} ${Math.round(wert(s))}` })));
 }

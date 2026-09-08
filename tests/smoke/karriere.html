@@ -145,12 +145,12 @@ try {
   gleich('elf Plätze in der Offense', alle('.karte')[1].querySelectorAll('.aufstellung li').length, 11);
   gleich('elf in der Defense', alle('.karte')[2].querySelectorAll('.aufstellung li').length, 11);
 
-  // Die Special Teams: drei Plätze, alle automatisch, mit sichtbaren Kickwerten
-  const special = alle('.karte')[3];
-  gleich('drei Special-Teams-Plätze', special.querySelectorAll('.aufstellung li').length, 3);
-  gleich('und alle drei automatisch', special.querySelectorAll('.marke.auto').length, 3);
-  enthaelt('das Bein steht dabei', special.querySelector('.kickwerte').textContent, 'Bein');
-  enthaelt('und das Zielwasser', special.querySelector('.kickwerte').textContent, 'Ziel');
+  // Die Special Teams: drei Plätze, alle automatisch — und ohne Einzelwerte.
+  const special = () => alle('.karte')[3];
+  gleich('drei Special-Teams-Plätze', special().querySelectorAll('.aufstellung li').length, 3);
+  gleich('und alle drei automatisch', special().querySelectorAll('.marke.auto').length, 3);
+  gleich('die Werte stehen nicht an den Plätzen',
+    special().querySelectorAll('.aufstellung .specialwerte').length, 0);
 
   // Platz zuerst: ein Tipp auf QB, dann der Erste aus der Liste links.
   const qbZeile = () => alle('.karte')[1].querySelector('.aufstellung li');
@@ -202,15 +202,37 @@ try {
     alle('.staerkezahl')[0].querySelector('strong').textContent, '–');
 
   // Ein Kicker von Hand — und der Weg zurück in die Automatik.
-  const specialZeile = () => alle('.karte')[3].querySelector('.aufstellung li');
+  const specialZeile = (i = 0) => special().querySelectorAll('.aufstellung li')[i];
+  const specialWerte = () => special().querySelector('.verfuegbare .specialwerte').textContent;
   specialZeile().click();
-  alle('.karte')[3].querySelector('.verfuegbare li').click();
+  enthaelt('erst die Auswahl zeigt das Bein', specialWerte(), 'Bein');
+  enthaelt('und das Zielwasser', specialWerte(), 'Ziel');
+  // Der Long Snapper hängt an anderen zwei Werten, und nur die stehen dort.
+  specialZeile(2).click();
+  enthaelt('beim Long Snapper zählt der Ball', specialWerte(), 'Ball');
+  pruefe('und nicht das Bein', !specialWerte().includes('Bein'), specialWerte());
+  specialZeile().click();
+  special().querySelector('.verfuegbare li').click();
   gleich('der Kicker ist jetzt gewählt',
-    alle('.karte')[3].querySelectorAll('.marke.auto').length, 2);
+    special().querySelectorAll('.marke.auto').length, 2);
   gleich('und trägt den Weg zurück', alle('.schalter.loesen').length, 1);
   q('.schalter.loesen').click();
   gleich('der Platz ist wieder automatisch',
-    alle('.karte')[3].querySelectorAll('.marke.auto').length, 3);
+    special().querySelectorAll('.marke.auto').length, 3);
+
+  // Der Papierkorb gilt auch hier: kein Kicker ist eine erlaubte Aufstellung.
+  gleich('jeder der drei trägt einen Papierkorb',
+    special().querySelectorAll('.aufstellung .papierkorb').length, 3);
+  special().querySelector('.aufstellung .papierkorb').click();
+  gleich('der geräumte Platz steht leer',
+    specialZeile().querySelector('.platz-name').textContent, '—');
+  gleich('und er bleibt es, statt an die Automatik zu fallen',
+    special().querySelectorAll('.marke.auto').length, 2);
+  gleich('geräumt hat er nichts mehr zu räumen',
+    special().querySelectorAll('.aufstellung .papierkorb').length, 2);
+  q('.schalter.loesen').click();
+  gleich('die Automatik nimmt ihn zurück',
+    special().querySelectorAll('.marke.auto').length, 3);
 
   // „Automatisch aufstellen" ist der Weg zurück aus einer Elf mit Loch.
   const knopfMit = (name) => alle('.aufstellungsknoepfe button')

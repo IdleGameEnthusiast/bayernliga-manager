@@ -280,8 +280,10 @@ export function aufstellungLeeren(stand) {
  *
  * Keine Bedingung fürs Speichern mehr — gespeichert wird jeder Zwischenstand —,
  * sondern die Frage vor dem Anpfiff: wer sie mit Nein beantwortet, tritt nicht
- * an. Die Special Teams zählen dabei nicht mit; sie laufen außerhalb der Elf,
- * und ihre Automatik findet immer einen Fuß.
+ * an. Die Special Teams zählen dabei nicht mit: sie laufen außerhalb der Elf,
+ * und ein Verein ohne Kicker tritt trotzdem an — er kickt nur nicht. Das ist
+ * eine Entscheidung, die der Manager treffen darf, und keine Lücke in der
+ * Aufstellung.
  * @param {SpielStand} stand
  */
 export function aufstellungVollstaendig(stand) {

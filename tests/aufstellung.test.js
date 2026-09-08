@@ -17,7 +17,7 @@ import {
   stelleAuf, skillAnteile, doppelAbzug, doppelRisiko, doppelEinsaetze, umstellungen,
   platzStaerke, alsVorgabe, setzePlatz, bestenFuer, bestePlaetze, wertAuf, vollstaendig,
   leereVorgabe, raeumePlatz, loesePlatz, specialSpieler, SPECIAL_PLAETZE,
-  kickerWert, longSnapperWert,
+  SPECIAL_WERT, SPECIAL_TOP, kickerWert, longSnapperWert,
 } from '../engine/aufstellung.js';
 import { teamStaerken } from '../engine/team.js';
 
@@ -795,6 +795,74 @@ test('die Automatik nimmt für jeden Platz den besten seiner Formel', () => {
   const a = stelleAuf(k, 1, '11');
   assert.equal(kickerWert(a.k), Math.max(...k.map(kickerWert)));
   assert.equal(longSnapperWert(a.ls), Math.max(...k.map(longSnapperWert)));
+});
+
+test('jeder der drei darf unbesetzt bleiben, und die Automatik holt ihn zurück', () => {
+  const k = kader('stkorb');
+  const voll = stelleAuf(k, 1, '11');
+  const gestellt = alsVorgabe(voll);
+
+  for (const schluessel of SPECIAL_PLAETZE) {
+    const vorgabe = raeumePlatz(gestellt, schluessel);
+    const a = stelleAuf(k, 1, '11', undefined, vorgabe);
+    assert.equal(specialSpieler(a, schluessel), null, `${schluessel} steht noch besetzt da`);
+    assert.equal(a.specialVonHand[schluessel], true);
+
+    // Geräumt wird genau einer. Die anderen beiden laufen weiter automatisch.
+    for (const anderer of SPECIAL_PLAETZE.filter((x) => x !== schluessel)) {
+      assert.ok(specialSpieler(a, anderer), `${anderer} ist mitgeräumt worden`);
+      assert.equal(a.specialVonHand[anderer], false);
+    }
+
+    // Der leere Platz kostet — sonst wäre der Papierkorb ein Knopf ohne Preis.
+    assert.ok(teamStaerken(k, 1, '11', undefined, vorgabe).special
+      < teamStaerken(k, 1, '11', undefined, gestellt).special,
+      `ohne ${schluessel} ist es nicht schlechter`);
+
+    // Und der Weg zurück führt zu demselben Mann, den die Automatik vorher hatte.
+    const zurueck = stelleAuf(k, 1, '11', undefined, loesePlatz(vorgabe, schluessel));
+    assert.equal(specialSpieler(zurueck, schluessel).id, specialSpieler(voll, schluessel).id);
+  }
+});
+
+test('die zwei angezeigten Werte sind die, an denen ein Platz am meisten hängt', () => {
+  // Die Probe, die `SPECIAL_TOP` an die Formeln bindet: an jedem Wert wird
+  // gedreht, und der Ausschlag sagt, wie schwer er wiegt. Wer ein Gewicht in
+  // `SPECIAL_WERT` verschiebt, ohne die Tabelle nachzuziehen, fällt hier auf —
+  // und zwar bevor die Ansicht dem Manager die falschen zwei Zahlen hinstellt.
+  /** @type {Record<string, (s: any, n: number) => void>} */
+  const hebel = {
+    bein: (s, n) => { s.kickStaerke += n; },
+    ziel: (s, n) => { s.kickGenauigkeit += n; },
+    ball: (s, n) => { s.attribute.ballsicherheit += n; },
+    technik: (s, n) => { s.attribute.technik += n; },
+    fangen: (s, n) => { s.attribute.fangen += n; },
+    kraft: (s, n) => { s.attribute.kraft += n; },
+  };
+
+  const [mann] = kader('sttop');
+  for (const schluessel of SPECIAL_PLAETZE) {
+    const formel = SPECIAL_WERT[schluessel];
+    /** @param {string} name */
+    const ausschlag = (name) => {
+      // Als ausgebildeter Spezialist, denn nur bei ihm zählt die Technik
+      // überhaupt mit — sonst bliebe einer der sechs Hebel tot.
+      const s = { ...mann, position: schluessel, attribute: { ...mann.attribute } };
+      const vorher = formel(s);
+      hebel[name](s, 10);
+      return formel(s) - vorher;
+    };
+
+    const genannt = SPECIAL_TOP[schluessel].map((w) => w.schluessel);
+    assert.equal(genannt.length, 2, `${schluessel} nennt nicht zwei Werte`);
+    assert.ok(genannt.every((n) => hebel[n]), `${schluessel} nennt einen unbekannten Wert`);
+    assert.ok(ausschlag(genannt[0]) >= ausschlag(genannt[1]),
+      `${schluessel}: ${genannt[0]} steht vor ${genannt[1]}, wiegt aber weniger`);
+    for (const name of Object.keys(hebel).filter((n) => !genannt.includes(n))) {
+      assert.ok(ausschlag(genannt[1]) >= ausschlag(name),
+        `${schluessel}: ${name} wiegt schwerer als der genannte ${genannt[1]}`);
+    }
+  }
 });
 
 // --- Die geliehene Nummer --------------------------------------------------
