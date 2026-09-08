@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 
 import {
   POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE,
+  GEWICHT_MIN, GEWICHT_MAX, KOERPER_DANEBEN_MAX,
 } from '../engine/constants.js';
 import { ziehAttribute, spieleEinsatz, verfalleEinsaetze } from '../engine/spieler.js';
 import {
@@ -12,6 +13,7 @@ import {
   technikTransfer, leiterTransfer, koerperMalus, eignung, eignungGemischt,
   SEITEN_POSITIONEN, PLAETZE, positionsKuerzel, platzKuerzel, ausbildungsKuerzel,
   eingespieltheit, hauptPlatz, hauptPosition, EINGESPIELT_VOLL, POSITION_JE_KUERZEL,
+  KOERPERMALUS_GUTSCHRIFT_ANTEIL,
 } from '../engine/positionen.js';
 
 test('jede Position hat beide Formeln, einen Korridor und einen Beitrag', () => {
@@ -47,24 +49,51 @@ test('technik steht in jeder einzelnen Formel', () => {
 });
 
 test('die Korridormitten ergeben die Körperbänder der Liga', () => {
-  // Die Leichten bis 97, die Mitte 103 bis 113, die Schweren ab 120 — das soll
+  // Die Leichten bis 92, die Mitte 100 bis 112, die Schweren ab 124 — das soll
   // aus den Korridoren fallen und nicht eigens gepflegt werden.
-  assert.equal(korridorMitte('SL'), 81.5);
-  assert.equal(korridorMitte('CB'), 82.5);
-  assert.equal(korridorMitte('QB'), 92.5);
-  assert.equal(korridorMitte('MIKE'), 109);
-  assert.equal(korridorMitte('T'), 125);
+  assert.equal(korridorMitte('SL'), 77);
+  assert.equal(korridorMitte('CB'), 80);
+  assert.equal(korridorMitte('QB'), 92);
+  assert.equal(korridorMitte('MIKE'), 106);
+  assert.equal(korridorMitte('T'), 131);
   assert.equal(korridorMitte('NT'), 137.5);
 
   const leicht = ['SL', 'CB', 'WR', 'FS', 'RB', 'QB', 'SS', 'WILL'];
-  const schwer = ['G', 'T', 'DT', 'NT'];
-  for (const l of leicht) assert.ok(korridorMitte(l) < 98, `${l} ist zu schwer`);
-  for (const s of schwer) assert.ok(korridorMitte(s) >= 120, `${s} ist zu leicht`);
+  const schwer = ['C', 'G', 'T', 'DT', 'NT'];
+  for (const l of leicht) assert.ok(korridorMitte(l) <= 92, `${l} ist zu schwer`);
+  for (const s of schwer) assert.ok(korridorMitte(s) >= 124, `${s} ist zu leicht`);
+
+  // Drei Abstände sind Absicht und waren schon einmal falsch gesetzt. Ohne sie
+  // fällt ein schwerer Linebacker billiger in die Mitte der Line als auf die
+  // eigene Kante — siehe den Kommentar an KOERPER_KORRIDOR.
+  assert.ok(korridorMitte('MIKE') > korridorMitte('SAM'),
+    'MIKE und SAM tragen verschiedene Körper, nicht denselben');
+  assert.ok(korridorMitte('DE') > korridorMitte('MIKE') + 5,
+    'die Kante steht klar über den Linebackern');
+  assert.ok(korridorMitte('DT') > korridorMitte('C'),
+    'der Defensive Tackle wiegt mehr als der Center');
+  assert.ok(korridorMitte('FB') <= korridorMitte('DE'),
+    'kein Fullback über dem Defensive End');
 
   for (const pos of POSITIONS) {
     const k = KOERPER_KORRIDOR[pos];
     assert.ok(k.groesse[0] < k.groesse[1], `${pos}: Größenkorridor verdreht`);
     assert.ok(k.gewicht[0] < k.gewicht[1], `${pos}: Gewichtskorridor verdreht`);
+  }
+});
+
+test('die Korridorränder passen in die harten Körpergrenzen', () => {
+  // Ein Fünftel der Spieler wird absichtlich außerhalb seines Korridors
+  // gezogen. Wessen Rand auf einer der harten Grenzen liegt, erzeugt dort
+  // keinen Ausläufer mehr, sondern einen Stapel — genau darum sind
+  // GEWICHT_MIN und GEWICHT_MAX aus den Korridoren gerechnet und nicht rund.
+  for (const pos of POSITIONS) {
+    const [von, bis] = KOERPER_KORRIDOR[pos].gewicht;
+    const spanne = bis - von;
+    assert.ok(von - KOERPER_DANEBEN_MAX * spanne >= GEWICHT_MIN,
+      `${pos}: der Ausreißer nach unten klemmt auf GEWICHT_MIN`);
+    assert.ok(bis + KOERPER_DANEBEN_MAX * spanne <= GEWICHT_MAX,
+      `${pos}: der Ausreißer nach oben klemmt auf GEWICHT_MAX`);
   }
 });
 
@@ -201,22 +230,33 @@ test('der Körpermalus wächst mit dem Abstand und mit dem eigenen Körper', () 
 
   // Wer in seiner Korridormitte steht, zahlt wie eh und je 0,4 % je Kilo
   // Abstand der beiden Mitten.
-  assert.ok(Math.abs(koerperMalus(mann('T', 125), 'G') - 5 * 0.004) < 1e-9);
-  assert.ok(Math.abs(koerperMalus(mann('CB', 82.5), 'FS') - 6 * 0.004) < 1e-9);
-  assert.ok(Math.abs(koerperMalus(mann('G', 120), 'MIKE') - 11 * 0.004) < 1e-9);
+  assert.ok(Math.abs(koerperMalus(mann('T', 131), 'G') - 5 * 0.004) < 1e-9);
+  assert.ok(Math.abs(koerperMalus(mann('CB', 80), 'FS') - 4 * 0.004) < 1e-9);
+  assert.ok(Math.abs(koerperMalus(mann('G', 126), 'MIKE') - 20 * 0.004) < 1e-9);
 
-  // Der eigene Körper entscheidet mit: Guard (Mitte 120) auf MIKE (109).
-  // Vorher zahlten beide dieselben 4,4 %.
-  assert.ok(Math.abs(koerperMalus(mann('G', 147), 'MIKE') - 0.11528) < 1e-5,
+  // Der eigene Körper entscheidet mit: Guard (Mitte 126) auf MIKE (106).
+  // Ohne ihn zahlten beide dieselben 8 %.
+  assert.ok(Math.abs(koerperMalus(mann('G', 146), 'MIKE') - 0.176) < 1e-9,
     'der schwere Guard zahlt für den Weg nach innen');
-  assert.ok(Math.abs(koerperMalus(mann('G', 105), 'MIKE') - 0.0044) < 1e-5,
+  assert.ok(Math.abs(koerperMalus(mann('G', 106), 'MIKE') - 0.04) < 1e-9,
     'der leichte hat den Körper dafür schon');
-  assert.equal(koerperMalus(mann('G', 95), 'MIKE'), 0,
-    'und wer weit darüber hinaus gebaut ist, zahlt nichts — nie unter null');
 
-  // NT 137,5 gegen SL 81,5 sind 56 Kilo — der Deckel greift.
+  // Aber die Gutschrift ist eine Richtungskorrektur, keine Umkehrung: sie
+  // nimmt höchstens die Hälfte des linearen Malus weg. Unbeschränkt hob sie
+  // ihn ab 16,7 kg Übergewicht ganz auf — unabhängig vom Abstand, weil beide
+  // Summanden linear darin sind. Der schwerste Linebacker der Liga wechselte
+  // damit gratis auf Nose Tackle, und breitere Korridore halfen nicht dagegen,
+  // sondern schoben nur mehr Männer über die Schwelle.
+  const linear = 20 * 0.004;
+  for (const gewicht of [106, 100, 95, 60]) {
+    assert.ok(koerperMalus(mann('G', gewicht), 'MIKE')
+      >= linear * (1 - KOERPERMALUS_GUTSCHRIFT_ANTEIL) - 1e-9,
+      `${gewicht} kg: die Gutschrift frisst mehr als die Hälfte`);
+  }
+
+  // NT 137,5 gegen SL 77 sind 60,5 Kilo — der Deckel greift.
   assert.equal(koerperMalus(mann('NT', 137.5), 'SL'), 0.20);
-  assert.equal(koerperMalus(mann('SL', 81.5), 'NT'), 0.20, 'und zwar in beide Richtungen');
+  assert.equal(koerperMalus(mann('SL', 77), 'NT'), 0.20, 'und zwar in beide Richtungen');
 });
 
 test('ein Tight End spielt Tackle, ein Receiver nicht', () => {

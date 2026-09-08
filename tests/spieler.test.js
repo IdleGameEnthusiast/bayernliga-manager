@@ -6,7 +6,7 @@ import {
   makeRng, KADER_FORM, KADER_GROESSE_EIGEN, KADER_GROESSE_FREMD, ZUSATZ_SPIELER,
   ZUSATZ_MAX_JE_POSITION, MAX_RATING, LIGA_MAX_STAERKE, MAX_AGE, PEAK_AGE, POSITIONS,
   POSITION_GRUPPEN, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE, ZUSATZ_GEWICHTE, ATTRIBUTE,
-  ATTRIBUT_DRIFT_JE_SPIEL, LERNRATE,
+  ATTRIBUT_DRIFT_JE_SPIEL, LERNRATE, GROESSE_MIN, GROESSE_MAX, GEWICHT_MIN, GEWICHT_MAX,
 } from '../engine/constants.js';
 import {
   macheKader, macheSpieler, saisonWechsel, alterFaktor, berechneStaerke, verfuegbar,
@@ -283,8 +283,10 @@ test('jeder Spieler trägt alle fünfzehn Attribute und einen Körper', () => {
       assert.ok(wert >= 1 && wert <= LIGA_MAX_STAERKE, `${attribut} ist ${wert}`);
     }
     assert.equal(Object.keys(s.attribute).length, ATTRIBUTE.length);
-    assert.ok(s.groesse >= 165 && s.groesse <= 205, `Größe ${s.groesse}`);
-    assert.ok(s.gewicht >= 68 && s.gewicht <= 165, `Gewicht ${s.gewicht}`);
+    // Gegen die Konstanten, nicht gegen abgeschriebene Zahlen: die Grenzen
+    // hängen an den Korridoren und wandern mit ihnen.
+    assert.ok(s.groesse >= GROESSE_MIN && s.groesse <= GROESSE_MAX, `Größe ${s.groesse}`);
+    assert.ok(s.gewicht >= GEWICHT_MIN && s.gewicht <= GEWICHT_MAX, `Gewicht ${s.gewicht}`);
   }
 });
 

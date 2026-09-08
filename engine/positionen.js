@@ -15,27 +15,44 @@ import { ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE, interpoliere, clamp }
  * Größe (cm) und Gewicht (kg), in denen eine Position normalerweise steckt.
  * Das ist das Ideal, nicht die Regel: etwa ein Fünftel der Spieler steht
  * daneben, und wer daneben steht, hat die Werte dazu.
+ *
+ * Die Korridore sind bewusst breit — das hier ist keine Profiliga, in der jeder
+ * Platz seinen gezüchteten Körper hat. In der Line sind es vierzig Kilo und
+ * mehr, weil „einfach groß" dort ein echter Positionsgrund ist; bei den Skill-
+ * Positionen bleibt es bei zwanzig.
+ *
+ * Die Reihenfolge der Mitten ist das Modell, nicht die Breite. Drei Punkte
+ * darin sind Absicht und wurden schon einmal falsch gesetzt:
+ *
+ * - **MIKE und SAM tragen verschiedene Körper** (106 gegen 100). Vorher hatten
+ *   beide denselben Korridor, und damit trennte sie nichts als die Formeln.
+ * - **DE liegt klar über den Linebackern** (112,5). Vorher lag er bei 110 und
+ *   damit auf einem Kilo mit MIKE und SAM — „Edge" war körperlich kein Begriff,
+ *   und ein schwerer Linebacker fiel billiger in die Mitte der Line als nach
+ *   außen.
+ * - **NT ist der kürzeste der großen Männer** (Mitte 185 cm, unter SAM, G und
+ *   DT). Hebel kommt von unten; ein langer Nose Tackle ist ein schlechter.
  * @type {Record<string, { groesse: [number, number], gewicht: [number, number] }>}
  */
 export const KOERPER_KORRIDOR = {
-  QB:   { groesse: [178, 195], gewicht: [85, 100] },
-  RB:   { groesse: [172, 185], gewicht: [82, 98] },
-  FB:   { groesse: [175, 188], gewicht: [95, 112] },
-  WR:   { groesse: [175, 190], gewicht: [78, 92] },
-  SL:   { groesse: [170, 183], gewicht: [75, 88] },
-  TE:   { groesse: [185, 198], gewicht: [95, 115] },
-  T:    { groesse: [185, 200], gewicht: [110, 140] },
-  G:    { groesse: [180, 195], gewicht: [105, 135] },
-  C:    { groesse: [180, 192], gewicht: [100, 125] },
-  DE:   { groesse: [185, 198], gewicht: [100, 120] },
-  DT:   { groesse: [183, 195], gewicht: [115, 140] },
-  NT:   { groesse: [180, 193], gewicht: [125, 150] },
-  MIKE:  { groesse: [180, 192], gewicht: [100, 118] },
-  SAM:  { groesse: [183, 193], gewicht: [100, 118] },
-  WILL: { groesse: [178, 188], gewicht: [90, 105] },
-  CB:   { groesse: [172, 185], gewicht: [75, 90] },
-  FS:   { groesse: [178, 188], gewicht: [82, 95] },
-  SS:   { groesse: [180, 190], gewicht: [88, 102] },
+  QB:   { groesse: [180, 194], gewicht: [80, 104] },
+  RB:   { groesse: [170, 184], gewicht: [78, 98] },
+  FB:   { groesse: [173, 187], gewicht: [92, 120] },
+  WR:   { groesse: [174, 191], gewicht: [72, 94] },
+  SL:   { groesse: [167, 183], gewicht: [68, 86] },
+  TE:   { groesse: [183, 194], gewicht: [92, 118] },
+  T:    { groesse: [183, 197], gewicht: [110, 152] },
+  G:    { groesse: [180, 194], gewicht: [106, 146] },
+  C:    { groesse: [177, 190], gewicht: [110, 138] },
+  DE:   { groesse: [182, 195], gewicht: [95, 130] },
+  DT:   { groesse: [181, 194], gewicht: [105, 145] },
+  NT:   { groesse: [176, 194], gewicht: [115, 160] },
+  MIKE:  { groesse: [177, 190], gewicht: [92, 120] },
+  SAM:  { groesse: [180, 192], gewicht: [87, 113] },
+  WILL: { groesse: [176, 188], gewicht: [82, 102] },
+  CB:   { groesse: [171, 186], gewicht: [70, 90] },
+  FS:   { groesse: [173, 186], gewicht: [74, 94] },
+  SS:   { groesse: [175, 187], gewicht: [80, 98] },
 };
 
 /**
@@ -60,6 +77,24 @@ export function korridorMitte(position) {
  * drei Linebacker sollen auseinanderliegen, MIKE und SAM als Brücke zur Line,
  * WILL als Brücke zur Secondary. Ständen alle drei in der Mitte, landete jeder
  * von ihnen bei den Safeties.
+ *
+ * Brücke zur Line heißt aber nicht **Line**, und genau daran ist die erste
+ * Fassung gescheitert: MIKE und SAM hatten im Laufspiel weder Tempo noch
+ * Wendigkeit, ihre Laufformel bestand aus `tacklen`, `kraft`, `technik` und
+ * `spielverstaendnis` — denselben vier Attributen wie die des Nose Tackle, nur
+ * anders gewichtet. Ein SAM war damit als kleiner, kluger Nose Tackle
+ * beschrieben und fiel auf NT billiger als auf die eigene Kante: 71,3 roh auf
+ * der NT-Formel gegen 64,0 auf der DE-Formel, ein Vorsprung, den der
+ * Körpermalus mit seinen 3,4 Punkten nicht einholen konnte.
+ *
+ * Beide haben deshalb im Laufspiel Bewegung im Raum bekommen, SAM in voller,
+ * MIKE in halber Dosis. Das wirkt zweimal, und das ist der Punkt: die Formel
+ * entscheidet über die Bewertung **und** über die Ziehung, weil
+ * `generierungsProfil()` aus ihr kommt. Der SAM bekommt echte Beweglichkeit
+ * statt der Bodenplatte aus `PROFIL_SPEZIALISIERUNG` — was ihn auf der Kante
+ * besser macht — und weniger Kraft — was ihn in der Mitte schlechter macht.
+ * Was die Linebacker vom Lineman trennt, ist nicht Kraft, sondern dass sie
+ * laufen.
  * @type {Record<string, { pass: Record<string, number>, lauf: Record<string, number> }>}
  */
 export const FORMELN = {
@@ -113,11 +148,11 @@ export const FORMELN = {
   },
   MIKE: {
     pass: { spielverstaendnis: 28, coverage: 20, passrush: 14, technik: 15, kraft: 13, schnelligkeit: 10 },
-    lauf: { tacklen: 32, kraft: 28, spielverstaendnis: 25, technik: 15 },
+    lauf: { tacklen: 31, kraft: 24, spielverstaendnis: 23, technik: 14, beweglichkeit: 8 },
   },
   SAM: {
     pass: { passrush: 28, coverage: 22, spielverstaendnis: 20, technik: 15, schnelligkeit: 15 },
-    lauf: { tacklen: 33, kraft: 27, technik: 20, spielverstaendnis: 20 },
+    lauf: { tacklen: 30, kraft: 20, spielverstaendnis: 17, technik: 15, beweglichkeit: 12, schnelligkeit: 6 },
   },
   WILL: {
     pass: { coverage: 36, schnelligkeit: 22, spielverstaendnis: 18, beweglichkeit: 14, technik: 10 },
@@ -485,6 +520,23 @@ export const KOERPERMALUS_JE_KILO = 0.004;
  */
 export const KOERPERMALUS_JE_KILOQUADRAT = 0.00024;
 export const KOERPERMALUS_DECKEL = 0.20;
+/**
+ * Wie viel vom linearen Malus die Gutschrift höchstens wegnehmen darf.
+ *
+ * Ohne diese Schranke ist die Gutschrift unbegrenzt, und weil **beide**
+ * Summanden linear im Abstand sind, hängt ihr Verhältnis gar nicht am Abstand:
+ * sobald ein Mann `KOERPERMALUS_JE_KILO / KOERPERMALUS_JE_KILOQUADRAT` = 16,7 kg
+ * über seiner eigenen Korridormitte steht, frisst die Gutschrift den ganzen
+ * Malus — egal, wie weit die Korridore auseinanderliegen. Ein schwerer
+ * Linebacker wechselte damit gratis in die Mitte der Line, und breitere
+ * Korridore machten es schlimmer statt besser, weil mehr Männer über die
+ * 16,7 kg kommen.
+ *
+ * Die Hälfte ist gewählt, weil die Gutschrift eine Richtungskorrektur sein
+ * soll und keine Umkehrung: wer in die Zielrichtung gebaut ist, zahlt weniger,
+ * aber nie nichts. Der Weg bleibt ein Weg.
+ */
+export const KOERPERMALUS_GUTSCHRIFT_ANTEIL = 0.5;
 
 /**
  * Was ein Spieler von seiner Technik behält, wenn er auf `platz` spielt.
@@ -538,6 +590,11 @@ export function leiterTransfer(spieler, platz) {
  * für den Weg zum Linebacker 11,5 %, ein 105-Kilo-Guard 0,4 % — vorher waren
  * es für beide dieselben 4,4 %.
  *
+ * Die Gutschrift ist nach unten beschränkt, siehe
+ * `KOERPERMALUS_GUTSCHRIFT_ANTEIL`. Unbeschränkt hob sie den Malus ab 16,7 kg
+ * Übergewicht vollständig auf, und zwar unabhängig vom Abstand — der schwerste
+ * Linebacker der Liga wechselte gratis auf Nose Tackle.
+ *
  * Beide Summanden hängen am **Abstand**, nicht am Gewicht allein: bei
  * Ausbildung gleich Ziel ist der Abstand null und damit der ganze Malus, egal
  * wie schwer der Mann ist. Ohne das wäre ein Extremkörper auch auf seinem
@@ -549,9 +606,10 @@ export function leiterTransfer(spieler, platz) {
 export function koerperMalus(spieler, nachPosition) {
   const eigen = korridorMitte(spieler.position);
   const abstand = eigen - korridorMitte(nachPosition);
+  const linear = Math.abs(abstand) * KOERPERMALUS_JE_KILO;
+  const koerper = abstand * (spieler.gewicht - eigen) * KOERPERMALUS_JE_KILOQUADRAT;
   return clamp(
-    Math.abs(abstand) * KOERPERMALUS_JE_KILO
-      + abstand * (spieler.gewicht - eigen) * KOERPERMALUS_JE_KILOQUADRAT,
+    linear + Math.max(koerper, -KOERPERMALUS_GUTSCHRIFT_ANTEIL * linear),
     0, KOERPERMALUS_DECKEL,
   );
 }

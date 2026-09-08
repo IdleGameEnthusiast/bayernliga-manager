@@ -201,10 +201,25 @@ export const KOERPER_DANEBEN_MAX = 0.55;
 export const KOERPER_MITTE = 100;             // kg
 export const KOERPER_SPANNE = 45;             // kg
 export const KOERPER_KOPPLUNG = 0.35;         // how hard weight pulls Kraft up and Tempo down
+/**
+ * Die harten Ränder des Körpers. Sie sind **Notbremsen, keine Verteilung**:
+ * wer sie berührt, wird auf sie geklemmt, und ein Korridorrand, der auf einem
+ * dieser Werte liegt, erzeugt deshalb keinen Ausläufer mehr, sondern einen
+ * Stapel genau darauf. Ein Fünftel der Spieler wird absichtlich außerhalb
+ * seines Korridors gezogen (`KOERPER_DANEBEN_MIN/MAX`), und dieses Fünftel
+ * muss Platz haben.
+ *
+ * Deshalb sind die Gewichtsgrenzen nicht rund gewählt, sondern gemessen: der
+ * breiteste Korridor ist NT mit 115–160, ein Ausreißer nach oben landet bei
+ * 160 + 0,55 · 45 = 184,8 kg, und der leichteste ist SL mit 68–86, ein
+ * Ausreißer nach unten bei 68 − 0,55 · 18 = 58,1 kg. Wer die Korridore ändert,
+ * rechnet diese beiden Zahlen neu — sonst stapelt sich stumm ein Zehntel einer
+ * Position auf dem Rand.
+ */
 export const GROESSE_MIN = 165;               // cm — nobody outside these plays here
 export const GROESSE_MAX = 205;
-export const GEWICHT_MIN = 68;                // kg
-export const GEWICHT_MAX = 165;
+export const GEWICHT_MIN = 58;                // kg
+export const GEWICHT_MAX = 185;
 
 /** Rating bounds. */
 export const MAX_RATING = 99;          // the scale's ceiling, kept for higher leagues
