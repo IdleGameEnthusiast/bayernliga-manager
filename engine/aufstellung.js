@@ -14,8 +14,10 @@
  * Docs: docs/umbau-positionsmodell.md, Abschnitte 5, 6 und 7
  */
 
-import { LEERER_PLATZ_WERT, SPECIAL_POSITIONEN, clamp, interpoliere } from './constants.js';
-import { istFit } from './spieler.js';
+import {
+  LEERER_PLATZ_WERT, SPECIAL_POSITIONEN, POSITION_GRUPPEN, clamp, interpoliere,
+} from './constants.js';
+import { istFit, istOLNummer, borgeNummer, OHNE_NUMMER } from './spieler.js';
 import {
   eignung, eignungGemischt, PLAETZE, PLATZ_JE_KUERZEL, hauptPosition, profilPassAnteil,
 } from './positionen.js';
@@ -190,6 +192,8 @@ export function doppelRisiko(robustheit) {
  * @property {boolean} doppel      Er steht schon in der anderen Einheit
  * @property {boolean} frei        Der Manager lässt ihn ausdrücklich unbesetzt
  * @property {number} staerke      Was er auf **diesem** Platz wert ist
+ * @property {number} leihNummer   Die Nummer, die er für diesen einen Platz borgt;
+ *   `OHNE_NUMMER`, wenn seine eigene dort erlaubt ist — siehe `borgeNummern()`
  */
 
 /**
@@ -406,6 +410,7 @@ function leererPlatz(platz, schluessel) {
   return /** @type {Platz} */ ({
     platz, schluessel, position: PLAETZE[platz].position, spieler: null,
     umgestellt: false, doppel: false, frei: false, staerke: LEERER_PLATZ_WERT,
+    leihNummer: OHNE_NUMMER,
   });
 }
 
@@ -548,8 +553,44 @@ export function stelleAuf(kader, tag, personnel = STANDARD_PERSONNEL, passAnteil
   }
 
   for (const platz of alle) platz.staerke = platzStaerke(platz);
+  borgeNummern(kader, offense);
 
   return { offense, defense, ...besetzeSpecial(fit, vorgabe) };
+}
+
+/**
+ * Wer im Angriff eine Nummer trägt, die dort nicht zu seinem Platz passt, borgt
+ * sich eine.
+ *
+ * 50 bis 79 gehört der Offensive Line, und zwar auf dem Feld und nicht im
+ * Kader: wer dort steht, trägt eine solche Nummer, und wer eine solche trägt,
+ * steht nirgends sonst im Angriff. Ein Umsteller in beide Richtungen bekommt
+ * deshalb für diesen einen Einsatz eine fremde Nummer — frei im Verein, frei
+ * unter den schon geborgten, und aus dem Band, das der Platz verlangt. Sein
+ * eigener Eintrag im Kader bleibt unangetastet: geborgt ist nicht vergeben,
+ * und morgen steht er wieder auf seinem Platz.
+ *
+ * Nur der Angriff. In der Verteidigung sagt die Nummer nichts über die
+ * Aufgabe — ein Tackle mit der 55 und ein MIKE mit der 55 sind beide in
+ * Ordnung —, und eine Leihgabe dort wäre eine Umnummerierung ohne Anlass.
+ *
+ * Der Kader ist die Quelle für „frei", nicht die Elf: die 62 ist vergeben, auch
+ * wenn ihr Träger heute auf der Bank sitzt.
+ * @param {import('./spieler.js').Spieler[]} kader
+ * @param {Platz[]} offense
+ */
+function borgeNummern(kader, offense) {
+  /** @type {Set<number>} */
+  const belegt = new Set(kader.filter((s) => s.nummer >= 0).map((s) => s.nummer));
+  for (const platz of offense) {
+    if (!platz.spieler) continue;
+    const linie = POSITION_GRUPPEN.lineOffense.includes(/** @type {any} */ (platz.position));
+    if (linie === istOLNummer(platz.spieler.nummer)) continue;
+    const geborgt = borgeNummer(platz.spieler, platz.position, belegt);
+    if (geborgt === OHNE_NUMMER) continue;
+    platz.leihNummer = geborgt;
+    belegt.add(geborgt);
+  }
 }
 
 /**

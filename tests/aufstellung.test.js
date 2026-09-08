@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { makeRng, ZUSATZ_SPIELER, LEERER_PLATZ_WERT } from '../engine/constants.js';
 import {
   macheKader, macheSpieler, resetSpielerIds, setzeStaerke, spieleEinsatz, verfalleEinsaetze,
+  istOLNummer, OHNE_NUMMER, OL_NUMMER_VON, OL_NUMMER_BIS,
 } from '../engine/spieler.js';
 import {
   PLAETZE, PLATZ_JE_KUERZEL, hauptPlatz, hauptPosition, positionsKuerzel, platzKuerzel,
@@ -794,4 +795,121 @@ test('die Automatik nimmt für jeden Platz den besten seiner Formel', () => {
   const a = stelleAuf(k, 1, '11');
   assert.equal(kickerWert(a.k), Math.max(...k.map(kickerWert)));
   assert.equal(longSnapperWert(a.ls), Math.max(...k.map(longSnapperWert)));
+});
+
+// --- Die geliehene Nummer --------------------------------------------------
+
+/** Was ein Platz heute auf dem Rücken trägt — seine eigene oder die geborgte. */
+function getragen(p) {
+  return p.leihNummer === OHNE_NUMMER ? p.spieler.nummer : p.leihNummer;
+}
+
+test('wer im Angriff auf der falschen Seite der Fünfzig steht, borgt sich eine Nummer', () => {
+  const k = kader('leih');
+
+  // Ein Cornerback auf dem linken Tackle: seine Nummer liegt im Band 20-49 und
+  // hat auf der Line nichts zu suchen.
+  const cb = k.find((s) => s.position === 'CB');
+  assert.equal(istOLNummer(cb.nummer), false, 'der Cornerback trägt keine Linien-Nummer');
+  const lt = stelleAuf(k, 1, '11', undefined, { LT: cb.id })
+    .offense.find((p) => p.schluessel === 'LT');
+  assert.equal(lt.spieler.id, cb.id);
+  assert.ok(istOLNummer(lt.leihNummer), `geliehen: ${lt.leihNummer}`);
+  assert.notEqual(lt.leihNummer, cb.nummer, 'er borgt sich seine eigene Nummer');
+
+  // Andersrum genauso: ein Guard auf dem Receiverplatz legt die Fünfziger ab.
+  const g = k.find((s) => s.position === 'G');
+  assert.equal(istOLNummer(g.nummer), true, 'der Guard trägt eine Linien-Nummer');
+  const wr = stelleAuf(k, 1, '11', undefined, { WR: g.id })
+    .offense.find((p) => p.schluessel === 'WR');
+  assert.equal(wr.spieler.id, g.id);
+  assert.equal(istOLNummer(wr.leihNummer), false, `geliehen: ${wr.leihNummer}`);
+  assert.ok(wr.leihNummer > 9, 'eine einstellige Nummer wird nicht verliehen');
+
+  // Geborgt ist nicht vergeben: im Kader steht seine eigene noch.
+  assert.equal(istOLNummer(g.nummer), true, 'der Kadereintrag wurde angefasst');
+});
+
+test('wessen Nummer zum Platz passt, borgt keine', () => {
+  const k = kader('passt');
+  for (const p of stelleAuf(k, 1, '11').offense) {
+    if (!p.spieler) continue;
+    const linie = OL_PLAETZE.includes(/** @type {any} */ (p.platz));
+    if (linie === istOLNummer(p.spieler.nummer)) {
+      assert.equal(p.leihNummer, OHNE_NUMMER, `${p.schluessel} borgt ohne Not`);
+    } else {
+      assert.notEqual(p.leihNummer, OHNE_NUMMER, `${p.schluessel} borgt nicht`);
+    }
+  }
+});
+
+test('eine geliehene Nummer trägt sonst niemand', () => {
+  // Über viele Kader, viele Gruppierungen: die Leihgabe darf weder eine im
+  // Verein vergebene Nummer doppeln noch eine zweite Leihgabe treffen.
+  for (const seed of ['l1', 'l2', 'l3', 'l4']) {
+    const k = kader(seed);
+    const vergeben = new Set(k.map((s) => s.nummer));
+    for (const personnel of PERSONNEL_REIHE) {
+      const a = stelleAuf(k, 1, personnel);
+      const getragene = [];
+      for (const p of a.offense) {
+        if (!p.spieler) continue;
+        getragene.push(getragen(p));
+        if (p.leihNummer === OHNE_NUMMER) continue;
+        assert.equal(vergeben.has(p.leihNummer), false,
+          `${seed}/${personnel}: ${p.leihNummer} trägt schon jemand`);
+        assert.ok(p.leihNummer >= 0 && p.leihNummer <= 99, `Nummer ${p.leihNummer}`);
+      }
+      // Elf Plätze, elf verschiedene Rücken — außer wo einer doppelt steht.
+      const einfach = a.offense.filter((p) => p.spieler && !p.doppel).map(getragen);
+      assert.equal(new Set(einfach).size, einfach.length,
+        `${seed}/${personnel}: zwei tragen dieselbe Nummer`);
+    }
+  }
+});
+
+test('die Verteidigung nummeriert niemand um', () => {
+  // Fünfzig bis neunundsiebzig sagt im Angriff, wer den Ball fangen darf. In
+  // der Verteidigung sagt die Nummer nichts, und ein Tackle mit der 55 bleibt
+  // ein Tackle mit der 55.
+  for (const seed of ['d1', 'd2']) {
+    const a = stelleAuf(kader(seed), 1, '11');
+    for (const p of a.defense) {
+      assert.equal(p.leihNummer, OHNE_NUMMER, `${seed}: ${p.schluessel} borgt sich eine Nummer`);
+    }
+  }
+});
+
+test('dieselbe Aufstellung leiht zweimal dieselbe Nummer', () => {
+  // Die Aufstellung wird bei jedem Zeichnen neu gerechnet. Eine Nummer, die
+  // dabei springt, wäre keine Nummer — deshalb hängt der Zufall an der
+  // Spieler-Id und nicht an einem Aufruf.
+  const k = kader('stabil');
+  const cb = k.find((s) => s.position === 'CB');
+  const leih = (/** @type {any} */ x) => x.offense.map((p) => `${p.schluessel}:${p.leihNummer}`);
+  const a = stelleAuf(k, 1, '11', undefined, { LT: cb.id });
+  const b = stelleAuf(k, 1, '11', undefined, { LT: cb.id });
+  assert.deepEqual(leih(b), leih(a));
+  assert.ok(leih(a).some((e) => e.startsWith('LT:') && !e.endsWith(String(OHNE_NUMMER))));
+});
+
+test('das Band der Line ist fünfzig bis neunundsiebzig', () => {
+  assert.equal(OL_NUMMER_VON, 50);
+  assert.equal(OL_NUMMER_BIS, 79);
+  assert.equal(istOLNummer(49), false);
+  assert.equal(istOLNummer(50), true);
+  assert.equal(istOLNummer(79), true);
+  assert.equal(istOLNummer(80), false);
+  assert.equal(istOLNummer(OHNE_NUMMER), false);
+
+  // Und es ist dasselbe Band, aus dem die Kadernummern kommen — sonst löge
+  // `istOLNummer()` über jeden zweiten Spieler.
+  for (const s of kader('band')) {
+    if (['T', 'G', 'C'].includes(s.position)) {
+      assert.equal(istOLNummer(s.nummer), true, `${s.position} trägt ${s.nummer}`);
+    }
+    if (['QB', 'RB', 'FB', 'WR', 'SL', 'TE'].includes(s.position)) {
+      assert.equal(istOLNummer(s.nummer), false, `${s.position} trägt ${s.nummer}`);
+    }
+  }
 });

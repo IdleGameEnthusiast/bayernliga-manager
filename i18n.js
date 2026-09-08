@@ -428,6 +428,8 @@ export const DE = {
     wirkungHinweis: 'Diese vier sagen, was die Mannschaft ist — sie hängen am System und '
       + 'an der Aufstellung. Der Regler bewegt sie kaum; er bewegt das Duell darüber.',
     umgestellt: 'umgestellt',
+    leihNummer: (eigene) => 'Geliehene Nummer für diesen Platz — im Angriff gehören 50 bis 79 '
+      + `der Line, und sonst niemandem. Seine eigene: ${eigene}.`,
     doppel: 'doppelt',
     doppelHinweis: 'Steht in beiden Einheiten und verliert dafür Leistung.',
     platzStaerke: (wert) => `Stärke auf diesem Platz: ${wert}`,

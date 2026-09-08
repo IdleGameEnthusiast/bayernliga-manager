@@ -17,6 +17,7 @@ import {
   KOERPER_MITTE, KOERPER_SPANNE, KOERPER_KOPPLUNG,
   GROESSE_MIN, GROESSE_MAX, GEWICHT_MIN, GEWICHT_MAX,
   POSITIONS, POSITION_GRUPPEN, clamp, randInt, pick, pickWeighted, randNormal, shuffle,
+  makeRng,
 } from './constants.js';
 import {
   KOERPER_KORRIDOR, SEITEN_POSITIONEN, POSITION_JE_KUERZEL, EINSATZ_VERFALL,
@@ -63,6 +64,8 @@ export function resetSpielerIds() {
  * 0-9 belongs to no band: those numbers are handed out separately, to the best
  * players in the club. The offensive line is the exception that has no
  * exception — a tackle, guard or centre never wears anything outside 50-79.
+ * That band is a rule on the field too, not just in the squad list: who steps
+ * across it for a single snap borrows a number, see `istOLNummer()` below.
  * Docs: docs/umbau-positionsmodell.md, Abschnitt 8
  * @type {Record<string, [number, number][]>}
  */
@@ -552,6 +555,38 @@ export function vergebeNummern(rng, kader, neuVerteilen = false) {
     belegt.add(s.nummer);
   }
   return kader;
+}
+
+/** Das Band der Offensive Line. Wer im Angriff eine solche Nummer trägt, fängt keinen Ball. */
+export const OL_NUMMER_VON = 50;
+export const OL_NUMMER_BIS = 79;
+
+/** @param {number} nummer */
+export function istOLNummer(nummer) {
+  return nummer >= OL_NUMMER_VON && nummer <= OL_NUMMER_BIS;
+}
+
+/**
+ * Eine freie Nummer aus dem Band einer Position — geliehen, nicht vergeben.
+ *
+ * Der Zufall hängt an der Spieler-Id und nicht an einem Tages-Seed. Eine
+ * Aufstellung wird bei jedem Zeichnen neu gerechnet; eine Nummer, die zwischen
+ * zwei Bildern springt, wäre keine Nummer. Über die Id ist sie stabil, ohne
+ * dass irgendwer sie speichern muss.
+ *
+ * Einstellige Nummern bleiben außen vor, aus demselben Grund wie in
+ * `vergebeNummern()`: sie gehören den Besten des Vereins und werden nur dort
+ * verteilt. Ist im Band nichts frei, kommt `OHNE_NUMMER` zurück — dann trägt
+ * er eben seine eigene, denn eine Nummer, die schon jemand trägt, wäre
+ * schlimmer als eine, die nicht ins Band passt.
+ * @param {Spieler} spieler
+ * @param {string} position Für welche Position die Nummer passen soll
+ * @param {Set<number>} belegt Was im Verein schon getragen wird
+ */
+export function borgeNummer(spieler, position, belegt) {
+  const frei = zahlenIn(NUMMERN_BAND[position] || [[1, 99]], belegt).filter((n) => n > 9);
+  if (frei.length === 0) return OHNE_NUMMER;
+  return pick(makeRng(spieler.id), frei);
 }
 
 /** @param {Spieler} s @param {number} tag */

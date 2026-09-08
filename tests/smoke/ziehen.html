@@ -43,6 +43,10 @@ const zeiger = (art, p, typ = 'mouse') => new PointerEvent(art, {
 const offense = () => alle('.karte')[1];
 const plaetze = () => [...offense().querySelectorAll('.aufstellung li')];
 const platzName = (i) => plaetze()[i].querySelector('.platz-name').textContent;
+// Auf einem Platz kann die Nummer eine geliehene sein — im Angriff gehören 50
+// bis 79 der Line —, auf der Bank steht immer seine eigene. Wo ein Name von
+// hüben nach drüben verglichen wird, zählt deshalb der Name und nicht die Zahl.
+const ohneNummer = (s) => s.replace(/^\d+\s+/, '');
 const ersterFreie = () => offense().querySelector('.verfuegbare li');
 const freierName = () => ersterFreie().querySelector('.verfuegbar-name').textContent;
 const kopfLinks = () => offense().querySelector('.verfuegbarkopf h3').textContent;
@@ -69,8 +73,10 @@ try {
   const neuer = freierName();
   const vorher = platzName(0);
   ziehe(ersterFreie(), plaetze()[0]);
-  gleich('ein gezogener Mann steht auf dem Platz', platzName(0), neuer);
-  pruefe('und stand vorher nicht dort', vorher !== neuer, vorher);
+  gleich('ein gezogener Mann steht auf dem Platz',
+    ohneNummer(platzName(0)), ohneNummer(neuer));
+  pruefe('und stand vorher nicht dort',
+    ohneNummer(vorher) !== ohneNummer(neuer), vorher);
   gleich('der Zug hinterlässt keine angefangene Wahl',
     alle('.verfuegbare li.gewaehlt').length + alle('.aufstellung li.gewaehlt').length, 0);
   gleich('und auch keine Schleppe', alle('.schleppe').length, 0);
@@ -81,8 +87,29 @@ try {
   const oben = platzName(0);
   const unten = platzName(1);
   ziehe(plaetze()[0], plaetze()[1]);
-  gleich('Platz auf Platz stellt den Gezogenen dorthin', platzName(1), oben);
-  gleich('und schickt den Verdrängten auf dessen Platz', platzName(0), unten);
+  gleich('Platz auf Platz stellt den Gezogenen dorthin',
+    ohneNummer(platzName(1)), ohneNummer(oben));
+  gleich('und schickt den Verdrängten auf dessen Platz',
+    ohneNummer(platzName(0)), ohneNummer(unten));
+
+  // 3b — Die Nummer gehört dem Platz, nicht dem Mann: im Angriff trägt die
+  // Line 50 bis 79 und sonst niemand. Wer über diese Grenze zieht, borgt sich
+  // eine — in Gold, mit seiner eigenen im Titel. Die elf Zeilen stehen in der
+  // Reihenfolge, in der `stelleAuf()` sie baut: der Mann am Ball, die fünf
+  // Skill-Plätze, dann die Line.
+  const nrAuf = (i) => plaetze()[i].querySelector('.platz-nr');
+  const nummern = () => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => Number(nrAuf(i).textContent));
+  const linientreu = () => nummern().every((n, i) => (n >= 50 && n <= 79) === (i >= 6));
+  pruefe('die Line trägt 50 bis 79, der Rest des Angriffs nicht',
+    linientreu(), nummern().join(' '));
+  plaetze()[8].scrollIntoView({ block: 'center' });
+  ziehe(plaetze()[0], plaetze()[8]);
+  pruefe('und das bleibt so, wenn einer quer über die Grenze zieht',
+    linientreu(), nummern().join(' '));
+  pruefe('wer sich dafür eine borgt, zeigt es',
+    [nrAuf(0), nrAuf(8)].some((n) => n.classList.contains('geliehen')));
+  enthaelt('und sagt im Titel, welche seine eigene ist',
+    offense().querySelector('.platz-nr.geliehen').title, 'Geliehene Nummer');
 
   // 4 — Mitten im Zug: die Schleppe am Zeiger, das Ziel markiert, der eigene
   // Platz ausgenommen — und Escape als Rückweg.
@@ -94,7 +121,8 @@ try {
   plaetze()[eigen].dispatchEvent(zeiger('pointerdown', mitte(plaetze()[eigen])));
   dispatchEvent(zeiger('pointermove', mitte(plaetze()[ziel])));
   gleich('im Zug hängt eine Schleppe am Zeiger', alle('.schleppe').length, 1);
-  gleich('und sie trägt seinen Namen', txt('.schleppe'), gegriffen);
+  gleich('und sie trägt seinen Namen',
+    ohneNummer(txt('.schleppe')), ohneNummer(gegriffen));
   gleich('der Platz unter dem Zeiger ist markiert',
     alle('.aufstellung li.drueber').length, 1);
   pruefe('und es ist der, über dem er steht', plaetze()[ziel].classList.contains('drueber'));
@@ -154,7 +182,8 @@ setTimeout(() => {
         gleich('und findet den Platz unter sich',
           alle('.aufstellung li.drueber').length, 1);
         dispatchEvent(zeiger('pointerup', mitte(plaetze()[7]), 'touch'));
-        gleich('und legt ihn auf den Platz', platzName(7), gehalten);
+        gleich('und legt ihn auf den Platz',
+          ohneNummer(platzName(7)), ohneNummer(gehalten));
         gleich('die Schleppe ist wieder weg', alle('.schleppe').length, 0);
       } catch (e) { merkeFehler(e); }
       melde();

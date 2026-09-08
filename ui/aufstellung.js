@@ -49,6 +49,7 @@ import { platzKuerzel, positionsKuerzel } from '../engine/positionen.js';
 import {
   specialSpieler, specialTechnik, SPECIAL_PLAETZE, SPECIAL_WERT,
 } from '../engine/aufstellung.js';
+import { OHNE_NUMMER } from '../engine/spieler.js';
 
 /**
  * @typedef {{ spieler: import('../engine/spieler.js').Spieler, wert: number }} Kandidat
@@ -75,10 +76,27 @@ import {
  * @property {() => void} leeren
  */
 
-/** @param {import('../engine/aufstellung.js').Platz} p */
+/**
+ * Name und Nummer eines Platzes — die Nummer als eigenes Stück, denn sie ist
+ * nicht immer seine.
+ *
+ * Wer sich für diesen Platz eine Nummer borgt, trägt sie hier in Gold, wie die
+ * Marke „umgestellt": beides sagt dasselbe, dass dieser Mann heute woanders
+ * steht als sonst, und beides ist ohne Erklärung zu sehen. Die Erklärung steht
+ * im Titel, mitsamt seiner eigenen Nummer.
+ * @param {import('../engine/aufstellung.js').Platz} p
+ */
 function name(p) {
   if (!p.spieler) return T.taktik.keiner;
-  return `${p.spieler.nummer} ${p.spieler.vorname.charAt(0)}. ${p.spieler.nachname}`;
+  const geliehen = p.leihNummer !== OHNE_NUMMER;
+  return [
+    el('span', {
+      class: geliehen ? 'platz-nr geliehen' : 'platz-nr',
+      title: geliehen ? T.taktik.leihNummer(p.spieler.nummer) : undefined,
+      text: String(geliehen ? p.leihNummer : p.spieler.nummer),
+    }),
+    ` ${p.spieler.vorname.charAt(0)}. ${p.spieler.nachname}`,
+  ];
 }
 
 /** @param {import('../engine/spieler.js').Spieler} s */
@@ -350,7 +368,7 @@ function platzZeile(p, steuerung) {
     },
   },
     el('span', { class: 'platz', text: kuerzel }),
-    el('span', { class: 'platz-name', text: name(p) }),
+    el('span', { class: 'platz-name' }, name(p)),
     p.umgestellt ? el('span', { class: 'marke um', text: T.taktik.umgestellt }) : null,
     p.doppel
       ? el('span', { class: 'marke doppel', title: T.taktik.doppelHinweis, text: T.taktik.doppel })

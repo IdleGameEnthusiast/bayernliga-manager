@@ -518,6 +518,9 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
   color: var(--text-leise);
 }
 .aufstellung .platz-name { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
+/* Eine geliehene Trikotnummer steht in Gold — dieselbe Farbe wie die Marke
+   „umgestellt", denn sie sagt dasselbe: der Mann steht heute woanders. */
+.aufstellung .platz-nr.geliehen { color: var(--gelb); font-weight: 700; }
 .aufstellung .platz-pos { font-size: 12px; }
 /* Was der Mann auf genau diesem Platz wert ist — nicht seine gezogene Stärke. */
 .aufstellung .platz-stk {
