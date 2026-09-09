@@ -372,8 +372,11 @@ hängen — das ist der nächste Block, nicht mehr dieser.
   Entwicklung ein. Hier gehört auch der Ligadeckel hin: `talent` darf über 79
   liegen, aber die **Entwicklungskurve** rechnet die Liga ein, sodass die
   Stärke nie darüber steigt. Der Deckel greift bei der Generierung heute
-  praktisch nie (stärkster erzeugter Spieler ~75) — er ist für diese Kurve
-  gedacht.
+  praktisch nie — er ist für diese Kurve gedacht. **Nachgemessen:** über 4320
+  Spieler aus zwölf Ligadurchläufen ist die höchste erzeugte Stärke **76**, und
+  genau ein Spieler erreicht sie; auch ohne Deckel gerechnet ändert sich daran
+  nichts. Auf der 79 steht bei der Stärke niemand. Was den Deckel wirklich
+  berührt, sind die **Attribute** — siehe offene Entscheidung 9.
 - **Rücktritt als berechneter Wert.** `ruecktrittAlter` steht schon am Spieler,
   wird aber nur gesetzt (37 für normale Spieler, individuell für Veteranen) und
   nicht berechnet. Gehört ins Entwicklungskonzept.
@@ -431,12 +434,114 @@ Nichts davon blockiert Block 2 oder 3, aber irgendwann muss es fallen:
 6. **Veteranen-Nachschub**, siehe oben.
 7. ~~**Körpermalus am tatsächlichen Körper.**~~ **Erledigt.** Der Malus hat
    jetzt einen zweiten Summanden, `Abstand x Übergewicht x 0,024 %`, der bei
-   Ausbildung = Ziel für jeden Körper null bleibt. Der 147-Kilo-Guard zahlt für
-   den Weg zum Linebacker 11,5 %, der 105-Kilo-Guard 0,4 % — vorher waren es
-   für beide 4,4 %. Der rein quadratische Term, den dieser Punkt vorgeschlagen
-   hatte, wurde gemessen und verworfen: er macht kurze Wechsel so billig, dass
-   `DT → NT` negative Umstellungskosten bekommt und das Sollwert-Band aus dem
-   Bauplan fällt.
+   Ausbildung = Ziel für jeden Körper null bleibt. Der 146-Kilo-Guard zahlt für
+   den Weg zum Linebacker 17,6 %, der 106-Kilo-Guard 4,0 % — ohne den Summanden
+   wären es für beide 8 %. Der rein quadratische Term, den dieser Punkt
+   vorgeschlagen hatte, wurde gemessen und verworfen: er macht kurze Wechsel so
+   billig, dass `DT → NT` negative Umstellungskosten bekommt und das
+   Sollwert-Band aus dem Bauplan fällt.
+
+   **Nachtrag — die Gutschrift war unbeschränkt, und das war ein Loch.** Der
+   zweite Summand ist negativ, wenn ein Mann in die Zielrichtung gebaut ist,
+   und nichts hielt ihn auf. Weil **beide** Summanden linear im Abstand sind,
+   hängt ihr Verhältnis gar nicht am Abstand: ab
+   `KOERPERMALUS_JE_KILO / KOERPERMALUS_JE_KILOQUADRAT` = 16,7 kg über der
+   eigenen Korridormitte fraß die Gutschrift den ganzen Malus, egal wie weit
+   die Positionen auseinanderliegen. Der schwerste Linebacker der Liga
+   wechselte damit gratis in die Mitte der Line. Breitere Korridore heilen das
+   nicht, sie schieben nur mehr Männer über die Schwelle — beim Umbau der
+   Korridore lagen fünf Positionen darüber (NT 22,5 · T 21 · G 20 · DT 20 ·
+   DE 17,5 halbe Breite). `KOERPERMALUS_GUTSCHRIFT_ANTEIL` = 0,5 begrenzt sie
+   jetzt auf die Hälfte des linearen Terms: Richtungskorrektur, keine
+   Umkehrung. Der Weg bleibt ein Weg.
+
+8. ~~**Der Sam fiel billiger in die Mitte der Line als auf die eigene
+   Kante.**~~ **Erledigt**, aber nicht restlos — siehe unten. Ein schwerer
+   Sam-Linebacker kostete auf Nose Tackle −7,7 % und auf Defensive End
+   −15,7 %; der Platz nebenan, an dem er beinahe schon stand, war doppelt so
+   teuer wie der Graben.
+
+   Der Körper war **nicht** die Ursache. Zerlegt man die Eignung in ihre drei
+   Faktoren, bestraft der Körpermalus den Weg nach innen völlig richtig, mit
+   4,8 Punkten gegen 1,4 nach außen. Er wird nur überstimmt: roh, vor jedem
+   Abschlag, las derselbe Mann sich auf der NT-Formel als 71,3 und auf der
+   DE-Formel als 64,0. Sieben Punkte Vorsprung, die drei Punkte Körper nicht
+   einholen können.
+
+   Der Grund stand in den Formeln. Die Laufformel des Sam bestand aus
+   `tacklen`, `kraft`, `technik` und `spielverstaendnis` — **denselben vier
+   Attributen** wie die des Nose Tackle, nur anders gewichtet. Ein Sam war
+   damit als kleiner, kluger Nose Tackle beschrieben und konnte dort gar nicht
+   durchfallen; die DE-Formel dagegen verlangt `beweglichkeit` mit 18 %, und
+   das kam im ganzen Sam-Profil kein einziges Mal vor, lag also auf der
+   Bodenplatte aus `PROFIL_SPEZIALISIERUNG`. Weder Mike noch Sam hatten im
+   Laufspiel Tempo oder Wendigkeit. Was einen Linebacker vom Lineman trennt,
+   ist aber nicht Kraft, sondern dass er läuft.
+
+   Beide haben deshalb Bewegung im Raum bekommen, Sam in voller, Mike in halber
+   Dosis. Das wirkt zweimal, und darauf beruht die Wirkung: `generierungsProfil()`
+   kommt aus den Formeln, die Änderung entscheidet also über die Bewertung
+   **und** über die Ziehung. Der Sam bekommt echte Beweglichkeit statt der
+   Bodenplatte — was ihn auf der Kante besser macht — und weniger Kraft — was
+   ihn in der Mitte schlechter macht.
+
+   **Offen geblieben:** der Kipppunkt liegt bei 106 kg. Darunter ist die Kante
+   billiger als die Mitte, darüber bleibt NT vorn — mit 0,6 bis 1,4 Punkten
+   statt der 8,0 von vorher. Ein 110-Kilo-Sam, der im Inneren aushilft, ist in
+   einer Amateurliga vertretbar; wer die letzten anderthalb Punkte will, dreht
+   an der Sam-Dosis oder gibt der NT-Formel etwas, das ein Linebacker
+   strukturell nicht haben kann. **Nicht** am Körper — der arbeitet.
+
+9. **Soft Cap auf die Attribute statt der harten 79.** Vorgeschlagen,
+   durchgerechnet, bewusst nicht gebaut.
+
+   Die Lage: `LIGA_MAX_STAERKE` = 79 klemmt an vier Stellen nicht nur die
+   Stärke, sondern **jedes einzelne Attribut** — in `baueAttribute()`, in
+   `skaliereAufStaerke()`, in `spieleEinsatz()` und in `setzeStaerke()`. Das
+   ist ein Kategorienfehler: `staerke` ist der gewichtete **Mittelwert** der
+   Attribute unter dem Positionsprofil, die Attribute sind seine **Summanden**.
+   Beide auf dieselbe Zahl zu deckeln heißt, dass den Mittelwert nur erreicht,
+   wer ihn überall erreicht — der Deckel erzwingt die Gleichverteilung
+   ausgerechnet bei den Besten.
+
+   Gemessen an 4320 Spielern aus zwölf Ligadurchläufen ist der Stapel klein,
+   aber schlecht platziert: 187 von 64 800 Attributwerten (0,29 %), davon 9,7 %
+   der Nose Tackles und 9,4 % der Defensive Tackles, fast ausschließlich
+   `kraft` (64) und `schnelligkeit` (65) — also je das eine Attribut, das die
+   Position ausmacht, bei ihren besten Spielern (Median-Stärke 64 gegen
+   Ligamedian 47).
+
+   Der Vorschlag: **Knie bei `LIGA_MAX_STAERKE` 79, Asymptote bei `MAX_RATING`
+   99**, `knie + (dach - knie) * (1 - exp(-(wert - knie) / (dach - knie)))`.
+   Stetig, Steigung 1 am Knie, reihenfolgeerhaltend: 85 → 84,2 · 90 → 87,5 ·
+   104 → 93,3. Keine neue Konstante, und beide Kommentare bleiben wahr — über
+   79 kommt man nur noch mühsam, über 99 nie. Es holt die Attribute in dasselbe
+   Band 79–99, in dem `talent` als einzige Größe des Modells ohnehin schon
+   wohnt.
+
+   **Zwei Fallen, die vor dem Bauen zu klären sind.** Erstens: die Kurve darf
+   **nicht** in `skaliereAufStaerke()`. Die Schleife dort multipliziert und
+   klemmt sechsmal hintereinander; eine Stauchung darin staucht bei jedem
+   Durchlauf erneut. Sie gehört einmal ans Ende von `baueAttribute()` — der
+   Preis ist, dass der Gesamtwert eines gestauchten Spielers danach ein Stück
+   unter seiner Stärke liegt, und wie weit, ist ungemessen. Zweitens: die
+   abgeleiteten Werte (`eignung`, `platzStaerke`, die vier Blockwerte) haben
+   keine eigene Klammer und wandern mit. Auf dem Hauptplatz bindet die
+   Normierung den Mann an seine Stärke; was auf **fremden** Plätzen und bei
+   extremem Taktikregler passiert, ist ebenfalls ungemessen. Dazu kommen die
+   Balken in [`ui/personal.js`](../ui/personal.js) und
+   [`ui/taktik.js`](../ui/taktik.js), die `LIGA_MAX_STAERKE` als Vollausschlag
+   nehmen und eine eigene Anzeigekonstante brauchen.
+
+   Verworfen wurde dabei die Variante „nur bei der Generierung deckeln":
+   `spieleEinsatz()` ist eine echte Konvexkombination (höchster Faktor
+   0,0147 × 1,5 = 0,0221) und kann `soll` nie überschreiten, und `soll` kommt
+   aus dem Generierungspfad — die Unterscheidung existiert also fast nicht. Die
+   einzige Stelle, die wirklich anders wirkt, ist `setzeStaerke()`, und sie
+   dort auszulassen erzeugte zwei Spielersorten gleicher Stärke, je nachdem ob
+   einer so gezogen wurde oder sich dorthin entwickelt hat. Das läuft auf
+   „Eigengewächse sind besser als Zugänge" hinaus, ohne dass es jemand sehen
+   kann.
 
 ---
 
@@ -494,3 +599,10 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Leerer Platz | erlaubt, zählt null und wird von den Reparaturrunden nicht angefasst. „Automatisch aufstellen" ist der Weg zurück |
 | Nicht angetreten | eine Elf mit Loch wird `WERTUNG_PUNKTE` = 0:36 gegen sich gewertet; kein Einsatz, keine Verletzung, keine Box — für beide Vereine. Der Kalender fragt vorher |
 | Rosterzahl | nach dem Profilanteil der **Zielposition**, nie nach der Ausrichtung des Vereins. Damit liest ein Mann auf seinem Hauptplatz wieder genau seine Stärke, und der Taktikregler bewertet keine Spieler um |
+| Körperkorridore | breit, weil das keine Profiliga ist: Line 40–45 kg, Skill 18–28. Die **Reihenfolge der Mitten** ist das Modell, nicht die Breite — NT 137,5 · T 131 · G 126 · DT 125 · C 124 · DE 112,5 · FB/MIKE 106 · TE 105 · SAM 100 · WILL/QB 92 · SS 89 · RB 88 · FS 84 · WR 83 · CB 80 · SL 77 |
+| Drei Abstände mit Absicht | MIKE über SAM (sie trugen einmal denselben Korridor) · DE klar über beiden Linebackern (er lag einmal ein Kilo darüber, „Edge" war körperlich kein Begriff) · DT über C (er lag einmal unter der ganzen O-Line). Ein Test in `positionen.test.js` hält alle drei fest |
+| NT-Größe | der **kürzeste** der großen Männer, Mitte 185 cm unter SAM, G und DT. Hebel kommt von unten; ein langer Nose Tackle ist ein schlechter |
+| Körpergrenzen | `GEWICHT_MIN` 58 und `GEWICHT_MAX` 185 sind **aus den Korridoren gerechnet**, nicht rund gewählt: ein Fünftel der Spieler wird absichtlich außerhalb gezogen, und ein Rand auf einer Grenze erzeugt dort keinen Ausläufer, sondern einen Stapel. Wer die Korridore ändert, rechnet beide neu — ein Test tut es mit |
+| Gutschriftschranke | `KOERPERMALUS_GUTSCHRIFT_ANTEIL` = 0,5: die Körper-Gutschrift nimmt höchstens die Hälfte des linearen Malus weg. Unbeschränkt hob sie ihn ab 16,7 kg Übergewicht ganz auf, abstandsunabhängig, weil beide Summanden linear im Abstand sind |
+| Linebacker im Laufspiel | MIKE und SAM haben `beweglichkeit` (und SAM `schnelligkeit`) in der Laufformel. Ohne sie bestand ihre Formel aus denselben vier Attributen wie die des Nose Tackle, und ein Sam war ein kleiner Nose Tackle. Was den Linebacker vom Lineman trennt, ist nicht Kraft, sondern dass er läuft |
+| Formeln wirken zweimal | eine Änderung an `FORMELN` ändert die Bewertung **und** die Ziehung, weil `generierungsProfil()` daraus kommt. Das ist der Hebel, nicht der Nebeneffekt: der Sam bekommt echte Beweglichkeit statt der Bodenplatte und zugleich weniger Kraft |
