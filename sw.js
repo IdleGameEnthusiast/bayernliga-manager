@@ -25,6 +25,7 @@ const SHELL = [
   './engine/kalender.js',
   './engine/positionen.js',
   './engine/spieler.js',
+  './engine/coach.js',
   './engine/aufstellung.js',
   './engine/team.js',
   './engine/spielplan.js',

@@ -243,15 +243,24 @@ try {
   enthaelt('die Automatik füllt den geräumten Platz wieder', txt('.rosterkopf'), 'Gesamt: ');
   gleich('und die Warnung ist weg', alle('.rosterkopf .warnung').length, 0);
 
-  // 10 — Personal: die Tabelle ist umgezogen, Coaches und Orga stehen still
+  // 10 — Personal: die Tabelle ist umgezogen, die Coaches stehen daneben, Orga still
   reiterKnopf('Personal').click();
   gleich('drei Unterreiter', alle('.reiter.unter button').length, 3);
-  gleich('zwei davon gesperrt', alle('.reiter.unter button[disabled]').length, 2);
+  gleich('einer davon gesperrt', alle('.reiter.unter button[disabled]').length, 1);
   pruefe('die Spielertabelle steht hier', alle('tr.spielerzeile').length > 20);
   gleich('und im Roster nicht mehr', alle('.karte h2')[0].textContent, 'Spieler');
   q('tr.spielerzeile').click();
   gleich('eine Zeile klappt die Werte auf', alle('tr.wertezeile').length, 1);
   enthaelt('samt der Kickwerte', txt('tr.wertezeile'), 'Bein');
+
+  // 11 — Coaches: zwei Koordinatoren, aufklappbar auf ihre vier Blöcke
+  alle('.reiter.unter button').find((b) => b.textContent === 'Coaches').click();
+  gleich('der Stab hat zwei Zeilen', alle('tr.coachzeile').length, 2);
+  enthaelt('ein Offense Coordinator', txt('tr.coachzeile'), 'Offense Coordinator');
+  q('tr.coachzeile').click();
+  gleich('eine Zeile klappt die Blöcke auf', alle('tr.wertezeile').length, 1);
+  gleich('und es sind vier', alle('.werteblock').length, 4);
+  enthaelt('mit der Vertrautheit', txt('tr.wertezeile'), 'Vertrautheit mit Personnel');
 } catch (e) { merkeFehler(e); }
 melde();
 </script></body></html>

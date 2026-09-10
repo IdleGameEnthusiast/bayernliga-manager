@@ -746,6 +746,13 @@ tr.wertezeile td { padding: 0 8px 12px; text-align: left; white-space: normal; }
 .wert .spur i { display: block; height: 100%; background: var(--akzent); }
 .wert span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 
+/* Die vier Blöcke eines Coaches untereinander, jeder mit seiner Überschrift.
+   Beim Coach steht der Name in der ersten Spalte, nicht hinter einer Nummer. */
+.werteblock + .werteblock { margin-top: 10px; }
+.werteblock h3 { margin: 0 0 4px; }
+tr.coachzeile.offen td:first-child { font-weight: 600; }
+tr.coachzeile.offen td:nth-child(2) { font-weight: inherit; }
+
 /* Die fünf Plätze, auf denen er jetzt am meisten wert wäre. Marken statt
    Balken: es sind fünf Zahlen im Vergleich zueinander, keine Skala. */
 .plaetze { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }

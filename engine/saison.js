@@ -38,6 +38,7 @@ import {
 } from './aufstellung.js';
 import { berechneTabelle } from './tabelle.js';
 import { teamStaerken } from './team.js';
+import { ziehStab } from './coach.js';
 
 /**
  * Der Stempel auf einem Speicherstand.
@@ -47,7 +48,7 @@ import { teamStaerken } from './team.js';
  * der vorigen Nummer auf diese hebt. Ohne diesen Schritt wird ein solcher Stand
  * beim Laden weggeworfen — der Sprung ist billig, der Verlust nicht.
  */
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 /**
  * @typedef {object} SpielStand
@@ -57,6 +58,7 @@ export const SAVE_VERSION = 8;
  * @property {number} tag             Tag seit Saisonbeginn, 1-basiert — die Uhr
  * @property {string} meinTeam
  * @property {Record<string, import('./spieler.js').Spieler[]>} kader  by team id
+ * @property {Record<string, import('./coach.js').Coach[]>} coaches  Der Stab je Verein — siehe `coachesVon()`
  * @property {import('./spielplan.js').Partie[]} spielplan
  * @property {Record<string, string>} personnel   Personnel-Gruppierung je Verein
  * @property {Record<string, number>} passAnteil  Ausrichtung je Verein, 0..1
@@ -114,6 +116,34 @@ export function personnelVon(stand, teamId) {
   const gesetzt = stand.personnel && stand.personnel[teamId];
   if (gesetzt && PERSONNEL[gesetzt]) return gesetzt;
   return losePersonnel(stand.seed)[teamId] || STANDARD_PERSONNEL;
+}
+
+/**
+ * Der Stab eines Vereins, notfalls nachgezogen.
+ *
+ * Nachgezogen heißt: aus einem eigenen Strom neben dem Saatgut, wie das
+ * System in `losePersonnel()`. Das ist der Weg, über den ein Stand von vor
+ * den Coaches seinen Stab bekommt — der Migrationsschritt legt nur die leere
+ * Karte an, denn zöge er selbst, müsste er den heutigen Generator kennen.
+ * Deterministisch ist es trotzdem, also ändert es nichts, ob der gezogene
+ * Stab schon gespeichert war oder nicht.
+ *
+ * Die Namen weichen denen des Kaders aus, wie unter den Spielern auch: zwei
+ * Hubers in einer Kabine sind nur verwirrend.
+ * @param {SpielStand} stand
+ * @param {string} teamId
+ */
+export function coachesVon(stand, teamId) {
+  if (!stand.coaches) stand.coaches = {};
+  const bekannt = stand.coaches[teamId];
+  if (bekannt) return bekannt;
+
+  const rng = makeRng(stand.seed + '|coaches|' + teamId);
+  const belegt = new Set((stand.kader[teamId] || []).map((s) => s.vorname + ' ' + s.nachname));
+  const stab = ziehStab(rng, teamId, vereinsBasen(stand.meinTeam)[teamId],
+    personnelVon(stand, teamId), belegt);
+  stand.coaches[teamId] = stab;
+  return stab;
 }
 
 /**
@@ -420,6 +450,7 @@ export function neuesSpiel(meinTeam, seed) {
     tag: 1,
     meinTeam,
     kader,
+    coaches: {},
     personnel,
     passAnteil,
     aufstellung: null,
@@ -427,6 +458,11 @@ export function neuesSpiel(meinTeam, seed) {
     post: [],
     historie: [],
   };
+
+  // Der Stab wird gleich gezogen, nicht erst beim ersten Blick darauf — ein
+  // frischer Stand soll vollständig sein, und der Export eines Standes soll
+  // dieselben Coaches tragen wie der Bildschirm.
+  for (const t of TEAMS) coachesVon(stand, t.id);
 
   // Der Amtsantritt ist die erste E-Mail, kein eigener Bildschirm: alles, was
   // der Verein vom Manager will, kommt über denselben Kanal.

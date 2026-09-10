@@ -14,7 +14,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { neuesSpiel, SAVE_VERSION } from '../engine/saison.js';
+import { neuesSpiel, SAVE_VERSION, coachesVon } from '../engine/saison.js';
 import { migriere, exportiere, importiere } from '../engine/save.js';
 
 /** Ein loser Abzug eines frischen Standes. @param {string} seed */
@@ -54,6 +54,23 @@ test('ein Stand aus Version 7 überlebt die Wertung', () => {
   const neu = importiere(JSON.stringify(alt));
   assert.equal(neu.version, SAVE_VERSION);
   assert.deepEqual(neu.spielplan.length, alt.spielplan.length);
+});
+
+test('ein Stand aus Version 8 bekommt seinen Stab nachgezogen', () => {
+  // Version 8 kannte keine Coaches. Der Schritt legt nur die leere Karte an;
+  // die Koordinatoren zieht `coachesVon()` beim ersten Blick nach — aus dem
+  // Saatgut, also dieselben, die ein frischer Stand mit diesem Saatgut trägt.
+  const frisch = neuesSpiel('heg', 'acht');
+  const alt = abzug('acht');
+  alt.version = 8;
+  delete alt.coaches;
+
+  const neu = importiere(JSON.stringify(alt));
+  assert.equal(neu.version, SAVE_VERSION);
+  assert.deepEqual(neu.coaches, {}, 'der Schritt hat selbst gezogen');
+  const stab = coachesVon(neu, 'heg');
+  assert.equal(stab.length, 2);
+  assert.deepEqual(stab, coachesVon(frisch, 'heg'));
 });
 
 test('ein Stand aus der Zukunft wird abgelehnt', () => {

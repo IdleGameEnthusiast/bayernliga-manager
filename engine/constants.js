@@ -255,6 +255,36 @@ export const KICK_FUSS_STREUUNG = 9;
 /** Where a kicker never comes from: the men in the trenches. */
 export const KICK_FUSS_AUSSCHLUSS = LINEMEN;
 
+// --- Coaches ---------------------------------------------------------------
+// Docs: docs/umbau-coaches.md, Abschnitte 4 und 5
+
+/**
+ * Wo ein Coach bei der Ziehung steht: halbe Vereinsbasis. Coaches fangen
+ * niedrig an, damit der Stab etwas ist, das man aufbaut — ein 45er-Verein
+ * bekommt Koordinatoren um 22, der stärkste Verein der Liga um 35.
+ */
+export const COACH_BASIS_ANTEIL = 0.5;
+/** Streuung der Coachstärke um die halbe Basis. Halb so weit wie beim Spieler. */
+export const COACH_STREUUNG = 3;
+/** Streuung eines einzelnen Coachwerts um seine Stärke. Halb so weit wie beim Spieler. */
+export const COACH_ATTRIBUT_STREUUNG = 3;
+/** Wer generiert wird, ist alt. Die Jüngeren kommen später über die Rekrutierung. */
+export const COACH_ALTER_MIN = 50;
+export const COACH_ALTER_MAX = 65;
+/**
+ * Was ein Coach von der anderen Seite des Balls versteht — als Faktor auf
+ * Scheme und Technik. Dieselbe Zahl steht in der Ähnlichkeit der Coaching-
+ * Gruppen (`aehnlichkeit()`): Offense gegen Defense kostet ein Drittel.
+ * Special Teams gehören keiner Seite und laufen deshalb ebenfalls hierüber.
+ */
+export const COACH_SEITENFAKTOR = 2 / 3;
+/**
+ * Wie die Vertrautheit eines OC mit einer Gruppierung je Schritt auf
+ * `PERSONNEL_REIHE` abfällt, vom Heimatsystem aus. Multiplikativ, damit das
+ * ferne Ende nicht bei null landet: sieben Schritte sind noch 21 %.
+ */
+export const PERSONNEL_ABSTAND_FAKTOR = 0.8;
+
 /**
  * Die drei Special-Teams-Positionen — der ausgebildete Spezialist.
  *

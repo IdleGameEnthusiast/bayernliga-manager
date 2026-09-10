@@ -37,6 +37,17 @@ export const STORAGE_KEY = 'bayernliga.save';
  * @type {Record<number, (roh: any) => any>}
  */
 const MIGRATIONEN = {
+  // 8 → 9: der Stab kam dazu, `coaches` je Verein. Der Schritt legt nur die
+  // leere Karte an — die Coaches selbst zieht `coachesVon()` beim ersten
+  // Blick darauf nach, deterministisch aus dem Saatgut. Zöge der Schritt sie
+  // hier, kennte er den heutigen Generator, und genau das darf ein Schritt
+  // nicht: sobald der sich ändert, müsste dieser Schritt mitwachsen.
+  8: (roh) => {
+    roh.coaches = {};
+    roh.version = 9;
+    return roh;
+  },
+
   // 7 → 8: jedes Ergebnis trägt jetzt `nichtAngetreten` — wer keine vollständige
   // Elf stellte, wird 0:36 gewertet statt gespielt. Alte Partien wurden alle
   // gespielt, und das Fehlen des Feldes heißt genau das. Der Schritt hebt

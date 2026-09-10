@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Personal: alle, die für den Verein arbeiten — heute nur die Spieler.
+ * Personal: alle, die für den Verein arbeiten — die Spieler und der Stab.
  *
  * Die Tabelle stand bis hierher unten im Roster. Sie ist dort weggezogen, weil
  * der Roster seit dem Umbau eine Handlung ist („wer steht wo") und diese
@@ -8,9 +8,11 @@
  * auf einer Fläche gingen schon bei der Zeile nicht mehr auf, an der Ansicht
  * gehen sie es erst recht nicht.
  *
- * Coaches und Orga stehen als Reiter da, aber gesperrt. Das ist Absicht: der
- * Platz für sie ist entschieden, ihr Inhalt noch nicht, und ein gesperrter
- * Reiter sagt beides ehrlicher als gar keiner.
+ * Die Coaches sind reine Auskunft: zwei Koordinatoren, ihre Werte, ihre
+ * Stärke. Einstellen und Entlassen gibt es noch nicht, und was ein Coach am
+ * Spieltag oder in der Entwicklung bewirkt, entscheidet die Engine später —
+ * hier wird nur gezeigt, was da ist. Orga steht als Reiter da, aber gesperrt:
+ * der Platz ist entschieden, der Inhalt noch nicht.
  */
 
 import { el, leere, tabelle as machTabelle, balken, sterne } from './dom.js';
@@ -19,8 +21,11 @@ import { istFit, talentSterne } from '../engine/spieler.js';
 import { LIGA_MAX_STAERKE, POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE }
   from '../engine/constants.js';
 import { positionsKuerzel, hauptPosition, platzKuerzel } from '../engine/positionen.js';
-import { bestePlaetze, specialTechnik } from '../engine/aufstellung.js';
-import { eigeneAufstellung, aufstellungVon } from '../engine/saison.js';
+import { bestePlaetze, specialTechnik, PERSONNEL_REIHE } from '../engine/aufstellung.js';
+import { eigeneAufstellung, aufstellungVon, coachesVon } from '../engine/saison.js';
+import {
+  staerke as coachStaerke, SOFT_SKILLS, SCHEME_SKILLS, COACHING_GRUPPE_REIHE,
+} from '../engine/coach.js';
 
 /**
  * Eine Spalte des Depth Charts: Beschriftung, Zellinhalt und der Wert, nach
@@ -68,15 +73,27 @@ let bereich = 'spieler';
 /** Die Unterreiter, in ihrer Reihenfolge — und ob sie schon etwas zeigen. */
 const BEREICHE = /** @type {[string, string, boolean][]} */ ([
   ['spieler', T.personal.spieler, true],
-  ['coaches', T.personal.coaches, false],
+  ['coaches', T.personal.coaches, true],
   ['orga', T.personal.orga, false],
 ]);
+
+/** Welche Coaches ihre Werte gerade offen zeigen — das Gegenstück zu `offeneWerte`. */
+const offeneCoaches = new Set();
 
 /**
  * @param {import('../engine/saison.js').SpielStand} stand
  * @param {() => void} neuZeichnen
  */
 export function zeigePersonal(stand, neuZeichnen) {
+  return el('div', {},
+    unterreiter(neuZeichnen),
+    bereich === 'coaches' ? coachesKarte(stand) : spielerKarte(stand));
+}
+
+/**
+ * @param {import('../engine/saison.js').SpielStand} stand
+ */
+function spielerKarte(stand) {
   const kader = stand.kader[stand.meinTeam];
   const tag = stand.tag;
 
@@ -105,13 +122,109 @@ export function zeigePersonal(stand, neuZeichnen) {
   };
   male();
 
-  return el('div', {},
-    unterreiter(neuZeichnen),
-    el('div', { class: 'karte' },
-      el('div', { class: 'kartenkopf' },
-        el('h2', { text: T.personal.spieler }),
-        el('span', { class: 'klein leise', text: T.personal.anzahl(kader.length) })),
-      halter));
+  return el('div', { class: 'karte' },
+    el('div', { class: 'kartenkopf' },
+      el('h2', { text: T.personal.spieler }),
+      el('span', { class: 'klein leise', text: T.personal.anzahl(kader.length) })),
+    halter);
+}
+
+/**
+ * Der Stab: eine Zeile je Coach, aufklappbar auf seine vier Blöcke.
+ *
+ * Keine Sortierung — bei zwei Zeilen wäre der Spaltenkopf ein Versprechen ohne
+ * Inhalt. Kommt sie, wenn der Stab wächst.
+ * @param {import('../engine/saison.js').SpielStand} stand
+ */
+function coachesKarte(stand) {
+  const stab = coachesVon(stand, stand.meinTeam);
+  const halter = el('div', {});
+  const male = () => {
+    leere(halter);
+    halter.append(machTabelle(
+      [
+        el('th', { text: T.coach.name }),
+        el('th', { text: T.coach.rolle }),
+        el('th', { text: T.coach.gruppe }),
+        el('th', { text: T.coach.alter }),
+        el('th', { text: T.coach.staerke }),
+        el('th', { 'aria-label': T.kader.werte }),
+      ],
+      stab.flatMap((coach) => [
+        coachZeile(coach, male),
+        offeneCoaches.has(coach.id) ? coachWerteZeile(coach) : null,
+      ].filter(Boolean))));
+  };
+  male();
+
+  return el('div', { class: 'karte' },
+    el('div', { class: 'kartenkopf' },
+      el('h2', { text: T.personal.coaches }),
+      el('span', { class: 'klein leise', text: T.personal.stabAnzahl(stab.length) })),
+    halter);
+}
+
+/**
+ * @param {import('../engine/coach.js').Coach} coach
+ * @param {() => void} male
+ */
+function coachZeile(coach, male) {
+  const offen = offeneCoaches.has(coach.id);
+  const werte = () => {
+    if (offen) offeneCoaches.delete(coach.id); else offeneCoaches.add(coach.id);
+    male();
+  };
+  const rolle = T.coach.rollen[coach.rolle];
+
+  return el('tr', {
+    class: 'spielerzeile coachzeile waehlbar' + (offen ? ' offen' : ''),
+    role: 'button',
+    tabindex: '0',
+    'aria-expanded': String(offen),
+    title: offen ? T.kader.werteVerbergen : T.kader.werteZeigen,
+    onclick: werte,
+    onkeydown: (/** @type {KeyboardEvent} */ e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      werte();
+    },
+  },
+    el('td', { text: coach.vorname + ' ' + coach.nachname }),
+    el('td', { text: rolle }),
+    el('td', { class: 'leise', text: T.coach.gruppen[coach.gruppe] }),
+    el('td', { class: 'leise', text: T.kader.alterWert(coach.alter) }),
+    el('td', { style: { fontWeight: '600' }, title: T.coach.staerkeTitel(rolle),
+      text: String(Math.round(coachStaerke(coach))) }),
+    el('td', { class: 'werteknopf leise', text: offen ? T.kader.sortAuf : T.kader.sortAb }));
+}
+
+/**
+ * Die vier Blöcke eines Coaches, aufgeklappt unter seiner Zeile. Dieselbe
+ * Balkenform wie beim Spieler, dieselbe Skala — ein Koordinator mit 22 steht
+ * damit sichtbar unter jedem seiner Spieler, und das ist die Aussage.
+ * @param {import('../engine/coach.js').Coach} coach
+ */
+function coachWerteZeile(coach) {
+  /**
+   * @param {string} titel
+   * @param {[string, number][]} eintraege Beschriftung und Wert
+   */
+  const block = (titel, eintraege) => el('div', { class: 'werteblock' },
+    el('h3', { class: 'klein', text: titel }),
+    el('div', { class: 'werte' },
+      eintraege.map(([name, wert]) => el('div', { class: 'wert' },
+        el('span', { class: 'klein leise', text: name }),
+        balken(wert, LIGA_MAX_STAERKE),
+        el('span', { class: 'klein', text: String(Math.round(wert)) })))));
+
+  return el('tr', { class: 'wertezeile' },
+    el('td', { colspan: '6' },
+      block(T.coach.bloecke.soft, SOFT_SKILLS.map((s) => [T.coach.soft[s], coach.soft[s]])),
+      block(T.coach.bloecke.scheme, SCHEME_SKILLS.map((s) => [T.coach.scheme[s], coach.scheme[s]])),
+      block(T.coach.bloecke.personnel,
+        PERSONNEL_REIHE.map((p) => [`${p} · ${T.personnel[p]}`, coach.personnel[p]])),
+      block(T.coach.bloecke.technik,
+        COACHING_GRUPPE_REIHE.map((g) => [T.coach.gruppen[g], coach.technik[g]]))));
 }
 
 /** @param {() => void} neuZeichnen */

@@ -411,6 +411,16 @@ hängen — das ist der nächste Block, nicht mehr dieser.
   die ohne echtes Layout nicht zu prüfen ist.
 - **Auf- und Abstieg**, zweite Liga darüber. `MAX_RATING` steht deshalb noch
   auf 99, obwohl die Bayernliga bei 79 gedeckelt ist.
+- **Coaches.** ~~Gibt es nicht.~~ **Der Stab steht** — jeder Verein hat einen
+  OC und einen DC mit Soft Skills, Scheme und Positionstechnik, einer Stärke
+  je Rolle und einer Ähnlichkeit der Coaching-Gruppen, die aus dem
+  Positionsmodell gerechnet wird. Dokumentiert in
+  [`umbau-coaches.md`](umbau-coaches.md). **Was noch fehlt, in dieser
+  Reihenfolge:** die Wirkung am Spieltag samt Umbau des Taktikreiters (OC- und
+  DC-Karte, Vertrautheit an jeder Gruppierung), die Wirkung auf die
+  Spielerentwicklung (gehört zum Entwicklungskonzept oben), und der Markt —
+  Einstellen, Entlassen, Rekrutierung der Jüngeren. Bis dahin ist der
+  Coaches-Reiter unter Personal reine Auskunft.
 - Transfers und Verträge, Play-by-Play, Finanzen.
 
 ---
@@ -598,6 +608,7 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Speichern | gar nicht — jeder Handgriff steht sofort im Stand. Es gibt keinen Entwurf, keinen Knopf und keinen Wächter beim Reiterwechsel mehr |
 | Leerer Platz | erlaubt, zählt null und wird von den Reparaturrunden nicht angefasst. „Automatisch aufstellen" ist der Weg zurück |
 | Nicht angetreten | eine Elf mit Loch wird `WERTUNG_PUNKTE` = 0:36 gegen sich gewertet; kein Einsatz, keine Verletzung, keine Box — für beide Vereine. Der Kalender fragt vorher |
+| Coaches | OC + DC je Verein, Stärke um Vereinsbasis/2, Alter 50–65; zehn Coaching-Gruppen mit gerechneter Ähnlichkeit; drei Blöcke 30/45/25 (Koordinator) bzw. 30/15/55 (Positionscoach). Wirkung noch offen — siehe [`umbau-coaches.md`](umbau-coaches.md) |
 | Rosterzahl | nach dem Profilanteil der **Zielposition**, nie nach der Ausrichtung des Vereins. Damit liest ein Mann auf seinem Hauptplatz wieder genau seine Stärke, und der Taktikregler bewertet keine Spieler um |
 | Körperkorridore | breit, weil das keine Profiliga ist: Line 40–45 kg, Skill 18–28. Die **Reihenfolge der Mitten** ist das Modell, nicht die Breite — NT 137,5 · T 131 · G 126 · DT 125 · C 124 · DE 112,5 · FB/MIKE 106 · TE 105 · SAM 100 · WILL/QB 92 · SS 89 · RB 88 · FS 84 · WR 83 · CB 80 · SL 77 |
 | Drei Abstände mit Absicht | MIKE über SAM (sie trugen einmal denselben Korridor) · DE klar über beiden Linebackern (er lag einmal ein Kilo darüber, „Edge" war körperlich kein Begriff) · DT über C (er lag einmal unter der ganzen O-Line). Ein Test in `positionen.test.js` hält alle drei fest |

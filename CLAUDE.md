@@ -91,6 +91,7 @@ Code-Kommentare verweisen mit Abschnittsnummer dorthin, das reicht als Einstieg:
 | `umbau-kalender.md` | abgeschlossen — Uhr, Postfach, Phasen. Nachschlagewerk |
 | `umbau-positionsmodell.md` | abgeschlossen, 56 KB — Attribute, Positionen, Lauf/Pass. Nur abschnittsweise lesen |
 | `umbau-aufstellung.md` | abgeschlossen — die Aufstellung von Hand |
+| `umbau-coaches.md` | abgeschlossen, was den **Datensatz** angeht — Gruppen, Ähnlichkeit, Stärke, Ziehung. Die Wirkung (Taktik, Entwicklung) ist offen, Abschnitt 7 |
 | `baseline-staerken.md` | Messprotokoll zum Positionsumbau. Historie |
 
 ## Ton und Commits

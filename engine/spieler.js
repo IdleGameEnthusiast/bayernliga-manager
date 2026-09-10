@@ -345,7 +345,7 @@ export function setzeStaerke(s, staerke) {
  * @param {() => number} rng
  * @param {Set<string>} [belegt]
  */
-function ziehName(rng, belegt) {
+export function ziehName(rng, belegt) {
   for (let versuch = 0; versuch < 40; versuch++) {
     const vorname = pickWeighted(rng, VORNAMEN);
     const nachname = pickWeighted(rng, NACHNAMEN);
