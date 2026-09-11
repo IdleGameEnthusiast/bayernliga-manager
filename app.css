@@ -530,7 +530,13 @@ button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto
   font-size: 12px; font-weight: 700; letter-spacing: .04em;
   color: var(--text-leise);
 }
-.aufstellung .platz-name { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
+/* Einzeilig, notfalls mit Auslassung: sobald rechts die zweite Zahl dazukommt,
+   bräche ein langer Name sonst um, und die Zeile würde höher — aus demselben
+   Grund wie beim Abstand im Zielmodus darf sich hier nichts verschieben. */
+.aufstellung .platz-name {
+  flex: 1; min-width: 0; font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 /* Eine geliehene Trikotnummer steht in Gold — dieselbe Farbe wie die Marke
    „umgestellt", denn sie sagt dasselbe: der Mann steht heute woanders. */
 .aufstellung .platz-nr.geliehen { color: var(--gelb); font-weight: 700; }
@@ -596,12 +602,16 @@ button.klein {
 .marke.tausch { background: rgba(255, 255, 255, .08); color: var(--text-leise); }
 
 /* Im Zielmodus ist jeder der zweiundzwanzig Plätze ein Knopf, und rechts stehen
-   zwei Zahlen: was der dort steht bringt, und was der Gewählte brächte. */
+   zwei Zahlen: was der dort steht bringt, und was der Gewählte brächte.
+
+   Nur Farbe, kein Maß: die Zeile darf im Zielmodus weder höher noch weiter
+   auseinander stehen als sonst. Früher trug sie hier 4 Pixel Abstand nach
+   unten, und elf Zeilen rückten beim ersten Tipp links um 44 Pixel nach unten —
+   die Liste sprang unter dem Finger weg, der gerade den Platz treffen wollte.
+   Der Rand ist ohnehin schon da (siehe `.aufstellung li`), er wird nur gefärbt. */
 .aufstellung li.ziel {
   background: var(--bg-zeile);
-  border: 1px solid var(--rand);
-  border-bottom-color: var(--rand);
-  margin-bottom: 4px;
+  border-color: var(--rand);
 }
 .aufstellung li.ziel:active { border-color: var(--akzent); }
 .aufstellung li.ziel.steht { opacity: .55; }
