@@ -761,24 +761,29 @@ test('ein gewertetes Spiel verbucht bei niemandem einen Einsatz', () => {
   assert.equal(zaehle(gegner), vorherGegner, 'der Gegner hat gespielt');
 });
 
-test('vor dem Anpfiff wird gefragt, und die Automatik ist eine Antwort', () => {
+test('die Engine fragt vor dem Kickoff nicht mehr — das tut der Knopf', () => {
+  // Die Frage nach den leeren Plätzen stand einmal als Nachricht mit
+  // Antwortpflicht im Postfach und hielt den Kalender am Spieltag an. Jetzt
+  // stellt sie `app.js` beim Druck auf den Kickoff-Knopf; die Engine hält am
+  // Spieltag nur wie sonst auch an und wertet beim nächsten Aufruf.
   const stand = neuesSpiel('heg', 'gefragt');
   aufstellungLeeren(stand);
 
-  // Bis zum Spieltag laufen lassen, ohne zu antworten: der Kalender bleibt an
-  // der Frage stehen, statt die leere Elf stillschweigend antreten zu lassen.
-  const ziel = tagVonSpieltag(1) + 1;
-  for (let i = 0; i < 40 && stand.tag < ziel; i++) {
+  const spieltag = tagVonSpieltag(1);
+  for (let i = 0; i < 40 && stand.tag < spieltag; i++) {
     const vorher = stand.tag;
-    weiter(stand, ziel);
+    weiter(stand, spieltag);
     if (stand.tag === vorher) break;
   }
-  const frage = offeneAntworten(stand).find((n) => n.art === 'aufstellungUnvollstaendig');
-  assert.ok(frage, 'niemand hat vor dem Anpfiff nach den leeren Plätzen gefragt');
-  assert.equal(frage.daten.offen, 22);
+  assert.equal(stand.tag, spieltag, 'der Kalender ist nicht bis zum Spieltag gelaufen');
+  assert.equal(offeneAntworten(stand).length, 0, 'eine Nachricht verlangt eine Antwort');
+  assert.equal(offenePlaetze(stand), 22);
+  assert.equal(aufstellungVollstaendig(stand), false);
 
-  // „Aufstellen lassen" wirft die Vorgabe weg — und damit die Lücken.
-  beantworteNachricht(stand, frage.id, 'automatisch');
+  // „Zur Aufstellung" führt den Manager in den Roster, und dort ist
+  // „Automatisch aufstellen" der kürzeste Weg: die Vorgabe fällt weg, und
+  // damit die Lücken.
+  automatischAufstellen(stand);
   assert.equal(stand.aufstellung, null);
   assert.equal(aufstellungVollstaendig(stand), true);
 

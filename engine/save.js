@@ -37,6 +37,19 @@ export const STORAGE_KEY = 'bayernliga.save';
  * @type {Record<number, (roh: any) => any>}
  */
 const MIGRATIONEN = {
+  // 9 → 10: die Nachricht „Unbesetzte Plätze" mit ihrer Antwortpflicht gibt es
+  // nicht mehr — die Frage stellt jetzt der Kickoff-Knopf. Ein Stand, der so
+  // eine Nachricht noch trägt, verlöre sie beim Zeichnen des Postfachs, denn
+  // ihren Text gibt es nicht mehr; eine offene hielte obendrein den Kalender
+  // an, ohne dass irgendein Knopf sie noch beantworten könnte. Sie fliegt
+  // deshalb aus der Post, gelesen oder nicht.
+  9: (roh) => {
+    roh.post = (roh.post || []).filter(
+      (/** @type {{ art: string }} */ n) => n.art !== 'aufstellungUnvollstaendig');
+    roh.version = 10;
+    return roh;
+  },
+
   // 8 → 9: der Stab kam dazu, `coaches` je Verein. Der Schritt legt nur die
   // leere Karte an — die Coaches selbst zieht `coachesVon()` beim ersten
   // Blick darauf nach, deterministisch aus dem Saatgut. Zöge der Schritt sie

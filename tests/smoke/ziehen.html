@@ -142,6 +142,22 @@ try {
   quelle.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   gleich('ein Zug ins Leere stellt niemanden', platzName(0), unberuehrt);
   gleich('und öffnet keine Auswahl', alle('.verfuegbare li.gewaehlt').length, 0);
+
+  // 6 — Die drei Special-Teams-Plätze haben denselben Griff wie die
+  // zweiundzwanzig. Eine Zeit lang fehlte er: die Zeile war Ziel, aber wer
+  // dort stand, ließ sich nicht wegziehen. Ein Kicker auf dem Punter-Platz ist
+  // dabei kein Tausch — die Engine lässt ihn beides sein, der Kicker-Platz
+  // bleibt, wie er war.
+  const special = () => alle('.karte')[3];
+  const specialName = (i) => special().querySelectorAll('.aufstellung li')[i]
+    .querySelector('.platz-name').textContent;
+  const kicker = specialName(0);
+  ziehe(special().querySelectorAll('.aufstellung li')[0],
+    special().querySelectorAll('.aufstellung li')[1]);
+  gleich('der Kicker lässt sich auf den Punter-Platz ziehen', specialName(1), kicker);
+  gleich('und kickt weiterhin', specialName(0), kicker);
+  gleich('der Zug ist ein Zug von Hand, und der Knopf zurück steht da',
+    alle('.aufstellungsknoepfe button').filter((b) => b.textContent === 'Automatisch aufstellen').length, 1);
 } catch (e) { merkeFehler(e); }
 
 // Der Klickfänger aus `ziehen.js` lebt bis zum Ende dieser Runde — er soll

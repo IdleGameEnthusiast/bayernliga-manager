@@ -728,18 +728,23 @@ export const SPECIAL_WERT =
   });
 
 /**
- * Die beiden Werte, an denen ein Special-Teams-Platz am meisten hängt — in der
- * Reihenfolge ihres Gewichts in seiner Formel.
+ * Die Werte, die die Ansicht neben einem Kandidaten für einen Special-Teams-
+ * Platz zeigt: die beiden, an denen er am meisten hängt, in der Reihenfolge
+ * ihres Gewichts in seiner Formel — oder keiner.
  *
  * Sie stehen hier und nicht in der Ansicht, weil sie eine Regel sind: wer oben
  * an den Gewichten dreht, dreht hier mit. Die Ansicht holt sich zum Schlüssel
  * nur den Namen — die Engine kennt `i18n.js` nicht.
  *
- * Beim Long Snapper sind es andere zwei, und das ist der ganze Grund für diese
- * Tabelle: Bein und Zielwasser entscheiden über einen Kick, nicht über einen
- * Snap über fünfzehn Yards. Dass die Technik dort bei fast jedem null steht,
- * ist keine Lücke, sondern die Antwort auf die Frage, warum kein Kandidat gut
- * aussieht — siehe `specialTechnik()`.
+ * Beim Long Snapper steht **nichts**, und das ist der Grund, warum die Tabelle
+ * je Platz eine Liste ist und nicht ein festes Paar: Bein und Zielwasser
+ * entscheiden über einen Kick, nicht über einen Snap über fünfzehn Yards —
+ * danebengestellt sähen sie aus, als täten sie es. Seine eigenen zwei standen
+ * eine Zeit lang dort, Ballsicherheit und Technik, und die Technik stand bei
+ * jedem Kandidaten auf null: den Anteil hat nur ein ausgebildeter Spezialist
+ * (`specialTechnik()`), und der Verein hat keinen. Eine Spalte voller Nullen
+ * erklärt nichts, was die Gesamtzahl nicht schon sagt — sie sieht nur nach
+ * einem Fehler aus. Also trägt der Snap nur seine Zahl.
  * @type {Record<string, { schluessel: string,
  *   wert: (s: import('./spieler.js').Spieler) => number }[]>}
  */
@@ -752,10 +757,7 @@ export const SPECIAL_TOP = {
     { schluessel: 'bein', wert: (s) => s.kickStaerke },
     { schluessel: 'ziel', wert: (s) => s.kickGenauigkeit },
   ],
-  LS: [
-    { schluessel: 'ball', wert: (s) => s.attribute.ballsicherheit },
-    { schluessel: 'technik', wert: specialTechnik },
-  ],
+  LS: [],
 };
 
 /**
@@ -1026,10 +1028,13 @@ export function raeumePlatz(vorgabe, schluessel) {
  * Einen Platz an die Automatik zurückgeben — der Schlüssel fällt aus der
  * Vorgabe, statt auf `null` zu gehen.
  *
- * Der Unterschied ist genau der zwischen „niemand" und „entscheide du". Für die
- * zweiundzwanzig braucht ihn niemand, dort ist Herausnehmen die Handlung; für
- * die drei Special-Teams-Plätze ist er der Weg zurück, nachdem der Manager
- * einmal selbst gewählt hat.
+ * Der Unterschied ist genau der zwischen „niemand" und „entscheide du". Kein
+ * Knopf führt mehr hierher: die Special-Teams-Zeilen trugen einmal einen
+ * namens „Automatik", und er machte die drei zu etwas anderem als die
+ * zweiundzwanzig, ohne dass der Manager das je gewollt hätte. Der Weg zurück
+ * ist für alle derselbe, „Automatisch aufstellen". Die Funktion bleibt als
+ * die Regel, was ein fehlender Schlüssel bedeutet — und als das Werkzeug, mit
+ * dem die Tests genau das prüfen.
  * @param {Vorgabe} vorgabe
  * @param {string} schluessel
  * @returns {Vorgabe} eine neue Karte

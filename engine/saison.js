@@ -16,7 +16,7 @@
  */
 
 import {
-  SEASON_START_YEAR, ZUSATZ_SPIELER, EIGENE_VEREINSBASIS, WERTUNG_PUNKTE,
+  SEASON_START_YEAR, ZUSATZ_SPIELER, EIGENE_VEREINSBASIS,
   makeRng, pick, clamp,
 } from './constants.js';
 import { TEAMS, GRUPPEN, teamById, teamsDerGruppe } from './content.js';
@@ -34,7 +34,7 @@ import {
 import { simuliereSpiel } from './spiel.js';
 import {
   PERSONNEL, STANDARD_PERSONNEL, stelleAuf, alsVorgabe, setzePlatz, vollstaendig,
-  leereVorgabe, raeumePlatz, loesePlatz,
+  leereVorgabe, raeumePlatz,
 } from './aufstellung.js';
 import { berechneTabelle } from './tabelle.js';
 import { teamStaerken } from './team.js';
@@ -48,7 +48,7 @@ import { ziehStab, ocVon, lerneTag, lerneSpiel } from './coach.js';
  * der vorigen Nummer auf diese hebt. Ohne diesen Schritt wird ein solcher Stand
  * beim Laden weggeworfen — der Sprung ist billig, der Verlust nicht.
  */
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 
 /**
  * @typedef {object} SpielStand
@@ -278,21 +278,6 @@ export function aufstellungRaeume(stand, schluessel) {
 }
 
 /**
- * Einen Platz an die Automatik zurückgeben.
- *
- * Gemeint sind die drei Special-Teams-Plätze: dort ist „leer" nicht „niemand",
- * sondern „entscheide du", und dieser Weg zurück gehört dazu. Bei den
- * zweiundzwanzig ist Räumen die Handlung, die der Manager meint — dort hieße
- * Zurückgeben, dass die Automatik denselben Mann sofort wieder hinstellt.
- * @param {SpielStand} stand
- * @param {string} schluessel
- */
-export function aufstellungLoese(stand, schluessel) {
-  stand.aufstellung = loesePlatz(vorgabeVon(stand), schluessel);
-  return stand;
-}
-
-/**
  * Die Aufstellung leeren: jeder der zweiundzwanzig Plätze ausdrücklich frei.
  *
  * Der Anfang für den Manager, der seine Elf von Grund auf bauen will. Er darf
@@ -321,8 +306,8 @@ export function aufstellungVollstaendig(stand) {
 }
 
 /**
- * Wie viele Plätze der eigenen Elf leer stehen — für den Hinweis in der
- * Ansicht und für die Nachricht vor dem Spiel.
+ * Wie viele Plätze der eigenen Elf leer stehen — für die Rückfrage, die der
+ * Kickoff-Knopf stellt, bevor die Engine das Spiel wertet statt spielt.
  * @param {SpielStand} stand
  */
 export function offenePlaetze(stand) {
@@ -814,16 +799,12 @@ function eintraegeAmTag(stand, tag) {
     }
 
     // Leere Plätze sind etwas anderes als Ausfälle: sie sind gewollt, und die
-    // Reparaturrunden fassen sie nicht an. Trotzdem muss der Manager gefragt
-    // werden, bevor sie ihn das Spiel kosten — die Wertung soll seine
-    // Entscheidung sein und keine Überraschung.
-    const offen = offenePlaetze(stand);
-    if (offen > 0) {
-      eintraege.push({
-        art: 'aufstellungUnvollstaendig',
-        daten: { spieltagNr: spieltagAmTag(tag), offen, wertung: WERTUNG_PUNKTE },
-      });
-    }
+    // Reparaturrunden fassen sie nicht an. Gefragt wird trotzdem, bevor sie
+    // das Spiel kosten — aber nicht hier. Eine Nachricht mit Antwortpflicht
+    // stand einmal an dieser Stelle und hielt den Kalender an; sie nahm dem
+    // Manager den Kickoff-Knopf weg, bis er geantwortet hatte, und die Frage
+    // stand im Postfach statt dort, wo er auf den Knopf drückt. Jetzt fragt
+    // der Knopf selbst (siehe `app.js`), und die Engine wertet nur.
   }
 
   const morgen = eigenePartieAmTag(stand, tag + 1);
@@ -948,8 +929,7 @@ export function weiter(stand, zielTag = null) {
 export function beantworteNachricht(stand, id, antwort) {
   const n = beantworte(stand, id, antwort);
   if (!n) return null;
-  if ((n.art === 'aufstellungUngueltig' || n.art === 'aufstellungUnvollstaendig')
-    && antwort === 'automatisch') {
+  if (n.art === 'aufstellungUngueltig' && antwort === 'automatisch') {
     automatischAufstellen(stand);
   }
   return n;

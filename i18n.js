@@ -76,7 +76,7 @@ export const DE = {
     saisonEnde: 'Die Saison ist gespielt.',
     heuteMit: (was) => `Heute · ${was}`,
     spielfrei: 'Kein Spiel angesetzt.',
-    anpfiff: 'Anpfiff',
+    kickoff: 'Kickoff',
     zurNachricht: 'Zur Nachricht ›',
     bisDahin: 'Bis dahin',
     weiter: 'Weiter',
@@ -146,26 +146,13 @@ export const DE = {
       antworten: { automatisch: 'Aufstellen lassen', selbst: 'Ich stelle selbst um' },
     },
 
-    aufstellungUnvollstaendig: {
-      von: 'Trainerstab',
-      betreff: (d) => `Unbesetzte Plätze für ${d.spieltagNr ? 'Spieltag ' + d.spieltagNr : 'das Spiel'}`,
-      text: (d) => [
-        d.offen === 1
-          ? 'Ein Platz in deiner Aufstellung ist unbesetzt.'
-          : `${d.offen} Plätze in deiner Aufstellung sind unbesetzt.`,
-        `So können wir nicht antreten. Das Spiel würde mit 0:${d.wertung} gegen uns gewertet.`,
-        'Sollen wir die Lücken füllen, oder bleibt es dabei?',
-      ],
-      antworten: { automatisch: 'Aufstellen lassen', antreten: 'Dabei bleibt es' },
-    },
-
     spielvorschau: {
       von: 'Trainerstab',
       betreff: (d) => `Morgen: ${d.gegner}`,
       text: (d) => [
         `Morgen ${d.spieltagNr ? 'steht Spieltag ' + d.spieltagNr + ' an' : 'geht es weiter'}: `
           + `${d.heim ? 'zuhause gegen' : 'auswärts bei'} ${d.gegner}.`,
-        'Wer aufläuft, entscheidest du bis zum Anpfiff.',
+        'Wer aufläuft, entscheidest du bis zum Kickoff.',
       ],
     },
 
@@ -337,21 +324,33 @@ export const DE = {
     K: 'Kicker',
     P: 'Punter',
     LS: 'Long Snapper',
-    bein: 'Bein',
+    // Die Namen der beiden gezogenen Kickwerte, so wie sie im Modell heißen.
+    // „Bein" und „Ziel" waren kürzer und passten besser in die Zeile, aber
+    // niemand fand darunter die Kickstärke wieder, die er suchte.
+    bein: 'Kickstärke',
     beinTitel: 'Wie weit er den Ball schlägt',
-    ziel: 'Ziel',
+    ziel: 'Kickgenauigkeit',
     zielTitel: 'Wie zuverlässig der Ball dorthin geht, wo er hin soll',
     technik: 'Technik',
     technikTitel: 'Das Handwerk des ausgebildeten Spezialisten — alle anderen haben es nicht',
     ball: 'Ball',
     ballTitel: 'Ballsicherheit — ob der Snap ankommt, ohne dass jemand hinsieht',
-    automatisch: 'automatisch',
-    automatischTitel: 'Nicht besetzt — der beste Fuß im Kader nimmt den Platz',
-    zurueckAutomatik: 'Automatik',
-    zurueckAutomatikTitel: 'Den Platz wieder dem besten Fuß im Kader überlassen',
     hinweis: 'Diese drei stehen außerhalb der Elf: wer hier steht, spielt trotzdem seine '
       + 'Position. Ein Platz darf auch leer bleiben — dann tritt der Verein ohne ihn an, '
       + 'und die Stärke sagt es. Was für einen Platz zählt, steht bei der Auswahl links.',
+  },
+
+  // Die Rückfrage vor dem Kickoff, wenn die Elf Löcher hat. Sie steht hier und
+  // nicht mehr als Nachricht im Postfach: die Entscheidung fällt an dem Knopf,
+  // der das Spiel anstößt, und nicht einen Reiter weiter.
+  kickoff: {
+    unvollstaendigTitel: 'Die Elf ist nicht vollzählig',
+    unvollstaendig: (offen, punkte) => (offen === 1
+      ? 'Ein Platz in der Aufstellung ist unbesetzt. '
+      : `${offen} Plätze in der Aufstellung sind unbesetzt. `)
+      + `So kann der Verein nicht antreten — das Spiel würde 0:${punkte} gegen uns gewertet.`,
+    absagen: (punkte) => `Spiel absagen, Wertung 0:${punkte}`,
+    zurAufstellung: 'Zur Aufstellung',
   },
 
   personal: {
@@ -504,8 +503,6 @@ export const DE = {
     vonHand: 'Von Hand gestellt. Verletzte füllt die Automatik nach, geräumte Plätze nicht.',
     automatisch: 'Automatisch aufstellen',
     loeschen: 'Aufstellung löschen',
-    offeneWertung: (offen, punkte) =>
-      `${offen} ${offen === 1 ? 'Platz' : 'Plätze'} unbesetzt — 0:${punkte} gewertet`,
     raeumenTitel: (platz) => `${platz} räumen — der Platz bleibt leer`,
     platzTitel: (platz) => `${platz} neu besetzen`,
     starterZeigen: 'Starter',

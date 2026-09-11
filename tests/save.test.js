@@ -73,6 +73,25 @@ test('ein Stand aus Version 8 bekommt seinen Stab nachgezogen', () => {
   assert.deepEqual(stab, coachesVon(frisch, 'heg'));
 });
 
+test('ein Stand aus Version 9 verliert die Frage nach den unbesetzten Plätzen', () => {
+  // Version 9 stellte sie als Nachricht mit Antwortpflicht; heute stellt sie
+  // der Kickoff-Knopf. Eine offene aus der alten Zeit hielte den Kalender an,
+  // ohne dass sie noch jemand beantworten könnte — sie fliegt, die anderen
+  // Nachrichten bleiben.
+  const alt = abzug('neun');
+  alt.version = 9;
+  const vorher = alt.post.length;
+  alt.post.push({
+    id: 'alt-1', tag: 5, art: 'aufstellungUnvollstaendig', gelesen: false,
+    geloescht: false, antwort: null, daten: { offen: 3, wertung: 36 },
+  });
+
+  const neu = importiere(JSON.stringify(alt));
+  assert.equal(neu.version, SAVE_VERSION);
+  assert.equal(neu.post.length, vorher);
+  assert.ok(neu.post.every((n) => n.art !== 'aufstellungUnvollstaendig'));
+});
+
 test('ein Stand aus der Zukunft wird abgelehnt', () => {
   // Rückwärts rechnet hier nichts. Ein iPad, das dem PC eine Version voraus
   // ist, braucht ein Neuladen und keinen Notbehelf.

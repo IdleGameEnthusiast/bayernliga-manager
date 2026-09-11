@@ -854,6 +854,15 @@ test('die zwei angezeigten Werte sind die, an denen ein Platz am meisten hängt'
     };
 
     const genannt = SPECIAL_TOP[schluessel].map((w) => w.schluessel);
+    // Der Long Snapper nennt keinen: seine schwerste Zahl neben der
+    // Ballsicherheit wäre die Technik, und die steht bei jedem auf null, der
+    // nicht als Spezialist ausgebildet ist — siehe den Kommentar an der
+    // Tabelle. Nichts zu nennen ist erlaubt; einen Wert zu nennen, der nicht
+    // der schwerste ist, bleibt verboten.
+    if (schluessel === 'LS') {
+      assert.equal(genannt.length, 0, 'LS nennt Werte, die niemand sehen soll');
+      continue;
+    }
     assert.equal(genannt.length, 2, `${schluessel} nennt nicht zwei Werte`);
     assert.ok(genannt.every((n) => hebel[n]), `${schluessel} nennt einen unbekannten Wert`);
     assert.ok(ausschlag(genannt[0]) >= ausschlag(genannt[1]),

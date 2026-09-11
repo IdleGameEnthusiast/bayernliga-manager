@@ -104,10 +104,10 @@ try {
   gleich('die Uhr hält am eigenen Spiel, nicht am Ziel', txt('.kopf-datum'), 'Sa 18. Apr 2026');
   gleich('Raster ist zum heutigen Tag zurückgekehrt', txt('.kalkopf h2'), 'April 2026');
   gleich('heute ist der 18. April', txt('.kaltag.heute .kalzahl'), '18');
-  gleich('Tageskarte trägt den Anpfiff', knopf(), 'Anpfiff');
+  gleich('Tageskarte trägt den Kickoff', knopf(), 'Kickoff');
   enthaelt('und nennt den Gegner', tageskarte(), 'gegen ');
 
-  // 7 — Anpfiff: der Spielbericht schlägt sich auf
+  // 7 — Kickoff: der Spielbericht schlägt sich auf
   q('.tageskarte button.haupt').click();
   gleich('der Spielbericht öffnet sich', alle('.bericht-kopf').length, 2);
   gleich('ohne Reiter', alle('.reiter').length, 0);
@@ -120,7 +120,7 @@ try {
   pruefe('die Rundenergebnisse auch',
     betreffe.some((b) => /^Spieltag 1 /.test(b)), betreffe.join(' | '));
   gleich('die Uhr steht am zweiten Spieltag', txt('.kopf-datum'), 'Sa 25. Apr 2026');
-  gleich('und bietet den nächsten Anpfiff', knopf(), 'Anpfiff');
+  gleich('und bietet den nächsten Kickoff', knopf(), 'Kickoff');
 
   // Auswählen zeichnet die Ansicht neu — die Zeile von vorhin ist danach eine
   // abgehängte, und es muss frisch gesucht werden.
@@ -145,10 +145,12 @@ try {
   gleich('elf Plätze in der Offense', alle('.karte')[1].querySelectorAll('.aufstellung li').length, 11);
   gleich('elf in der Defense', alle('.karte')[2].querySelectorAll('.aufstellung li').length, 11);
 
-  // Die Special Teams: drei Plätze, alle automatisch — und ohne Einzelwerte.
+  // Die Special Teams: drei Plätze, gebaut wie die zweiundzwanzig — ohne
+  // eigene Marke „automatisch", ohne eigenen Knopf, ohne Einzelwerte.
   const special = () => alle('.karte')[3];
   gleich('drei Special-Teams-Plätze', special().querySelectorAll('.aufstellung li').length, 3);
-  gleich('und alle drei automatisch', special().querySelectorAll('.marke.auto').length, 3);
+  gleich('alle drei besetzt', special().querySelectorAll('.aufstellung .platz-stk').length, 3);
+  gleich('keine Marke, die die Elf nicht kennt', special().querySelectorAll('.marke.auto').length, 0);
   gleich('die Werte stehen nicht an den Plätzen',
     special().querySelectorAll('.aufstellung .specialwerte').length, 0);
 
@@ -211,28 +213,56 @@ try {
   alle('.karte')[1].querySelector('.aufstellung li .papierkorb').click();
   gleich('der geräumte Platz steht leer', qbName(), '—');
   enthaelt('und die Elf hat keine Stärke mehr', txt('.rosterkopf'), 'Gesamt: –');
-  enthaelt('sondern eine Warnung', txt('.rosterkopf .warnung'), 'gewertet');
+  gleich('aber keine Warnung — die stellt der Kickoff-Knopf',
+    alle('.rosterkopf .warnung').length, 0);
   gleich('sein Bereich zeigt statt der Zahl einen Strich',
     alle('.staerkezahl')[0].querySelector('strong').textContent, '–');
 
-  // Ein Kicker von Hand — und der Weg zurück in die Automatik.
+  // 9b — Mit dem Loch zum Kickoff: der Knopf fragt, bevor er wertet. „Zur
+  // Aufstellung" führt zurück in den Roster, das Spiel bleibt ungespielt.
+  reiterKnopf('Posteingang').click();
+  gleich('die Tageskarte bietet den Kickoff trotzdem an', knopf(), 'Kickoff');
+  q('.tageskarte button.haupt').click();
+  gleich('der Knopf fragt statt zu werten', alle('.frageschirm').length, 1);
+  enthaelt('und sagt, was es kostet', txt('.frage'), '0:36');
+  const frageKnopf = (name) => alle('.fragenknoepfe button').find((b) => b.textContent === name);
+  pruefe('mit den zwei Antworten', !!frageKnopf('Spiel absagen, Wertung 0:36')
+    && !!frageKnopf('Zur Aufstellung'));
+  frageKnopf('Zur Aufstellung').click();
+  gleich('„Zur Aufstellung" schlägt den Roster auf', alle('.karte h2')[0].textContent, 'Roster');
+  gleich('und die Frage ist weg', alle('.frageschirm').length, 0);
+  gleich('die Uhr steht noch am Spieltag', txt('.kopf-datum'), 'Sa 25. Apr 2026');
+
+  // Ein Kicker von Hand.
   const specialZeile = (i = 0) => special().querySelectorAll('.aufstellung li')[i];
   const specialWerte = () => special().querySelector('.verfuegbare .specialwerte').textContent;
+  gleich('ohne Auswahl stehen links keine Kickwerte',
+    special().querySelectorAll('.verfuegbare .specialwerte').length, 0);
   specialZeile().click();
-  enthaelt('erst die Auswahl zeigt das Bein', specialWerte(), 'Bein');
-  enthaelt('und das Zielwasser', specialWerte(), 'Ziel');
-  // Der Long Snapper hängt an anderen zwei Werten, und nur die stehen dort.
+  enthaelt('erst die Auswahl zeigt die Kickstärke', specialWerte(), 'Kickstärke');
+  enthaelt('und die Kickgenauigkeit', specialWerte(), 'Kickgenauigkeit');
+  enthaelt('die Special-Liste gilt für den Kicker',
+    special().querySelector('.verfuegbarkopf h3').textContent, 'K');
+  // Die Offense-Liste sortiert ein Kicker-Platz nicht — und ihre Überschrift
+  // darf das dann auch nicht behaupten.
+  enthaelt('die Offense-Liste behauptet nichts',
+    alle('.karte')[1].querySelector('.verfuegbarkopf h3').textContent, 'Verfügbar');
+  // Der Long Snapper trägt nur seine Zahl: seine Kickwerte entscheiden nichts,
+  // und seine eigenen zwei stünden bei jedem Kandidaten auf null.
   specialZeile(2).click();
-  enthaelt('beim Long Snapper zählt der Ball', specialWerte(), 'Ball');
-  pruefe('und nicht das Bein', !specialWerte().includes('Bein'), specialWerte());
+  gleich('beim Long Snapper steht links kein Einzelwert',
+    special().querySelectorAll('.verfuegbare .specialwerte').length, 0);
+  enthaelt('aber die Liste gilt für ihn',
+    special().querySelector('.verfuegbarkopf h3').textContent, 'LS');
   specialZeile().click();
+  gleich('die Zeile nennt die Position dessen, der dort steht',
+    specialZeile().querySelectorAll('.platz-pos').length, 1);
   special().querySelector('.verfuegbare li').click();
-  gleich('der Kicker ist jetzt gewählt',
-    special().querySelectorAll('.marke.auto').length, 2);
-  gleich('und trägt den Weg zurück', alle('.schalter.loesen').length, 1);
-  q('.schalter.loesen').click();
-  gleich('der Platz ist wieder automatisch',
-    special().querySelectorAll('.marke.auto').length, 3);
+  gleich('der Kicker trägt links seine Marke',
+    special().querySelectorAll('.verfuegbare .marke.tausch[title="Kicker"]').length, 1);
+  gleich('der Kicker ist jetzt von Hand gesetzt, und die Zeile sieht aus wie vorher',
+    special().querySelectorAll('.aufstellung .platz-stk').length, 3);
+  gleich('kein Knopf zurück in eine Automatik', alle('.schalter.loesen').length, 0);
 
   // Der Papierkorb gilt auch hier: kein Kicker ist eine erlaubte Aufstellung.
   gleich('jeder der drei trägt einen Papierkorb',
@@ -240,22 +270,36 @@ try {
   special().querySelector('.aufstellung .papierkorb').click();
   gleich('der geräumte Platz steht leer',
     specialZeile().querySelector('.platz-name').textContent, '—');
-  gleich('und er bleibt es, statt an die Automatik zu fallen',
-    special().querySelectorAll('.marke.auto').length, 2);
   gleich('geräumt hat er nichts mehr zu räumen',
     special().querySelectorAll('.aufstellung .papierkorb').length, 2);
-  q('.schalter.loesen').click();
-  gleich('die Automatik nimmt ihn zurück',
-    special().querySelectorAll('.marke.auto').length, 3);
 
-  // „Automatisch aufstellen" ist der Weg zurück aus einer Elf mit Loch.
+  // „Automatisch aufstellen" ist der Weg zurück aus einer Elf mit Loch — und
+  // derselbe Weg für den geräumten Kicker-Platz.
   const knopfMit = (name) => alle('.aufstellungsknoepfe button')
     .find((b) => b.textContent === name);
   gleich('gespeichert wird nicht mehr von Hand', !!knopfMit('Speichern'), false);
   gleich('und verworfen auch nicht', !!knopfMit('Verwerfen'), false);
   knopfMit('Automatisch aufstellen').click();
   enthaelt('die Automatik füllt den geräumten Platz wieder', txt('.rosterkopf'), 'Gesamt: ');
-  gleich('und die Warnung ist weg', alle('.rosterkopf .warnung').length, 0);
+  gleich('und den Kicker-Platz gleich mit',
+    special().querySelectorAll('.aufstellung .papierkorb').length, 3);
+
+  // 9c — Die andere Antwort: „Spiel absagen" wertet, ohne zu spielen. Der
+  // Bericht sagt es, und die Uhr steht danach am nächsten Spieltag.
+  alle('.karte')[1].querySelector('.aufstellung li .papierkorb').click();
+  gleich('die Elf hat wieder ein Loch', qbName(), '—');
+  reiterKnopf('Posteingang').click();
+  q('.tageskarte button.haupt').click();
+  gleich('der Kickoff fragt wieder', alle('.frageschirm').length, 1);
+  frageKnopf('Spiel absagen, Wertung 0:36').click();
+  gleich('der Spielbericht öffnet sich', alle('.bericht-kopf').length, 2);
+  enthaelt('und sagt, dass nicht gespielt wurde', txt('.warnung'), 'nicht angetreten');
+  enthaelt('mit der Wertung', txt('.warnung'), '36');
+  q('.fuss button.haupt').click();
+  gleich('die Uhr steht am dritten Spieltag', txt('.kopf-datum'), 'Sa 2. Mai 2026');
+  reiterKnopf('Roster').click();
+  knopfMit('Automatisch aufstellen').click();
+  enthaelt('und die Elf ist wieder vollzählig', txt('.rosterkopf'), 'Gesamt: ');
 
   // 10 — Personal: die Tabelle ist umgezogen, die Coaches stehen daneben, Orga still
   reiterKnopf('Personal').click();
@@ -265,7 +309,7 @@ try {
   gleich('und im Roster nicht mehr', alle('.karte h2')[0].textContent, 'Spieler');
   q('tr.spielerzeile').click();
   gleich('eine Zeile klappt die Werte auf', alle('tr.wertezeile').length, 1);
-  enthaelt('samt der Kickwerte', txt('tr.wertezeile'), 'Bein');
+  enthaelt('samt der Kickwerte', txt('tr.wertezeile'), 'Kickstärke');
 
   // 11 — Coaches: zwei Koordinatoren, aufklappbar auf ihre vier Blöcke
   alle('.reiter.unter button').find((b) => b.textContent === 'Coaches').click();

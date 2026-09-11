@@ -36,11 +36,15 @@
  * Antwortpflicht, die nie eine Wahl war — eine Bremse ohne Entscheidung
  * dahinter. Sie ist raus; wer sie zurückholen will, holt sich einen Klick
  * zurück, der nichts bewirkt.
+ *
+ * Die Frage nach den unbesetzten Plätzen stand hier ebenfalls, als
+ * `aufstellungUnvollstaendig`. Sie war eine echte Entscheidung, aber am
+ * falschen Ort: sie hielt den Kalender an und nahm den Kickoff-Knopf weg, bis
+ * der Manager im Postfach geantwortet hatte. Jetzt fragt der Knopf selbst.
  * @type {Record<string, string[]>}
  */
 export const ANTWORTEN = {
   aufstellungUngueltig: ['automatisch', 'selbst'],
-  aufstellungUnvollstaendig: ['automatisch', 'antreten'],
 };
 
 /**

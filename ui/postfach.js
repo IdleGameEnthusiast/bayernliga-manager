@@ -293,7 +293,7 @@ function tagesKarte(stand, aktionen) {
       T.postfach.kommendesSpiel(gegner.name,
         zuhause ? T.postfach.heimZeichen : T.postfach.auswaertsZeichen),
       el('button', { class: 'haupt', onclick: () => aktionen.weiter(null) },
-        T.postfach.anpfiff));
+        T.postfach.kickoff));
   }
 
   const ende = saisonLaenge(stand.jahr);

@@ -56,8 +56,8 @@ try {
     `${i} Handgriffe, zuletzt: ${wege.slice(-4).join(' / ')}`);
   pruefe('und zwar in überschaubar vielen Handgriffen', i < 60, `${i}`);
   // Zehn Gruppenspiele hat jeder; Halbfinale und Finale nur, wer hinkommt.
-  const anpfiffe = wege.filter((w) => w === 'Anpfiff').length;
-  pruefe('ein Anpfiff je eigenem Spiel', anpfiffe >= 10 && anpfiffe <= 12, `${anpfiffe}`);
+  const kickoffs = wege.filter((w) => w === 'Kickoff').length;
+  pruefe('ein Kickoff je eigenem Spiel', kickoffs >= 10 && kickoffs <= 12, `${kickoffs}`);
 
   // Der Kalender steht auf Tag 1 des Folgejahres — Sa 17.10.2026.
   gleich('die neue Saison steht auf ihrem ersten Tag', txt('.kopf-datum'), 'Sa 17. Okt 2026');

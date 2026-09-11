@@ -13,9 +13,10 @@ import { datum } from './engine/kalender.js';
 import { markiereGelesen, loescheNachricht, stelleWiederHer } from './engine/postfach.js';
 import {
   neuesSpiel, weiter, beantworteNachricht, gruppenTabellen, meineTabelle,
-  setzeTaktik, automatischAufstellen,
-  aufstellungSetze, aufstellungRaeume, aufstellungLoese, aufstellungLeeren,
+  setzeTaktik, automatischAufstellen, eigenePartieAmTag, offenePlaetze,
+  aufstellungSetze, aufstellungRaeume, aufstellungLeeren,
 } from './engine/saison.js';
+import { WERTUNG_PUNKTE } from './engine/constants.js';
 import { partienDerRunde } from './engine/spielplan.js';
 import {
   speichere, lade, gibtEsSpeicherstand, exportiere, importiere, dateiName,
@@ -92,7 +93,6 @@ function zeichne() {
       setze: beiAufstellung,
       automatisch: beiAutomatisch,
       raeume: beiRaeumen,
-      loese: beiLoesen,
       leeren: beiLeeren,
       neuZeichnen: zeichne,
     }));
@@ -217,9 +217,44 @@ function setzeFort() {
 /**
  * Weiterspielen. Wo der Kalender anhält und warum, entscheidet die Engine —
  * hier wird nur gespeichert und die richtige Ansicht aufgeschlagen.
+ *
+ * Mit einer Ausnahme, und die ist eine Rückfrage, keine Regel: steht heute
+ * das eigene Spiel an und die Elf hat Löcher, wertet die Engine es 0:36, ohne
+ * zu fragen. Gefragt wird hier, an dem Knopf, der das Spiel anstößt — egal, ob
+ * er „Kickoff" heißt oder ein Datum im Kalender ist, denn beide räumen zuerst
+ * den heutigen Tag. Früher stellte eine Nachricht mit Antwortpflicht dieselbe
+ * Frage im Postfach; sie hielt den Kalender an und nahm den Kickoff-Knopf weg,
+ * bis der Manager geantwortet hatte, und die Warnung stand außerdem noch ein
+ * drittes Mal im Roster. Jetzt steht sie genau einmal, und zwar dann, wenn sie
+ * etwas kostet.
  * @param {number | null} zielTag
  */
 function beiWeiter(zielTag) {
+  if (!stand) return;
+  const offen = eigenePartieAmTag(stand, stand.tag) ? offenePlaetze(stand) : 0;
+  if (offen > 0) {
+    frage = {
+      titel: T.kickoff.unvollstaendigTitel,
+      text: T.kickoff.unvollstaendig(offen, WERTUNG_PUNKTE),
+      knoepfe: [
+        { label: T.kickoff.absagen(WERTUNG_PUNKTE), klasse: 'neben', wirkung: () => {
+          frage = null;
+          spieleWeiter(zielTag);
+        } },
+        { label: T.kickoff.zurAufstellung, klasse: 'haupt', wirkung: () => {
+          frage = null;
+          wechsle('kader');
+        } },
+      ],
+    };
+    zeichne();
+    return;
+  }
+  spieleWeiter(zielTag);
+}
+
+/** @param {number | null} zielTag */
+function spieleWeiter(zielTag) {
   if (!stand) return;
   const meinTeam = stand.meinTeam;
   const fortschritt = weiter(stand, zielTag);
@@ -330,17 +365,6 @@ function beiAutomatisch() {
  */
 function beiRaeumen(schluessel) {
   schreibe((s) => aufstellungRaeume(s, schluessel));
-}
-
-/**
- * Einen Special-Teams-Platz wieder der Automatik überlassen.
- *
- * Nicht dasselbe wie Räumen: dort bleibt der Platz leer, hier fällt die
- * Entscheidung ganz weg und der beste Fuß im Kader rückt nach.
- * @param {string} schluessel
- */
-function beiLoesen(schluessel) {
-  schreibe((s) => aufstellungLoese(s, schluessel));
 }
 
 /** „Aufstellung löschen": niemand steht mehr. Der Anfang einer Elf, nicht eine. */

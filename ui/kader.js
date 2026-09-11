@@ -28,7 +28,7 @@ import {
   teamStaerken, gesamtStaerke, angriffStaerke, verteidigungStaerke, verletzte,
 } from '../engine/team.js';
 import { istFit } from '../engine/spieler.js';
-import { GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE, WERTUNG_PUNKTE } from '../engine/constants.js';
+import { GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE } from '../engine/constants.js';
 import { hauptPosition } from '../engine/positionen.js';
 import { wertAuf, SPECIAL_PLAETZE, SPECIAL_WERT } from '../engine/aufstellung.js';
 import { personnelVon, passAnteilVon, aufstellungVon } from '../engine/saison.js';
@@ -68,7 +68,6 @@ const HOECHSTENS = 40;
  * @param {import('../engine/saison.js').SpielStand} stand
  * @param {{ setze: (schluessel: string, spielerId: string) => void,
  *           automatisch: () => void, raeume: (schluessel: string) => void,
- *           loese: (schluessel: string) => void,
  *           leeren: () => void, neuZeichnen: () => void }} aktionen
  */
 export function zeigeKader(stand, aktionen) {
@@ -115,14 +114,9 @@ export function zeigeKader(stand, aktionen) {
     platz: auswahl.platz,
     spieler: auswahl.spieler,
     vonHand: !!vorgabe,
-    offen,
     raeume: (schluessel) => {
       nichtsGewaehlt();
       aktionen.raeume(schluessel);
-    },
-    loese: (schluessel) => {
-      nichtsGewaehlt();
-      aktionen.loese(schluessel);
     },
     leeren: () => {
       nichtsGewaehlt();
@@ -169,17 +163,14 @@ export function zeigeKader(stand, aktionen) {
         aktionsknoepfe(steuerung)),
       el('p', { class: hinweisKlasse(steuerung), style: { margin: '0' } },
         hinweisText(steuerung, a)),
-      // Diese Zeile steht immer und trägt deshalb die Warnung: sie schiebt
-      // nichts, wenn sie erscheint, und verschwindet nicht, sobald der Manager
-      // einen Mann anfasst.
+      // Eine Elf mit Loch hat keine Gesamtstärke, nur einen Strich. Die
+      // Warnung, dass so ein Spiel 0:36 gewertet wird, stand einmal daneben —
+      // und ein zweites Mal im Postfach. Sie steht jetzt nur noch dort, wo sie
+      // etwas kostet: als Rückfrage am Kickoff-Knopf (siehe `app.js`).
       el('p', { class: 'klein', style: { margin: '8px 0 0' } },
         el('strong', {
           text: `${T.kader.gesamt}: ${offen > 0 ? T.roster.ohneZahl : gesamtStaerke(s)}`,
         }),
-        offen > 0
-          ? el('span', { class: 'warnung',
-            text: `  ·  ${T.aufstellung.offeneWertung(offen, WERTUNG_PUNKTE)}` })
-          : null,
         verletzt.length > 0
           ? el('span', { class: 'verletzt', text: `  ·  ${verletzt.length} ${T.kader.verletzt}` })
           : el('span', { class: 'leise', text: `  ·  ${T.kader.keineVerletzungen}` }))),

@@ -64,7 +64,6 @@ import { OHNE_NUMMER } from '../engine/spieler.js';
  * @property {(spielerId: string | null) => void} waehleSpieler
  * @property {(schluessel: string, spielerId: string) => void} setze
  * @property {(schluessel: string) => void} raeume  Platz leeren, und leer lassen
- * @property {(schluessel: string) => void} loese  Platz zurück an die Automatik
  * @property {() => void} automatisch
  * @property {(platz: string) => number} wertFuer  Was der gewählte Mann dort brächte
  * @property {string} gewaehlterName
@@ -72,7 +71,6 @@ import { OHNE_NUMMER } from '../engine/spieler.js';
  * @property {(an: boolean) => void} zeigeAlle
  * @property {boolean} starterZeigen  Ob die Liste links auch die Aufgestellten zeigt
  * @property {(an: boolean) => void} zeigeStarter
- * @property {number} offen           Wie viele der zweiundzwanzig Plätze leer stehen
  * @property {() => void} leeren
  */
 
@@ -149,7 +147,7 @@ export function einheitBereich(titel, plaetze, verfuegbare, steuerung, staerke, 
         el('span', { class: 'klein leise', text: T.roster.staerke }),
         el('strong', { text: steht ? String(Math.round(staerke)) : T.roster.ohneZahl }))),
     el('div', { class: 'aufstellungsraster' },
-      verfuegbarSpalte(verfuegbare, steuerung, a, steuerung, null),
+      verfuegbarSpalte(verfuegbare, steuerung, a, false),
       el('div', { class: 'plaetzespalte' },
         el('h3', { class: 'klein leise', text: T.roster.starter }),
         el('ul', { class: 'aufstellung' },
@@ -175,13 +173,6 @@ export function einheitBereich(titel, plaetze, verfuegbare, steuerung, staerke, 
  * @param {number} staerke
  */
 export function specialBereich(a, verfuegbare, steuerung, staerke) {
-  // Nur ein gewählter Special-Teams-Platz sagt, welche zwei Werte gemeint
-  // sind. Ist stattdessen ein Platz der Elf gewählt, steht hier keiner: eine
-  // Spalte, die nach dem Bein fragte, während der Manager den linken Guard
-  // besetzt, beantwortete eine Frage, die niemand gestellt hat.
-  const gewaehlt = steuerung.platz && SPECIAL_PLAETZE.includes(steuerung.platz)
-    ? steuerung.platz : null;
-
   return el('div', { class: 'karte' },
     el('div', { class: 'kartenkopf' },
       el('h2', { text: T.kader.special }),
@@ -190,7 +181,7 @@ export function specialBereich(a, verfuegbare, steuerung, staerke) {
         el('strong', { text: String(Math.round(staerke)) }))),
     el('p', { class: 'leise klein', style: { margin: '0 0 8px' }, text: T.special.hinweis }),
     el('div', { class: 'aufstellungsraster' },
-      verfuegbarSpalte(verfuegbare, steuerung, a, null, gewaehlt),
+      verfuegbarSpalte(verfuegbare, steuerung, a, true),
       el('div', { class: 'plaetzespalte' },
         el('h3', { class: 'klein leise', text: T.roster.plaetze }),
         el('ul', { class: 'aufstellung' },
@@ -203,7 +194,13 @@ export function specialBereich(a, verfuegbare, steuerung, staerke) {
  * Ihre Reihenfolge hängt an der Frage, die gerade offen ist. Ist ein Platz
  * gewählt, steht sie nach dem, was jeder **dort** brächte; sonst nach Stärke.
  * Die Zahl daneben meint immer dasselbe wie die Überschrift — sonst verglichen
- * die beiden Spalten Zahlen, die nichts miteinander zu tun haben.
+ * die beiden Spalten Zahlen, die nichts miteinander zu tun haben. Das gilt
+ * auch über die Bereiche hinweg: ein gewählter Kicker-Platz sortiert die
+ * Special-Liste, nicht die der Offense, und deren Überschrift darf dann nicht
+ * „Die Besten für K" behaupten. Vorher tat sie es — jede der drei Spalten
+ * trug die Überschrift des gewählten Platzes, ob sie nach ihm sortiert war
+ * oder nicht.
+ *
  * Die beiden Schalter stehen nur dort, wo sie etwas tun. Bei den Special Teams
  * gibt es nichts zu filtern: gekickt wird aus dem ganzen Kader, die Elf
  * eingeschlossen, und zwei Schalter ohne Wirkung wären ein Versprechen, das
@@ -211,34 +208,36 @@ export function specialBereich(a, verfuegbare, steuerung, staerke) {
  * @param {Kandidat[]} verfuegbare
  * @param {Steuerung} steuerung
  * @param {import('../engine/aufstellung.js').Aufstellung} a
- * @param {Steuerung | null} schalter Die Steuerung, wo Filter etwas bewirken
- * @param {string | null} specialPlatz Der gewählte Special-Teams-Platz, wenn
- *   diese Spalte zu ihm gehört — dann trägt jede Zeile seine beiden Werte
+ * @param {boolean} special Ob diese Spalte zu den drei Special-Teams-Plätzen
+ *   gehört — sonst zu einer der beiden Elfen
  */
-function verfuegbarSpalte(verfuegbare, steuerung, a, schalter, specialPlatz) {
-  const kopf = steuerung.platz
-    ? T.roster.kopfFuer(platzKuerzel(platzVon(a, steuerung.platz)))
+function verfuegbarSpalte(verfuegbare, steuerung, a, special) {
+  // Der Platz, nach dem diese Spalte sortiert ist — nur einer aus dem eigenen
+  // Bereich. Nur ein gewählter Special-Teams-Platz sagt außerdem, welche zwei
+  // Werte an den Kandidaten gemeint sind: eine Spalte, die nach dem Bein
+  // fragte, während der Manager den linken Guard besetzt, beantwortete eine
+  // Frage, die niemand gestellt hat.
+  const platz = steuerung.platz && SPECIAL_PLAETZE.includes(steuerung.platz) === special
+    ? steuerung.platz : null;
+  const kopf = platz
+    ? T.roster.kopfFuer(platzKuerzel(platzVon(a, platz)))
     : T.roster.kopfAlle;
 
   return el('div', { class: 'verfuegbarspalte' },
     el('div', { class: 'verfuegbarkopf' },
       el('h3', { class: 'klein leise', text: kopf }),
-      schalter
-        ? el('button', {
-          class: schalter.alleZeigen ? 'schalter an' : 'schalter',
-          'aria-pressed': String(schalter.alleZeigen),
-          title: T.roster.filterAlleTitel,
-          onclick: () => schalter.zeigeAlle(!schalter.alleZeigen),
-        }, T.roster.filterAlle)
-        : null,
-      schalter
-        ? el('button', {
-          class: schalter.starterZeigen ? 'schalter an' : 'schalter',
-          'aria-pressed': String(schalter.starterZeigen),
-          title: T.aufstellung.starterZeigenTitel,
-          onclick: () => schalter.zeigeStarter(!schalter.starterZeigen),
-        }, T.aufstellung.starterZeigen)
-        : null),
+      special ? null : el('button', {
+        class: steuerung.alleZeigen ? 'schalter an' : 'schalter',
+        'aria-pressed': String(steuerung.alleZeigen),
+        title: T.roster.filterAlleTitel,
+        onclick: () => steuerung.zeigeAlle(!steuerung.alleZeigen),
+      }, T.roster.filterAlle),
+      special ? null : el('button', {
+        class: steuerung.starterZeigen ? 'schalter an' : 'schalter',
+        'aria-pressed': String(steuerung.starterZeigen),
+        title: T.aufstellung.starterZeigenTitel,
+        onclick: () => steuerung.zeigeStarter(!steuerung.starterZeigen),
+      }, T.aufstellung.starterZeigen)),
     verfuegbare.length === 0
       ? el('p', { class: 'leise klein', text: T.roster.niemandFrei })
       : null,
@@ -246,6 +245,16 @@ function verfuegbarSpalte(verfuegbare, steuerung, a, schalter, specialPlatz) {
       verfuegbare.map(({ spieler, wert }) => {
         const gewaehlt = steuerung.spieler === spieler.id;
         const wo = stehtAuf(a, spieler.id);
+        // In der Special-Spalte sagt die Marke, welchen der drei Plätze er
+        // schon hat — dieselbe Auskunft, die in den Elfen die Marke „WR" gibt.
+        // Ohne sie stand der Kicker als erster Kandidat für den Kicker-Platz
+        // in der Liste, und nichts sagte, dass er ihn längst hat.
+        const schon = special
+          ? SPECIAL_PLAETZE.filter((k) => {
+            const dort = specialSpieler(a, k);
+            return !!dort && dort.id === spieler.id;
+          })
+          : [];
         const tippen = () => {
           if (steuerung.platz) steuerung.setze(steuerung.platz, spieler.id);
           else steuerung.waehleSpieler(gewaehlt ? null : spieler.id);
@@ -275,8 +284,9 @@ function verfuegbarSpalte(verfuegbare, steuerung, a, schalter, specialPlatz) {
           el('span', { class: 'leise klein', title: T.kader.alter,
             text: T.aufstellung.jahre(spieler.alter) }),
           el('span', { class: 'leise klein', text: positionsKuerzel(spieler) }),
-          specialPlatz ? topWerte(spieler, specialPlatz) : null,
+          platz && special ? topWerte(spieler, platz) : null,
           wo ? el('span', { class: 'marke tausch', text: platzKuerzel(wo.platz) }) : null,
+          schon.map((k) => el('span', { class: 'marke tausch', title: T.special[k], text: k })),
           el('span', { class: 'platz-stk', text: String(Math.round(wert)) }));
       })));
 }
@@ -316,10 +326,10 @@ export function hinweisKlasse(steuerung) {
 /**
  * Was über dem Roster steht: die angefangene Handlung, sonst die Bedienung.
  *
- * Von den leeren Plätzen steht hier nichts. Die stehen eine Zeile tiefer neben
- * der Gesamtstärke und bleiben dort auch dann stehen, wenn der Manager gerade
- * einen Mann in der Hand hat — ein Hinweis, der abwechselnd zwei Dinge sagt,
- * sagt am Ende keins von beiden.
+ * Von den leeren Plätzen steht hier nichts. Sie machen aus der Gesamtstärke
+ * eine Zeile tiefer einen Strich, und was sie am Spieltag kosten, fragt der
+ * Kickoff-Knopf — ein Hinweis, der abwechselnd zwei Dinge sagt, sagt am Ende
+ * keins von beiden.
  * @param {Steuerung} steuerung
  * @param {import('../engine/aufstellung.js').Aufstellung} a
  */
@@ -417,8 +427,7 @@ function platzZeile(p, steuerung) {
  * stellte auf einen freigegebenen Platz sofort wieder den stärksten Mann seiner
  * Position, und das ist in aller Regel genau der, den der Manager gerade
  * weggeklickt hat; der Knopf sähe aus, als täte er nichts. Wer die Automatik
- * zurückwill, drückt „Automatisch aufstellen" — bei den Special Teams den
- * Knopf „Automatik" in der Zeile selbst.
+ * zurückwill, drückt „Automatisch aufstellen" — auch für die Special Teams.
  * @param {() => void} wirkung
  * @param {string} kuerzel Für den Titel — welcher Platz hier geräumt wird
  */
@@ -445,22 +454,21 @@ const PAPIERKORB_SVG = '<svg viewBox="0 0 16 16" width="13" height="13" aria-hid
 
 
 /**
- * Eine Zeile der Special Teams.
+ * Eine Zeile der Special Teams — gebaut wie eine der zweiundzwanzig.
  *
- * Sie kennt drei Zustände, wo die zweiundzwanzig zwei kennen: besetzt,
- * **automatisch** — die Marke, die keine der elf trägt — und ausdrücklich
- * leer. Der mittlere ist der Grund für beide Knöpfe in dieser Zeile: ein
- * leerer Platz heißt hier von Haus aus nicht „niemand", sondern „nimm den
- * besten Fuß", und beide Richtungen daraus müssen zu erreichen sein.
+ * Sie sah eine Zeit lang anders aus: mit einer Marke „automatisch" und einem
+ * Knopf „Automatik", weil ein leerer Schlüssel hier in der Engine „nimm den
+ * besten Fuß" heißt und nicht „niemand". Das ist weiterhin so, nur sieht man
+ * es nicht mehr — der Manager hat drei Plätze mehr, die genauso funktionieren
+ * wie die anderen: antippen, ziehen, räumen, und „Automatisch aufstellen"
+ * holt alles zurück. Eine Zeile mit eigener Marke und eigenem Knopf
+ * beantwortete eine Frage, die er nie gestellt hat.
  *
  * Der Papierkorb sagt „niemand" und meint es: kein Kicker, kein Punter, kein
  * Long Snapper, und die fehlende Stärke ist der Preis. Er steht hier, weil ein
  * Verein, der keinen Fuß hat, das auch aufstellen können soll — die Automatik
  * stellt sonst irgendeinen Guard aufs Tee, und das sieht aus wie ein Kicker,
- * ohne einer zu sein. Der Weg zurück ist die andere Richtung: „Automatik" gibt
- * den Platz wieder her. Ohne ihn wäre die erste Wahl endgültig, und der
- * nächste rekrutierte Kicker käme nicht mehr auf den Platz, ohne dass jemand
- * wüsste, warum.
+ * ohne einer zu sein.
  * @param {import('../engine/aufstellung.js').Aufstellung} a
  * @param {string} schluessel
  * @param {Steuerung} steuerung
@@ -470,7 +478,6 @@ function specialZeile(a, schluessel, steuerung) {
   const gewaehlt = steuerung.platz === schluessel;
   const ziel = !!steuerung.spieler;
   const hier = ziel && !!spieler && spieler.id === steuerung.spieler;
-  const vonHand = !!a.specialVonHand && a.specialVonHand[schluessel];
 
   const tippen = () => {
     if (!ziel) { steuerung.waehlePlatz(gewaehlt ? null : schluessel); return; }
@@ -480,21 +487,25 @@ function specialZeile(a, schluessel, steuerung) {
   const neu = ziel && !hier ? Math.round(steuerung.wertFuer(schluessel)) : null;
 
   return el('li', {
-    class: 'waehlbar special' + (gewaehlt ? ' gewaehlt' : '')
+    class: 'waehlbar' + (gewaehlt ? ' gewaehlt' : '')
       + (ziel ? ' ziel' : '') + (hier ? ' steht' : '') + (spieler ? '' : ' frei'),
     role: 'button',
     tabindex: '0',
     'aria-pressed': String(gewaehlt),
     'aria-disabled': hier ? 'true' : undefined,
-    // Ziel ja, Griff nein. Wer hier steht, steht vielleicht nur automatisch
-    // hier — ihn wegzuziehen sähe aus wie „nicht mehr kicken", und genau das
-    // kann das Ziehen nicht: es setzt ein, es räumt nicht. Der Weg zurück in
-    // die Automatik ist der Knopf in dieser Zeile.
+    // Ziel und Griff, wie jeder der zweiundzwanzig. Der Griff fehlte eine Zeit
+    // lang mit der Begründung, ein Zug vom Platz weg sähe aus wie „nicht mehr
+    // kicken" — aber das sieht ein Zug vom linken Guard weg genauso aus, und
+    // dort zieht seit jeher, wer will. Wer den Kicker auf den Punter-Platz
+    // legt, macht ihn zu beidem; das ist die Regel der Engine, nicht der Zeile.
     'data-ziel': schluessel,
     title: ziel
       ? (hier ? T.aufstellung.stehtHier : T.aufstellung.hierEinsetzen(schluessel, steuerung.gewaehlterName))
       : T.aufstellung.platzTitel(T.special[schluessel]),
     onclick: tippen,
+    onpointerdown: spieler
+      ? anfassen(spieler.id, kurzName(spieler), schluessel, steuerung.setze)
+      : undefined,
     onkeydown: (/** @type {KeyboardEvent} */ e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       e.preventDefault();
@@ -503,18 +514,16 @@ function specialZeile(a, schluessel, steuerung) {
   },
     el('span', { class: 'platz', title: T.special[schluessel], text: schluessel }),
     el('span', { class: 'platz-name', text: spieler ? kurzName(spieler) : T.taktik.keiner }),
-    vonHand
-      ? el('button', {
-        class: 'schalter loesen',
-        title: T.special.zurueckAutomatikTitel,
-        onclick: (/** @type {MouseEvent} */ e) => { e.stopPropagation(); steuerung.loese(schluessel); },
-        onkeydown: (/** @type {KeyboardEvent} */ e) => e.stopPropagation(),
-      }, T.special.zurueckAutomatik)
-      : el('span', { class: 'marke auto', title: T.special.automatischTitel,
-        text: T.special.automatisch }),
     hier ? el('span', { class: 'marke steht', text: T.aufstellung.stehtSchon }) : null,
+    // Seine Position, wie in jeder Zeile der Elf: wer hier steht, spielt sie
+    // weiter, und ohne sie hieß der Punter nur „Huber".
+    el('span', {
+      class: 'platz-pos leise',
+      text: spieler ? positionsKuerzel(spieler) : '',
+    }),
     spieler ? el('span', {
       class: ziel ? 'platz-stk alt' : 'platz-stk',
+      title: T.taktik.platzStaerke(Math.round(SPECIAL_WERT[schluessel](spieler))),
       text: String(Math.round(SPECIAL_WERT[schluessel](spieler))),
     }) : null,
     neu == null ? null : el('span', {
@@ -523,25 +532,26 @@ function specialZeile(a, schluessel, steuerung) {
       title: T.aufstellung.neuerWert(steuerung.gewaehlterName, neu),
       text: String(neu),
     }),
-    // Nur, wo einer steht. Ein Platz, der schon leer ist, hat nichts zu
-    // räumen — und trägt statt des Korbs den Knopf zurück in die Automatik.
+    // Nur, wo einer steht. Ein Platz, der schon leer ist, hat nichts zu räumen.
     spieler ? papierkorb(() => steuerung.raeume(schluessel), T.special[schluessel]) : null);
 }
 
 /**
  * Die beiden Werte, an denen der gewählte Special-Teams-Platz hängt.
  *
- * Welche zwei das sind, sagt die Engine (`SPECIAL_TOP`) — hier steht nur, wie
- * sie aussehen. Für den Kicker und den Punter sind es die beiden gezogenen
+ * Welche das sind, sagt die Engine (`SPECIAL_TOP`) — hier steht nur, wie sie
+ * aussehen. Für den Kicker und den Punter sind es die beiden gezogenen
  * Kickwerte, die sonst nirgends im Spiel sichtbar wären; für den Long Snapper
- * zwei andere, denn Bein und Zielwasser entscheiden über einen Snap gar
- * nichts, und danebengestellt sähen sie aus, als täten sie es.
+ * keiner, und die Zeile bleibt dann so kurz wie in den Elfen — warum, steht an
+ * der Tabelle.
  * @param {import('../engine/spieler.js').Spieler} s
  * @param {string} schluessel
  */
 function topWerte(s, schluessel) {
+  const werte = SPECIAL_TOP[schluessel] || [];
+  if (werte.length === 0) return null;
   return el('span', { class: 'specialwerte' },
-    (SPECIAL_TOP[schluessel] || []).map(({ schluessel: k, wert }) =>
+    werte.map(({ schluessel: k, wert }) =>
       el('span', { class: 'klein leise', title: T.special[`${k}Titel`],
         text: `${T.special[k]} ${Math.round(wert(s))}` })));
 }

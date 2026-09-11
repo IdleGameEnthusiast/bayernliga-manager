@@ -8,7 +8,9 @@ als Nächstes*.
 Reihenfolge: Block 1, Block 2 und Block 3 sind fertig, ebenso die Kick-Vorstufe
 aus 2c. Block 4 setzt auf allen dreien auf; aus Block 5 ist die Aufstellung von
 Hand vorgezogen und umgesetzt, weil die beiden offenen Balancefragen daran
-hängen — siehe [`umbau-aufstellung.md`](umbau-aufstellung.md).
+hängen — siehe [`umbau-aufstellung.md`](umbau-aufstellung.md). **Als Nächstes
+steht Block 7**, Schritt 1: Commitment und Lebenslage als Felder, ohne
+Bewegung.
 
 ---
 
@@ -363,11 +365,215 @@ hängen — das ist der nächste Block, nicht mehr dieser.
 
 ---
 
+## Block 7 — Commitment und Lebenslage
+
+Die Währung dieser Liga ist nicht Geld. Wer in der Bayernliga aufhört, tut das
+wegen Studium, Job, Familie, Bank oder weil ein Verein 80 km näher liegt —
+nicht, weil ein Vertrag ausläuft. Verträge wären hier thematisch falsch;
+dieser Block ersetzt sie durch **Bindung** und **Lebensumstände**, für jeden
+Menschen im Verein: Spieler, Coaches, später Orga. Er ist zugleich das, was
+der Fahrplan unter „Rücktritt als berechneter Wert" offen hatte — nur mit
+einem Grund dahinter statt einer Zahl.
+
+Der Block ist in vier Schritte geschnitten, und **nur der erste ist der
+nächste**. Die anderen stehen hier, damit der erste so gebaut wird, dass sie
+hineinpassen.
+
+### Der Wert
+
+- `commitment`, **0–99**, an `Spieler` und `Coach`. Orga bekommt ihn, wenn
+  es Orga gibt — kein Feld an einer Entität, die nicht existiert.
+- Der Manager sieht **nie die Zahl**, nur eine von **fünf Stufen** als Text,
+  mit harten Bändern, ohne Unschärfe. Versteckte Zahl mit festen Stufen ist
+  das, was Football Manager auch macht, und es trägt. Die Stufen klingen wie
+  ein Trainer redet, nicht wie eine Skala: „Herz und Seele", „verlässlich",
+  „dabei", „wackelt", „mit einem Bein draußen" — in der Art, die Texte stehen
+  in `i18n.js`.
+- Die Stufenlogik liegt **einmal** in `engine/commitment.js`
+  (`stufe(wert) → 0..4`), nicht in `spieler.js` und `coach.js` doppelt.
+  Sobald Orga dazukommt, ist es dieselbe Funktion.
+- **Nicht** aus den Soft Skills eines Coaches abgeleitet. Commitment ist
+  keine Fähigkeit.
+- **Nicht** über das Alter gezogen. Die erste Idee war „wer mit 30 noch
+  Bayernliga spielt, will es" — verworfen, weil jeder die Lust verlieren
+  kann, wenn er auf der Bank sitzt und niemand mit ihm redet, und weil
+  Mobilität mehr erklärt als Alter: der 23-jährige Student ohne Auto fährt
+  weniger weit als der 30-jährige Arbeiter, der eine neue Herausforderung
+  sucht. Das Alter steckt in der Lebenslage, nicht im Wert.
+
+### Die Lebenslage
+
+Die Sätze, die der Manager lesen soll — „Student, plant vier Jahre Studium,
+danach Wegzug in die Heimat, 200 km entfernt" · „ehemaliger Jugendspieler, in
+Ausbildung, fester Wohnsitz in der Gegend, will bleiben" · „Arbeiter, fährt
+80 km ins Training, Familie, körperlich noch zwei, drei Saisons" — werden aus
+**Feldern gebaut**, nie als Text gespeichert. Sonst kann die Engine nichts
+damit rechnen. Ungefähr sechs:
+
+| Feld | Was es sagt |
+| --- | --- |
+| Status | Schüler · Student · Azubi · Arbeiter · Rentner |
+| Entfernung | km bis zum Training — im ersten Schritt nur zum **eigenen** Verein, siehe offene Entscheidung 10 |
+| Mobil | hat ein Auto oder nicht |
+| Familie | ja/nein — verändert, was eine Verletzung oder eine lange Fahrt kostet |
+| Horizont | Jahre bis zum nächsten Ereignis, und was dann kommt: Wegzug (km), Studium zu Ende, Schluss aus Körpergründen |
+| Vereinsjahre | seit wann er da ist |
+
+Der Satz kommt aus einer Vorlage in `i18n.js`.
+
+**Der Plan ist nicht die Wahrheit.** Was der Manager liest, ist das, was der
+Spieler *erzählt*. Die Wahrheit liegt daneben — das Studium dauert fünf Jahre
+statt vier, der Wegzug wird 40 km statt 200 — und wenn der Plan sich ändert,
+erfährt es der Manager nur, wenn er mit ihm redet oder der Spieler es ihm
+schreibt. Gespräche haben damit einen zweiten Zweck neben dem Heben des
+Werts: **Information**. Wer nie redet, plant mit alten Daten.
+
+### Druck und Halt
+
+Das Modell für Abgänge, damit es nicht in einer Zahl verschwimmt:
+
+- **Druck** kommt aus der Lebenslage — Entfernung ohne Auto, Familie, das
+  Ereignis am Horizont.
+- **Halt** ist das Commitment.
+- Er geht, wenn der Druck den Halt **über eine Weile** übersteigt. Nie sofort,
+  sonst kippt jeder an einem schlechten Wochenende.
+
+Verworfen: Lebensereignisse als Abzug vom Commitment. Ein hochcommitteter
+Student geht trotzdem, wenn das Studium endet, und man redet niemandem den
+Abschluss aus — aber ein committeter Spieler fährt die Strecke aus der Heimat
+vielleicht trotzdem noch, ein loser nicht. Genau das kann nur die Waage aus
+zwei Seiten abbilden. Spritgeld senkt später den Druck, ein Gespräch hebt den
+Halt: zwei Hebel, zwei Seiten.
+
+Ebenfalls verworfen: zwei Werte, einer für den Verein und einer für den Sport.
+„Keine Lust mehr auf Football" und „der Nachbarverein zahlt mehr Spritgeld"
+sind verschiedene Abgänge — der eine ist weg, der andere spielt nächste Saison
+gegen dich — und ein Wert kann sie nicht trennen. Trotzdem bleibt es bei
+einem: der **Grund** wird beim Abgang gezogen, gewichtet nach Lebenslage
+(jung + Bank → anderer Verein; Familie + Körper → Schluss). Zwei Werte zahlen
+sich erst aus, wenn es den Markt gibt, und dann kann man sie noch trennen.
+
+### Was den Wert bewegt
+
+Im ersten Schritt **nichts** — der Wert steht fest. Drift ohne Hebel wäre eine
+unsichtbare Strafe: fünf Textstufen, die leise fallen, und nichts, was der
+Manager dagegen tun kann. Erst Anzeige, dann Bewegung, dann Hebel.
+
+Wenn er sich bewegt, dann durch diese Dinge, in dieser Gewissheit:
+
+- **Einsätze.** Die Bank frisst Commitment. Das ist der Haupthebel, und
+  `einsaetze` steht schon am Spieler.
+- **Der Positionscoach.** Die Soft Skills haben laut `coach.js` heute keinen
+  eigenen Zweck — hier ist einer: eine Gruppe mit einem Coach mit hoher
+  Empathie und Kommunikation verliert langsamer, eine Gruppe **ohne** Coach
+  schneller. Das gibt dem Personalmarkt einen Sinn, bevor es Taktikwirkung
+  braucht.
+- **Verletzung.** Lang verletzt frisst Commitment, bei Familie und Arbeitern
+  stärker („lohnt sich das noch"), und **deutlich** stärker ohne Betreuung —
+  Physio, Kontakt zum Arzt. Die Betreuung kommt mit den Finanzen.
+- **Erfolg.** Niederlagenserien, verpasste Playoffs.
+- **Vereinsjahre.** Wer lange da ist, hält mehr aus.
+- **Wünsche.** Ein Spieler kann einen Wunsch haben — eine Position, eine
+  Nummer (siehe „Nummernwunsch" unten). Erfüllt hebt, verweigert senkt. Das
+  ist der einzige Weg, auf dem eine Position Commitment kostet.
+- **Position — fast nie.** Dass ein Spieler eine Position *nicht spielen
+  will*, ist als Regel verworfen. Kaderplanung und das Umschulen von Spielern
+  sind ein Kern des Spiels, und ein Spieler, der sich weigert, raubt genau
+  diesen Spaß. Als seltener Ausnahmefall vertretbar, nie als Mechanik, die
+  bei jeder Umstellung zieht.
+- **Verantwortung.** Captain, Starter im Kickoff-Team — ein Einsatz, der
+  nichts kostet. Sehr Amateurfootball.
+- **Freunde.** Wer zusammen kam, geht zusammen. Das macht die Uni-Kohorte
+  gefährlich: geht einer, wackeln drei. Stark, aber erst, wenn der Rest steht.
+- **Versprechen.** „Du spielst nächste Woche" und dann Bank trifft härter als
+  nie etwas versprochen. Der stärkste und der gefährlichste Hebel — bei
+  Football Manager die Quelle der meisten Unlogik. Kommt **zuletzt**, und
+  wenn, dann mit zwei Pflichten: jedes Versprechen wird **gespeichert** und
+  ist für den Manager **einsehbar**, mit Frist und Stand. Ein Versprechen, das
+  nur der Spieler kennt, ist keins.
+
+### Gespräche
+
+- Ein Gespräch ist ein **Kalendertermin** und damit knapp. Ohne Knappheit ist
+  es ein Knopf für +5, und das ganze System eine Fleißaufgabe. Später wird
+  Zeit die Ressource, aus der auch anderes bezahlt wird — ein Gespräch *oder*
+  der Instagram-Kanal.
+- Gespräche haben **Kategorien** — Perspektive, Rolle, Lebenslage abfragen,
+  Wunsch anhören, Versprechen — und jede hat eine andere Wirkung und ein
+  anderes Risiko. Die Liste fällt beim Bau von Schritt 2.
+- Das Postfach ist der Weg hinein: die Trend-Nachricht (unten) bietet „Ich
+  rede mit ihm" als Antwort in `ANTWORTEN` an, und diese Antwort *ist* der
+  Termin.
+
+### Nachrichten
+
+Der Manager erfährt vom Trend, aber nicht als Zahl:
+
+- Auslöser ist ein **Stufenwechsel**, nie „−X in drei Wochen". Von „dabei"
+  auf „wackelt" ist eine Nachricht, alles dazwischen keine. Sonst wird das
+  Postfach bei 45 Spielern zur Spam-Quelle. Das ist der zweite Grund für die
+  fünf Stufen.
+- Absender ist der **Positionscoach** seiner Gruppe: „Ich habe gemerkt, XY
+  kommt mit den Niederlagen nicht klar, dass er nicht spielt und du nicht mit
+  ihm sprichst, macht ihn unsicher." Ob er es früh merkt (beim Trend) oder
+  erst, wenn der Spieler weg ist, hängt an seiner **Empathie**. Gibt es keinen
+  Coach für die Gruppe, sagt es niemand.
+
+### Die KI-Vereine
+
+Zwei Stellen, an denen es sonst schiefgeht:
+
+- **Symmetrie.** `saisonWechsel()` ersetzt heute einen Rentner durch einen
+  Rookie gleicher Position — das *ist* die Rekrutierung der KI. Führt man bei
+  sich Abgänge ein, ohne dass es Rekrutierung gibt, schrumpft der eigene
+  Kader und die anderen nicht; die „dauerhafte Strafe" aus Block 5 würde
+  schärfer. Deshalb: **Abgänge und Rekrutierung im selben Schritt.** Die KI
+  antwortet auf jeden Abgang weiter mit dem Rookie-Ersatz und spielt das
+  Metaspiel nicht — sie bekommt einen pauschalen Betreuungsfaktor, damit ihre
+  Kader im Mittel gleich bleiben. Das Feld und die Drift laufen aber für
+  **alle** Vereine, sonst gibt es nichts, was man abwerben könnte.
+- **Geografie.** „Wegzug 200 km" und „der Nachbarverein zahlt mehr" rechnen
+  nur, wenn Vereine einen Ort haben. Offene Entscheidung 10.
+
+### Rekrutierung — später, aber mitgeplant
+
+Kommt nach diesem Block, wird aber jetzt schon so gedacht, weil die Lebenslage
+ihr Rohstoff ist: **Rekrutierungskanäle sind Verteilungen über Lebenslagen.**
+Hochschulinfotag → fit, 20–24, teils mit Erfahrung, drei bis fünf Jahre
+Horizont, danach in vielen Fällen weg. Jugend → lokal, bleibt, roh. Aushang
+im Fitnessstudio → Arbeiter, gemischt, mobil. Die Information, die der Manager
+dazu bekommt, ist der Lebenslage-Satz — er weiß, was er sich holt.
+
+Der Weg zurück gehört dazu: wer committed ist und aufhört — Alter, Körper,
+Verletzung — landet in einem **Ehemaligen-Pool** und ist der, den man am
+ehesten als Coach oder Orga gewinnt. Das ist die Schleife, die Pflege
+belohnt statt Verbrauch.
+
+### Reihenfolge
+
+1. **Felder und Anzeige.** `commitment` und `lebenslage` an `Spieler` und
+   `Coach`, Ziehung bei der Generierung (Mobilität und Status, nicht Alter),
+   `engine/commitment.js` mit den Bändern, fünf Texte und die
+   Lebenslage-Vorlage in `i18n.js`, Anzeige im Kader- und Personalreiter,
+   Migration 9→10. Keine Drift. `ruecktrittAlter` bleibt vorerst.
+2. **Bewegung und Gespräch.** Drift durch Bank, Coach, Verletzung, Erfolg,
+   Vereinsjahre; Stufenwechsel-Nachrichten vom Positionscoach; das Gespräch
+   als Kalendertermin mit Kategorien; Wünsche.
+3. **Abgänge und Rekrutierung**, zusammen: Druck gegen Halt, Grund beim
+   Abgang, Kanäle, Ehemaligen-Pool; `ruecktrittAlter` geht darin auf.
+4. **Mit den Finanzen:** Spritgeld, Betreuung bei Verletzung, bezahlte
+   Coaches, die gehen, wenn sie nicht bezahlt werden. Versprechen und Freunde
+   zum Schluss.
+
+---
+
 ## Block 5 und später — was im Gespräch fiel, aber noch keinen Platz hat
 
 - **Rekrutierung.** Neue Spieler zwischen den Saisons. Solange es die nicht
   gibt, ist der 30er-Kader des eigenen Vereins eine **dauerhafte** Strafe und
   nicht bloß eine schwere Startsituation — das war so nicht gemeint.
+  **Geplant in Block 7**, Schritt 3, zusammen mit den Abgängen — nie vorher,
+  wegen der Symmetrie zur KI.
 - **Spielerentwicklung als Gesamtkonzept.** Performance fließt in die
   Entwicklung ein. Hier gehört auch der Ligadeckel hin: `talent` darf über 79
   liegen, aber die **Entwicklungskurve** rechnet die Liga ein, sodass die
@@ -379,7 +585,9 @@ hängen — das ist der nächste Block, nicht mehr dieser.
   berührt, sind die **Attribute** — siehe offene Entscheidung 9.
 - **Rücktritt als berechneter Wert.** `ruecktrittAlter` steht schon am Spieler,
   wird aber nur gesetzt (37 für normale Spieler, individuell für Veteranen) und
-  nicht berechnet. Gehört ins Entwicklungskonzept.
+  nicht berechnet. ~~Gehört ins Entwicklungskonzept.~~ **Geht in Block 7
+  auf:** Druck aus der Lebenslage gegen den Halt aus dem Commitment, mit einem
+  Grund beim Abgang.
 - **Nummernwunsch.** Nummern bleiben am Spieler. Das Einzige, was sich ändern
   darf: ein guter Spieler will beim Jahreswechsel auf eine frei gewordene
   einstellige Nummer wechseln. Das kommt als **Anfrage an den Manager** und
@@ -559,6 +767,15 @@ Nichts davon blockiert Block 2 oder 3, aber irgendwann muss es fallen:
    „Eigengewächse sind besser als Zugänge" hinaus, ohne dass es jemand sehen
    kann.
 
+10. **Wo liegen die Vereine?** Block 7 rechnet mit Entfernungen — der Spieler
+    wohnt 80 km vom Training, zieht 200 km weg, der Nachbarverein liegt näher.
+    Im ersten Schritt reicht **eine Zahl am Spieler: km zum eigenen Verein.**
+    Sobald der Markt kommt und ein Spieler, der bei Verein X wegen der Strecke
+    geht, für Verein Y ein Kandidat sein soll, brauchen die Vereine Koordinaten
+    (oder eine Distanztabelle). Das ist die Entscheidung: Koordinaten je
+    Verein, aus denen Nord/Süd dann auch geografisch stimmt, oder nur die eine
+    Zahl, und die KI-Vereine bleiben ortlos. Fällt mit Schritt 3 von Block 7.
+
 ---
 
 ## Entscheidungslog — damit nichts zweimal verhandelt wird
@@ -613,7 +830,8 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Bedienung | zwei Tipps statt Ziehen, weil das Spiel auf einem iPad läuft |
 | Speichern | gar nicht — jeder Handgriff steht sofort im Stand. Es gibt keinen Entwurf, keinen Knopf und keinen Wächter beim Reiterwechsel mehr |
 | Leerer Platz | erlaubt, zählt null und wird von den Reparaturrunden nicht angefasst. „Automatisch aufstellen" ist der Weg zurück |
-| Nicht angetreten | eine Elf mit Loch wird `WERTUNG_PUNKTE` = 0:36 gegen sich gewertet; kein Einsatz, keine Verletzung, keine Box — für beide Vereine. Der Kalender fragt vorher |
+| Nicht angetreten | eine Elf mit Loch wird `WERTUNG_PUNKTE` = 0:36 gegen sich gewertet; kein Einsatz, keine Verletzung, keine Box — für beide Vereine. Gefragt wird **einmal**, am Kickoff-Knopf in `app.js` („Spiel absagen, Wertung 0:36" oder „Zur Aufstellung"); die Engine wertet nur. Die Nachricht mit Antwortpflicht, die vorher den Kalender anhielt, und die Warnung im Roster sind weg (`SAVE_VERSION` 10) |
+| Special Teams in der Ansicht | die drei Plätze sehen aus und bedienen sich wie die zweiundzwanzig: antippen, ziehen, räumen, „Automatisch aufstellen". Keine Marke „automatisch", kein Knopf „Automatik" — dass ein fehlender Schlüssel in der Engine „bester Fuß" heißt, bleibt intern (`alsVorgabe()` friert nur ein, was von Hand gesetzt ist). Der Long Snapper zeigt links keine Einzelwerte (`SPECIAL_TOP.LS = []`), weil seine Technik bei jedem Kandidaten null wäre |
 | Coaches | OC + DC je Verein, Stärke um Vereinsbasis/2, Alter 50–65; zehn Coaching-Gruppen mit gerechneter Ähnlichkeit; drei Blöcke 30/45/25 (Koordinator) bzw. 30/15/55 (Positionscoach). Wirkung noch offen — siehe [`umbau-coaches.md`](umbau-coaches.md) |
 | Rosterzahl | nach dem Profilanteil der **Zielposition**, nie nach der Ausrichtung des Vereins. Damit liest ein Mann auf seinem Hauptplatz wieder genau seine Stärke, und der Taktikregler bewertet keine Spieler um |
 | Körperkorridore | breit, weil das keine Profiliga ist: Line 40–45 kg, Skill 18–28. Die **Reihenfolge der Mitten** ist das Modell, nicht die Breite — NT 137,5 · T 131 · G 126 · DT 125 · C 124 · DE 112,5 · FB/MIKE 106 · TE 105 · SAM 100 · WILL/QB 92 · SS 89 · RB 88 · FS 84 · WR 83 · CB 80 · SL 77 |
@@ -623,3 +841,12 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Gutschriftschranke | `KOERPERMALUS_GUTSCHRIFT_ANTEIL` = 0,5: die Körper-Gutschrift nimmt höchstens die Hälfte des linearen Malus weg. Unbeschränkt hob sie ihn ab 16,7 kg Übergewicht ganz auf, abstandsunabhängig, weil beide Summanden linear im Abstand sind |
 | Linebacker im Laufspiel | MIKE und SAM haben `beweglichkeit` (und SAM `schnelligkeit`) in der Laufformel. Ohne sie bestand ihre Formel aus denselben vier Attributen wie die des Nose Tackle, und ein Sam war ein kleiner Nose Tackle. Was den Linebacker vom Lineman trennt, ist nicht Kraft, sondern dass er läuft |
 | Formeln wirken zweimal | eine Änderung an `FORMELN` ändert die Bewertung **und** die Ziehung, weil `generierungsProfil()` daraus kommt. Das ist der Hebel, nicht der Nebeneffekt: der Sam bekommt echte Beweglichkeit statt der Bodenplatte und zugleich weniger Kraft |
+| Commitment | `commitment` 0–99 an Spieler und Coach (Orga, sobald es Orga gibt); der Manager sieht nur eine von fünf Textstufen, harte Bänder, einmal in `engine/commitment.js`. Nicht aus Alter, nicht aus Soft Skills gezogen — aus Mobilität und Status |
+| Lebenslage | Felder, nie Text: Status · Entfernung · mobil · Familie · Horizont · Vereinsjahre. Der Satz kommt aus einer Vorlage. Was der Manager liest, ist der **Plan**, den der Spieler erzählt — die Wahrheit liegt daneben und erfährt man nur im Gespräch |
+| Druck und Halt | Abgänge sind Druck aus der Lebenslage gegen Halt aus dem Commitment, über eine Weile. Lebensereignisse ziehen **nicht** vom Commitment ab; ein Wert, nicht zwei (Verein/Sport) — der Grund wird beim Abgang gezogen |
+| Keine Drift ohne Hebel | Schritt 1 zeigt nur an. Bewegung erst mit dem Gespräch als knappem Kalendertermin; sonst ist es eine unsichtbare Strafe |
+| Positionsverweigerung | als Regel verworfen — Umschulung ist der Kern des Spiels. Höchstens seltener Ausnahmefall; Wünsche (Position, Nummer) dürfen erfüllt heben und verweigert senken |
+| Versprechen | zuletzt, und nur gespeichert und für den Manager einsehbar, mit Frist und Stand |
+| Trend-Nachricht | nur beim Stufenwechsel, vom Positionscoach der Gruppe, früh oder spät je nach seiner Empathie; ohne Coach sagt es niemand |
+| KI und Abgänge | Abgänge und Rekrutierung im selben Schritt; die KI ersetzt weiter durch Rookies und bekommt einen pauschalen Betreuungsfaktor. Feld und Drift laufen für alle Vereine |
+| Rekrutierungskanäle | Verteilungen über Lebenslagen (Hochschulinfotag, Jugend, Aushang); Ehemalige mit hohem Commitment sind der Pool für Coaches und Orga |
