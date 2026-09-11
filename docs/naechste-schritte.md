@@ -415,12 +415,18 @@ hängen — das ist der nächste Block, nicht mehr dieser.
   OC und einen DC mit Soft Skills, Scheme und Positionstechnik, einer Stärke
   je Rolle und einer Ähnlichkeit der Coaching-Gruppen, die aus dem
   Positionsmodell gerechnet wird. Dokumentiert in
-  [`umbau-coaches.md`](umbau-coaches.md). **Was noch fehlt, in dieser
+  [`umbau-coaches.md`](umbau-coaches.md). ~~**Was noch fehlt, in dieser
   Reihenfolge:** die Wirkung am Spieltag samt Umbau des Taktikreiters (OC- und
-  DC-Karte, Vertrautheit an jeder Gruppierung), die Wirkung auf die
+  DC-Karte, Vertrautheit an jeder Gruppierung)~~ **Erledigt** — der OC und der
+  DC des Gegners sind zwei Summanden in `vorteil()`, und die Vertrautheit des
+  OC **wächst** mit jedem Tag und jedem Spiel im System des Vereins
+  (Abschnitte 7 und 8 dort). Was noch fehlt: die Wirkung auf die
   Spielerentwicklung (gehört zum Entwicklungskonzept oben), und der Markt —
-  Einstellen, Entlassen, Rekrutierung der Jüngeren. Bis dahin ist der
-  Coaches-Reiter unter Personal reine Auskunft.
+  Einstellen, Entlassen, Rekrutierung der Jüngeren. Bis dahin ist das System,
+  das der Manager spielen lässt, sein einziger Hebel am Stab.
+- **Balancing.** Alle Stellschrauben stehen seit dem Coaches-Umbau gesammelt
+  in [`balancing.md`](balancing.md), nach Wirkung geordnet. Wer eine Konstante
+  anlegt, trägt sie dort ein.
 - Transfers und Verträge, Play-by-Play, Finanzen.
 
 ---

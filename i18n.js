@@ -471,7 +471,21 @@ export const DE = {
     duellLauf: 'Laufduell',
     duellEinseitig: 'Einseitigkeit',
     duellKlippe: 'Randband',
+    duellOC: 'Eigener OC',
+    duellDC: 'DC des Gegners',
     duellSumme: 'Vorteil',
+    // Der Stab im Taktikreiter: wer die beiden Einheiten führt und was er
+    // vom gewählten System versteht. Die Vertrautheit steht auch an jeder
+    // Systemschaltfläche, weil sie der Preis des Wechsels ist.
+    stab: 'Koordinatoren',
+    stabScheme: (lauf, pass) => `Scheme — Lauf ${lauf} · Pass ${pass}`,
+    stabVertraut: (system, wert, malus) =>
+      `Vertrautheit mit ${system}: ${wert} → ${malus} Stärkepunkte`,
+    stabHinweis: 'Ein Scheme-Wert über 50 hebt seine Einheit, einer darunter drückt sie. '
+      + 'Die Vertrautheit wächst mit jedem Tag und jedem Spiel in einem System — '
+      + 'und schwindet in denen, die lange nicht gespielt wurden.',
+    keinCoach: 'Nicht besetzt.',
+    vertraut: (wert) => `Vertrautheit ${wert}`,
     duellPunkte: (wert) => `${wert} Punkte`,
     duellFussnote: 'Stärkepunkte. Was daraus an Zählbarem wird, steht rechts.',
     wirkung: 'Angriff und Verteidigung',

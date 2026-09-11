@@ -86,6 +86,20 @@ try {
     alle('.reiter button')[r].click();
     pruefe(`Reiter „${reiter[r]}" zeigt etwas`, alle('.karte').length > 0);
   }
+
+  // Und der Taktikreiter trägt den Stab: die Koordinatoren mit Namen, die
+  // Vertrautheit an jeder Systemschaltfläche und die zwei Zeilen im Duell.
+  // Nach einer Saison steht die Vertrautheit mit dem eigenen System über der
+  // gezogenen — sonst hätte die Uhr den OC nicht mitgenommen.
+  alle('.reiter button').find((b) => b.textContent === 'Taktik').click();
+  gleich('drei Karten im Taktikreiter', alle('.karte').length, 3);
+  gleich('zwei Koordinatoren', alle('.stabkarte .stabname').length, 2);
+  gleich('jede Systemschaltfläche nennt die Vertrautheit',
+    alle('.system').filter((b) => b.textContent.includes('Vertrautheit')).length, 8);
+  enthaelt('der OC steht mit seiner Vertrautheit da', txt('.stabkarte'), 'Vertrautheit mit');
+  const duell = alle('.duellreihe').map((z) => z.querySelector('.klein').textContent);
+  pruefe('das Duell nennt den eigenen OC', duell.includes('Eigener OC'), duell.join(' | '));
+  pruefe('und den DC des Gegners', duell.includes('DC des Gegners'), duell.join(' | '));
 } catch (e) { merkeFehler(e); }
 melde();
 </script></body></html>

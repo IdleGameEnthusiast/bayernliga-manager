@@ -285,6 +285,76 @@ export const COACH_SEITENFAKTOR = 2 / 3;
  */
 export const PERSONNEL_ABSTAND_FAKTOR = 0.8;
 
+// Die Vertrautheit wächst — Docs: docs/umbau-coaches.md, Abschnitt 7
+//
+// Der Fächer aus `PERSONNEL_ABSTAND_FAKTOR` gilt nur für die Ziehung. Danach
+// hängen die acht Werte an nichts mehr als an sich selbst: das gespielte
+// System wird dem OC vertrauter, die Nachbarn ein wenig, die fernen Systeme
+// verlieren — und die Summe der acht steigt trotzdem mit jedem Tick, weil das
+// Vergessen ein Anteil des Gelernten ist und nicht ein Anteil des Bestands.
+// Wer nichts Neues lernt, vergisst auch nichts.
+
+/**
+ * Was ein volles Jahr im selben System bei Vertrautheit 0 bringt. Der Gewinn
+ * schrumpft mit dem Abstand zum Dach (`MAX_RATING`): bei 20 sind es noch 9,6,
+ * bei 60 noch 4,7. Ein Spezialist steht damit nach etwa 13 Jahren bei 80 und
+ * nach 25 bei 95. Das ist die eine Schraube — alles andere skaliert mit.
+ */
+export const VERTRAUTHEIT_LERNRATE = 12;
+/**
+ * Was die beiden Nachbarn auf `PERSONNEL_REIHE` mitbekommen: ein Zehntel
+ * dessen, was am gespielten System **gerade** gelernt wird — nicht ein Zehntel
+ * der Rate. Der Unterschied ist der Punkt: wer im eigenen System ausgelernt
+ * hat, lernt auch am Rand nichts mehr. Als Anteil der Rate sammelte ein
+ * Spezialist in 25 Jahren mehr Zuschauerwissen über das Nachbarsystem, als ein
+ * Wanderer mit drei echten Saisons darin erspielte.
+ */
+export const VERTRAUTHEIT_NACHBAR_ANTEIL = 0.10;
+/**
+ * Welcher Anteil des Gelernten den fernen Systemen (Abstand ≥ 2) verloren
+ * geht, verteilt im Verhältnis ihrer Werte. Daraus folgt ohne Nebenbedingung,
+ * dass die Summe der acht in jedem Tick um `(1 − Anteil) · Gelernt` steigt.
+ */
+export const VERTRAUTHEIT_VERGESSEN_ANTEIL = 0.30;
+/**
+ * Wie sich das Jahr aufteilt: die Hälfte des Gewinns kommt über die Spiele,
+ * die andere über die Zeit, die der Coach im System verbringt — auch in der
+ * Offseason wird trainiert. Ein Wechsel nach einem halben Jahr ohne Spiel
+ * schreibt dem alten System damit ein Viertel des Jahres gut, dem neuen drei.
+ */
+export const VERTRAUTHEIT_SPIELANTEIL = 0.5;
+/** Die Nenner der beiden Hälften: ein Jahr in Tagen, eine Saison in Spielen. */
+export const VERTRAUTHEIT_TAGE_JE_JAHR = 365;
+/**
+ * Zehn Gruppenspieltage plus Halbfinale und Finale. Wer die Playoffs
+ * verpasst, lernt etwas weniger — er hat auch weniger gespielt.
+ */
+export const VERTRAUTHEIT_SPIELE_JE_SAISON = 12;
+
+// Die Wirkung am Spieltag — Docs: docs/umbau-coaches.md, Abschnitt 8
+
+/**
+ * Ab wo ein Scheme-Wert hilft statt schadet. Ein Koordinator über der Mitte
+ * hebt seine Einheit, einer darunter drückt sie; der Ligaschnitt bei der
+ * Ziehung liegt deutlich darunter, also zahlen anfangs fast alle.
+ */
+export const COACH_SCHEME_MITTE = 50;
+/**
+ * Stärkepunkte je Scheme-Punkt Abstand zur Mitte. Ein Koordinator mit 80
+ * bringt +3, einer mit 20 kostet 3 — im Endstand rund ±1,3 Punkte.
+ */
+export const COACH_SCHEME_FAKTOR = 0.1;
+/**
+ * Was fehlende Vertrautheit mit dem gespielten System kostet, je Punkt unter
+ * `MAX_RATING`. Absolut gerechnet, nicht relativ zum besten System des
+ * Coaches: ein Anfänger zahlt auch zu Hause, weil er sein Heimatsystem eben
+ * erst lernt — und nach zehn Jahren zahlt er dort nichts mehr. Relativ
+ * gerechnet stünde ein Coach, der nirgends etwas kennt, malusfrei da, und der
+ * Meister zahlte für den Wechsel mehr, als ein Anfänger je zahlen kann. Bei
+ * 0,06 kostet Vertrautheit 0 sechs Stärkepunkte, also gut zwei im Endstand.
+ */
+export const VERTRAUTHEIT_MALUS_JE_PUNKT = 0.06;
+
 /**
  * Die drei Special-Teams-Positionen — der ausgebildete Spezialist.
  *

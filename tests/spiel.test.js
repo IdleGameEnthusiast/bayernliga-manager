@@ -2,7 +2,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { makeRng, AUSGEWOGENHEIT, RATING_TO_POINTS } from '../engine/constants.js';
+import {
+  makeRng, AUSGEWOGENHEIT, RATING_TO_POINTS, MAX_RATING, COACH_SCHEME_FAKTOR,
+  VERTRAUTHEIT_MALUS_JE_PUNKT,
+} from '../engine/constants.js';
 import { macheKader, resetSpielerIds } from '../engine/spieler.js';
 import {
   simuliereSpiel, baueScore, vorteil, vorteilTeile, bestesPassAnteil,
@@ -397,4 +400,87 @@ test('der Box Score folgt der Ausrichtung des Vereins', () => {
   const empty = laufAnteil(0.85);
   assert.ok(doubleWing > empty,
     `laufend ${(doubleWing * 100).toFixed(0)} %, werfend ${(empty * 100).toFixed(0)} %`);
+});
+
+// --- Der Stab im Duell ------------------------------------------------------
+// Docs: docs/umbau-coaches.md, Abschnitt 8
+
+/**
+ * Ein Koordinator mit gesetzten Werten, ohne Ziehung.
+ * @param {'OC'|'DC'} rolle @param {Record<string, number>} scheme @param {number} vertraut
+ */
+function coach(rolle, scheme, vertraut) {
+  /** @type {Record<string, number>} */
+  const personnel = {};
+  for (const p of Object.keys(PERSONNEL)) personnel[p] = vertraut;
+  return /** @type {import('../engine/coach.js').Coach} */ ({
+    id: rolle, vorname: 'T', nachname: rolle, alter: 40, rolle, gruppe: rolle === 'OC' ? 'QB' : 'DL',
+    soft: {}, scheme, personnel, technik: {},
+  });
+}
+
+test('ohne Stab rechnet das Duell wie vor den Coaches', () => {
+  const t = vorteilTeile(werte(58, 44, 0, 0), werte(0, 0, 51, 49), 0.6);
+  assert.equal(t.oc, 0);
+  assert.equal(t.dc, 0);
+  assert.equal(t.pass + t.lauf + t.einseitig + t.klippe, t.summe);
+});
+
+test('der eigene OC und der fremde DC sind eigene Summanden, und beide zählen in der Summe', () => {
+  const oc = coach('OC', { offenseLauf: 70, offensePass: 70 }, 99);
+  const dc = coach('DC', { defenseLauf: 70, defensePass: 70 }, 0);
+  const angriff = { ...werte(58, 44, 0, 0), oc, personnel: '11' };
+  const gegner = { ...werte(0, 0, 51, 49), dc };
+  const t = vorteilTeile(angriff, gegner, 0.6);
+  assert.ok(Math.abs(t.oc - 20 * COACH_SCHEME_FAKTOR) < 1e-9, `OC bringt ${t.oc}`);
+  assert.ok(Math.abs(t.dc + 20 * COACH_SCHEME_FAKTOR) < 1e-9, `DC nimmt ${t.dc}`);
+  assert.ok(Math.abs(t.pass + t.lauf + t.einseitig + t.klippe + t.oc + t.dc - t.summe) < 1e-12);
+  assert.equal(t.summe, vorteil(angriff, gegner, 0.6));
+});
+
+test('fehlende Vertrautheit zieht vom OC ab — am Dach nichts, bei null das Ganze', () => {
+  const angriff = (/** @type {number} */ v) =>
+    ({ ...werte(58, 44, 0, 0), oc: coach('OC', { offenseLauf: 50, offensePass: 50 }, v), personnel: '11' });
+  const gegner = werte(0, 0, 51, 49);
+  assert.equal(vorteilTeile(angriff(MAX_RATING), gegner, 0.5).oc, 0);
+  const leer = vorteilTeile(angriff(0), gegner, 0.5).oc;
+  assert.ok(Math.abs(leer + MAX_RATING * VERTRAUTHEIT_MALUS_JE_PUNKT) < 1e-9, `bei null: ${leer}`);
+});
+
+test('die Scheme-Werte mischen sich nach dem Passanteil des Angriffs, auch beim DC', () => {
+  // Ein DC, der den Pass gut und den Lauf schlecht verteidigt, nimmt einem
+  // Werfer mehr weg als einem Läufer — nach *dessen* Anteil, nicht nach seinem.
+  const dc = coach('DC', { defenseLauf: 30, defensePass: 70 }, 0);
+  const gegner = { ...werte(0, 0, 50, 50), dc };
+  const angriff = werte(50, 50, 0, 0);
+  const werfer = vorteilTeile(angriff, gegner, 0.9).dc;
+  const laeufer = vorteilTeile(angriff, gegner, 0.1).dc;
+  assert.ok(werfer < laeufer, `Werfer ${werfer}, Läufer ${laeufer}`);
+  // Über den Betrag: ein negiertes Null ist für `assert.equal` nicht die Null.
+  assert.equal(Math.abs(vorteilTeile(angriff, gegner, 0.5).dc), 0, 'hälftig heben sich 30 und 70 auf');
+});
+
+test('im echten Spiel bringt ein guter Stab Punkte', () => {
+  resetSpielerIds();
+  const heim = { id: 'h', kader: macheKader(makeRng('stab-h'), 58, 5), personnel: '11' };
+  const gast = { id: 'g', kader: macheKader(makeRng('stab-g'), 58, 5), personnel: '11' };
+  const gut = [coach('OC', { offenseLauf: 90, offensePass: 90 }, 99),
+    coach('DC', { defenseLauf: 90, defensePass: 90 }, 99)];
+  const schlecht = [coach('OC', { offenseLauf: 10, offensePass: 10 }, 5),
+    coach('DC', { defenseLauf: 10, defensePass: 10 }, 5)];
+
+  /** @param {import('../engine/coach.js').Coach[]} coaches */
+  const punkte = (coaches) => {
+    let summe = 0;
+    for (let i = 0; i < 400; i++) {
+      summe += simuliereSpiel(makeRng('stab' + i), { ...heim, coaches }, gast, 1).heimPunkte;
+    }
+    return summe / 400;
+  };
+  const mitGutem = punkte(gut);
+  const mitSchlechtem = punkte(schlecht);
+  // Rund 15 Stärkepunkte Unterschied (±4 Scheme, ±5,6 Vertrautheit, dazu der
+  // DC des Gegners auf beiden Seiten gleich) sind bei 0,42 gut sechs Punkte.
+  assert.ok(mitGutem - mitSchlechtem > 3,
+    `guter Stab ${mitGutem.toFixed(2)}, schlechter ${mitSchlechtem.toFixed(2)}`);
 });

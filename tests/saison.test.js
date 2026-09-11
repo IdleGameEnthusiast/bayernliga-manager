@@ -14,7 +14,7 @@ import {
   erlaubterPassAnteil, alsGegner, eigeneAufstellung, aufstellungVon,
   setzeAufstellung, automatischAufstellen, aufstellungSetze, vorgabeVon,
   aufstellungVollstaendig, aufstellungLeeren, aufstellungRaeume, offenePlaetze,
-  naechstePartie, ligaSchnittVerteidigung,
+  naechstePartie, ligaSchnittVerteidigung, coachesVon,
 } from '../engine/saison.js';
 import {
   offeneAntworten, antwortenZu, sende, markiereGelesen, loescheNachricht,
@@ -795,4 +795,51 @@ test('vorgabeVon friert ein, was die Automatik gestellt hatte', () => {
 
   setzeAufstellung(stand, vorgabe);
   assert.equal(aufstellungVollstaendig(stand), true);
+});
+
+// --- Der Stab lernt mit der Uhr --------------------------------------------
+// Docs: docs/umbau-coaches.md, Abschnitt 7
+
+test('jeder Tag und jedes Spiel machen den OC mit dem System des Vereins vertrauter', () => {
+  const s = neuesSpiel('heg', 'stab-lernt');
+  const system = personnelVon(s, 'heg');
+  const oc = coachesVon(s, 'heg')[0];
+  const dc = coachesVon(s, 'heg')[1];
+  const start = oc.personnel[system];
+  const dcStart = { ...dc.personnel };
+
+  bisSpieltag(s, 1);
+  const nachEinem = oc.personnel[system];
+  assert.ok(nachEinem > start, 'bis zum ersten Spieltag hat der OC nichts gelernt');
+
+  bisSaisonende(s);
+  assert.ok(oc.personnel[system] > nachEinem + 3,
+    `eine Saison brachte nur ${(oc.personnel[system] - nachEinem).toFixed(2)}`);
+  assert.deepEqual(dc.personnel, dcStart, 'der DC lernt kein Personnel — die Defense kennt keins');
+
+  // Und die KI-Vereine lernen mit, sonst wären ihre Stäbe nach Jahren noch Anfänger.
+  for (const t of TEAMS) {
+    const fremd = coachesVon(s, t.id)[0];
+    assert.ok(fremd.personnel[personnelVon(s, t.id)] > 20, `${t.id}: der OC hat nichts gelernt`);
+  }
+});
+
+test('ein Systemwechsel lässt den OC ab sofort das neue System lernen', () => {
+  const s = neuesSpiel('heg', 'stab-wechsel');
+  const alt = personnelVon(s, 'heg');
+  const neu = alt === '00' ? '32' : '00';
+  const oc = coachesVon(s, 'heg')[0];
+  setzeTaktik(s, { personnel: neu });
+  const vorher = { ...oc.personnel };
+  weiter(s, s.tag + 30);
+  assert.ok(oc.personnel[neu] > vorher[neu], 'das neue System wächst nicht');
+  assert.ok(oc.personnel[alt] < vorher[alt], 'das alte System verblasst nicht');
+});
+
+test('die gelernte Vertrautheit überlebt Export und Import', () => {
+  const s = neuesSpiel('heg', 'stab-speichern');
+  bisSpieltag(s, 3);
+  const oc = coachesVon(s, 'heg')[0];
+  const kopie = importiere(exportiere(s));
+  assert.deepEqual(coachesVon(kopie, 'heg')[0].personnel, oc.personnel);
 });

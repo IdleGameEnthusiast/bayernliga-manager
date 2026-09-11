@@ -88,10 +88,11 @@ Code-Kommentare verweisen mit Abschnittsnummer dorthin, das reicht als Einstieg:
 | Datei | Zustand |
 | --- | --- |
 | `naechste-schritte.md` | **lebend** — der Fahrplan und die gefallenen Entscheidungen. Hier zuerst nachsehen, was als Nächstes ansteht |
+| `balancing.md` | **lebend** — jede Stellschraube, nach Wirkung geordnet. Wer eine Konstante anlegt oder ändert, trägt sie dort ein, mit Vorher/Nachher |
 | `umbau-kalender.md` | abgeschlossen — Uhr, Postfach, Phasen. Nachschlagewerk |
 | `umbau-positionsmodell.md` | abgeschlossen, 56 KB — Attribute, Positionen, Lauf/Pass. Nur abschnittsweise lesen |
 | `umbau-aufstellung.md` | abgeschlossen — die Aufstellung von Hand |
-| `umbau-coaches.md` | abgeschlossen, was den **Datensatz** angeht — Gruppen, Ähnlichkeit, Stärke, Ziehung. Die Wirkung (Taktik, Entwicklung) ist offen, Abschnitt 7 |
+| `umbau-coaches.md` | abgeschlossen bis auf die Entwicklung — Gruppen, Ähnlichkeit, Stärke, Ziehung, das Wachsen der Vertrautheit (7) und die Wirkung am Spieltag (8). Offen ist Abschnitt 9 |
 | `baseline-staerken.md` | Messprotokoll zum Positionsumbau. Historie |
 
 ## Ton und Commits

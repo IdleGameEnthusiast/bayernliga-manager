@@ -21,9 +21,10 @@ import { LIGA_MAX_STAERKE, RATING_TO_POINTS } from '../engine/constants.js';
 import { teamStaerken } from '../engine/team.js';
 import { PERSONNEL, PERSONNEL_REIHE } from '../engine/aufstellung.js';
 import { vorteilTeile, bestesPassAnteil } from '../engine/spiel.js';
+import { ocVon, dcVon, vertrautheitMalus } from '../engine/coach.js';
 import { teamById } from '../engine/content.js';
 import {
-  personnelVon, passAnteilVon, naechstePartie, ligaSchnittVerteidigung,
+  personnelVon, passAnteilVon, naechstePartie, ligaSchnittVerteidigung, coachesVon,
 } from '../engine/saison.js';
 
 /** Breite des Reglerdaumens in Pixeln — so weit läuft die Spur schmaler als der Kasten. */
@@ -36,21 +37,28 @@ const DAUMEN = 16;
 export function zeigeTaktik(stand, setze) {
   const personnel = personnelVon(stand, stand.meinTeam);
   const anteil = passAnteilVon(stand, stand.meinTeam);
+  const stab = coachesVon(stand, stand.meinTeam);
+  const oc = ocVon(stab);
+  const dc = dcVon(stab);
 
   // Die Aufstellung steht im Kader, nicht hier: dort entscheidet sie, hier
   // steht nur, was sie bewegt.
   return el('div', {},
-    systemKarte(personnel, setze),
-    ausrichtungKarte(stand, personnel, anteil, setze));
+    systemKarte(personnel, oc, setze),
+    stabKarte(oc, dc, personnel),
+    ausrichtungKarte(stand, personnel, anteil, oc, setze));
 }
 
 /**
  * Die acht Gruppierungen als Schaltflächen. Jede zeigt, woraus sie besteht —
- * die Wahl soll nicht raten müssen, was hinter „21" steckt.
+ * die Wahl soll nicht raten müssen, was hinter „21" steckt — und wie vertraut
+ * der OC damit ist: das ist der Preis eines Wechsels, und er gehört dorthin,
+ * wo gewechselt wird.
  * @param {string} aktiv
+ * @param {import('../engine/coach.js').Coach | null} oc
  * @param {(taktik: { personnel?: string, passAnteil?: number }) => void} setze
  */
-function systemKarte(aktiv, setze) {
+function systemKarte(aktiv, oc, setze) {
   return el('div', { class: 'karte' },
     el('h2', { text: T.taktik.systemWaehlen }),
     el('div', { class: 'systeme' },
@@ -61,7 +69,51 @@ function systemKarte(aktiv, setze) {
       },
         el('span', { class: 'system-id', text: id }),
         el('span', { class: 'system-name', text: T.personnel[id] || PERSONNEL[id].name }),
-        el('span', { class: 'system-skill leise', text: PERSONNEL[id].skill.join(' · ') })))));
+        el('span', { class: 'system-skill leise', text: PERSONNEL[id].skill.join(' · ') }),
+        oc ? el('span', { class: 'system-skill leise',
+          text: T.taktik.vertraut(Math.round(oc.personnel[id] || 0)) }) : null))));
+}
+
+/**
+ * Die beiden Koordinatoren: wer sie sind und was sie mitbringen. Die rohen
+ * Zahlen, nicht ihre Wirkung — die steht im Duell darunter und wandert dort
+ * mit dem Regler, weil die Scheme-Werte nach dem Passanteil gemischt werden.
+ * Einzig der Vertrautheitsmalus steht hier schon in Stärkepunkten: er hängt
+ * nur am System, und das wird in der Karte darüber gewählt.
+ * @param {import('../engine/coach.js').Coach | null} oc
+ * @param {import('../engine/coach.js').Coach | null} dc
+ * @param {string} personnel
+ */
+function stabKarte(oc, dc, personnel) {
+  /**
+   * @param {import('../engine/coach.js').Coach | null} coach
+   * @param {string} rolle
+   * @param {'offense'|'defense'} seite
+   * @param {HTMLElement[]} mehr
+   */
+  const karte = (coach, rolle, seite, mehr) => el('div', { class: 'stabkarte' },
+    el('h3', { class: 'klein', text: rolle }),
+    coach
+      ? [
+        el('p', { class: 'stabname', text: coach.vorname + ' ' + coach.nachname }),
+        el('p', { class: 'klein leise', text: T.taktik.stabScheme(
+          Math.round(coach.scheme[seite + 'Lauf']), Math.round(coach.scheme[seite + 'Pass'])) }),
+        ...mehr,
+      ]
+      : el('p', { class: 'leise klein', text: T.taktik.keinCoach }));
+
+  const ocMehr = oc ? [
+    el('p', { class: 'klein leise', text: T.taktik.stabVertraut(
+      personnel, Math.round(oc.personnel[personnel] || 0),
+      vorzeichen(-vertrautheitMalus(oc, personnel))) }),
+  ] : [];
+
+  return el('div', { class: 'karte' },
+    el('h2', { text: T.taktik.stab }),
+    el('div', { class: 'stabkarten' },
+      karte(oc, T.coach.rollen.OC, 'offense', ocMehr),
+      karte(dc, T.coach.rollen.DC, 'defense', [])),
+    el('p', { class: 'leise klein', style: { margin: '6px 0 0' }, text: T.taktik.stabHinweis }));
 }
 
 /**
@@ -70,15 +122,18 @@ function systemKarte(aktiv, setze) {
  * @param {import('../engine/saison.js').SpielStand} stand
  * @param {string} personnel
  * @param {number} anteil
+ * @param {import('../engine/coach.js').Coach | null} oc
  * @param {(taktik: { personnel?: string, passAnteil?: number }) => void} setze
  */
-function ausrichtungKarte(stand, personnel, anteil, setze) {
+function ausrichtungKarte(stand, personnel, anteil, oc, setze) {
   const kader = stand.kader[stand.meinTeam];
   const vorschlag = PERSONNEL[personnel].passAnteil;
   const prozent = (w) => Math.round(w * 100);
 
+  // Die eigene Seite trägt den OC und das System mit — so rechnet das Duell
+  // hier dieselben Summanden wie die Simulation am Spieltag.
   const staerkenBei = (/** @type {number} */ a) =>
-    teamStaerken(kader, stand.tag, personnel, a);
+    ({ ...teamStaerken(kader, stand.tag, personnel, a), oc, personnel });
 
   // Der Gegner steht fest, während der Regler läuft — nur die eigene Seite
   // hängt an ihm. Und das Optimum wird einmal aus der gespeicherten Ausrichtung
@@ -172,16 +227,21 @@ function gegnerSeite(stand) {
   const zuhause = partie.heim === stand.meinTeam;
   const gegnerId = zuhause ? partie.gast : partie.heim;
   const wo = zuhause ? T.taktik.duellHeim : T.taktik.duellAuswaerts;
+  // Der Gegner bringt seinen DC mit — der Ligaschnitt oben hat keinen, und
+  // das ist richtig so: gegen den Schnitt spielt niemand.
   return {
     titel: T.taktik.duell(`${teamById(gegnerId).name} (${wo})`),
-    werte: teamStaerken(
-      stand.kader[gegnerId], stand.tag,
-      personnelVon(stand, gegnerId), passAnteilVon(stand, gegnerId)),
+    werte: {
+      ...teamStaerken(
+        stand.kader[gegnerId], stand.tag,
+        personnelVon(stand, gegnerId), passAnteilVon(stand, gegnerId)),
+      dc: dcVon(coachesVon(stand, gegnerId)),
+    },
   };
 }
 
 /**
- * Die vier Summanden von `vorteil()` und ihre Summe, umgerechnet in Punkte.
+ * Die Summanden von `vorteil()` und ihre Summe, umgerechnet in Punkte.
  * @param {import('../engine/spiel.js').Angreifer} staerken
  * @param {import('../engine/spiel.js').Verteidiger} gegner
  * @param {number} anteil
@@ -193,6 +253,8 @@ function duellBlock(staerken, gegner, anteil) {
     duellReihe(T.taktik.duellLauf, t.lauf),
     duellReihe(T.taktik.duellEinseitig, t.einseitig),
     duellReihe(T.taktik.duellKlippe, t.klippe),
+    duellReihe(T.taktik.duellOC, t.oc),
+    duellReihe(T.taktik.duellDC, t.dc),
     duellReihe(T.taktik.duellSumme, t.summe,
       T.taktik.duellPunkte(vorzeichen(t.summe * RATING_TO_POINTS))),
     el('p', { class: 'leise klein', style: { margin: '4px 0 12px' }, text: T.taktik.duellFussnote }));

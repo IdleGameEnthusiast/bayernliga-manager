@@ -22,6 +22,7 @@ import {
   doppelEinsaetze, doppelRisiko, vollstaendig, PERSONNEL, STANDARD_PERSONNEL,
 } from './aufstellung.js';
 import { verfuegbar, kurzName } from './spieler.js';
+import { ocVon, dcVon, schemeBonus, vertrautheitMalus } from './coach.js';
 
 /**
  * @typedef {object} SpielerStat
@@ -47,10 +48,24 @@ import { verfuegbar, kurzName } from './spieler.js';
  * Was `vorteil()` von den beiden Seiten wirklich liest. Absichtlich schmaler als
  * `Staerken`: so darf die Taktikansicht auch einen gemittelten Ligagegner
  * hineinreichen, der keine Aufstellung hat und keine haben kann.
- * @typedef {{ passAngriff: number, laufAngriff: number }} Angreifer
+ *
+ * Der Stab ist optional, und ohne ihn rechnet `vorteil()` wie vor den Coaches.
+ * Das ist kein Übergangszustand, sondern die Form: der Ligaschnitt hat keinen
+ * DC, und ein Test, der das Duell zweier Kader prüft, soll keinen erfinden
+ * müssen.
+ * @typedef {object} Angreifer
+ * @property {number} passAngriff
+ * @property {number} laufAngriff
+ * @property {import('./coach.js').Coach | null} [oc]  Wer die Offense verantwortet
+ * @property {string} [personnel]  Die gespielte Gruppierung — was der OC kennen müsste
  */
 
-/** @typedef {{ passVerteidigung: number, laufVerteidigung: number }} Verteidiger */
+/**
+ * @typedef {object} Verteidiger
+ * @property {number} passVerteidigung
+ * @property {number} laufVerteidigung
+ * @property {import('./coach.js').Coach | null} [dc]  Wer die Defense verantwortet
+ */
 
 /**
  * @typedef {object} VorteilTeile
@@ -58,6 +73,8 @@ import { verfuegbar, kurzName } from './spieler.js';
  * @property {number} lauf       Laufduell, mit dem Gegenanteil gewichtet
  * @property {number} einseitig  Strafe für Einseitigkeit, nie positiv
  * @property {number} klippe     Einbruch im Randband, nie positiv
+ * @property {number} oc         Der eigene OC: Scheme-Bonus minus Vertrautheitsmalus
+ * @property {number} dc         Der DC des Gegners, mit umgekehrtem Vorzeichen
  * @property {number} summe      Was `vorteil()` liefert
  */
 
@@ -228,13 +245,20 @@ export function vorteil(angriff, verteidigung, passAnteil) {
 }
 
 /**
- * Was `vorteil()` liefert, aufgeschlüsselt in seine vier Summanden.
+ * Was `vorteil()` liefert, aufgeschlüsselt in seine Summanden.
  *
  * Das ist die Zahl, die der Regler wirklich bewegt. Die vier Stärkewerte einer
  * Mannschaft tun es nicht — der Passanteil erreicht sie nur über die
  * Platzvergabe in `stelleAuf()`, und das sind Zehntel. Wer im Taktikreiter nur
  * die Balken sah, sah deshalb nichts, obwohl zwischen den Enden des Reglers gut
  * dreißig Stärkepunkte liegen. Diese Aufschlüsselung ist die Antwort darauf.
+ *
+ * Seit dem Stab kommen zwei Summanden dazu, beide klein gegen die Duelle: was
+ * der eigene OC bringt (sein Scheme, abzüglich dessen, was er vom gespielten
+ * System nicht kennt), und was der DC des Gegners wegnimmt. Beide mischen
+ * ihre Scheme-Werte nach **diesem** Passanteil — der Regler bewegt also auch
+ * sie, und ein Werfer-OC schiebt das Optimum ein Stück Richtung Pass.
+ * Docs: docs/umbau-coaches.md, Abschnitt 8
  * @param {Angreifer} angriff
  * @param {Verteidiger} verteidigung des Gegners
  * @param {number} passAnteil des angreifenden Vereins
@@ -245,7 +269,15 @@ export function vorteilTeile(angriff, verteidigung, passAnteil) {
   const lauf = (1 - passAnteil) * (angriff.laufAngriff - verteidigung.laufVerteidigung);
   const schief = einseitig(passAnteil);
   const rand = klippe(passAnteil);
-  return { pass, lauf, einseitig: schief, klippe: rand, summe: pass + lauf + schief + rand };
+  const oc = angriff.oc
+    ? schemeBonus(angriff.oc, 'offense', passAnteil)
+      - vertrautheitMalus(angriff.oc, angriff.personnel || STANDARD_PERSONNEL)
+    : 0;
+  const dc = verteidigung.dc ? -schemeBonus(verteidigung.dc, 'defense', passAnteil) : 0;
+  return {
+    pass, lauf, einseitig: schief, klippe: rand, oc, dc,
+    summe: pass + lauf + schief + rand + oc + dc,
+  };
 }
 
 /**
@@ -391,7 +423,28 @@ export function wuerfelVerletzung(rng, teamId, kader, tag, doppelt = []) {
  * @property {string} [personnel]
  * @property {number} [passAnteil]
  * @property {import('./aufstellung.js').Vorgabe | null} [aufstellung]
+ * @property {import('./coach.js').Coach[]} [coaches]  Der Stab; ohne ihn spielt der Verein ohne Koordinatoren
  */
+
+/**
+ * Die Seite eines Vereins, wie `vorteil()` sie liest: die Stärken plus die
+ * beiden Koordinatoren. Ein Objekt für beide Rollen, weil dieselbe Mannschaft
+ * im einen Duell angreift und im anderen verteidigt.
+ * @param {Antritt} verein
+ * @param {import('./team.js').Staerken} staerken
+ * @returns {Angreifer & Verteidiger}
+ */
+function seiteVon(verein, staerken) {
+  return {
+    passAngriff: staerken.passAngriff,
+    laufAngriff: staerken.laufAngriff,
+    passVerteidigung: staerken.passVerteidigung,
+    laufVerteidigung: staerken.laufVerteidigung,
+    personnel: verein.personnel || STANDARD_PERSONNEL,
+    oc: ocVon(verein.coaches),
+    dc: dcVon(verein.coaches),
+  };
+}
 
 /**
  * Play one match.
@@ -408,6 +461,8 @@ export function simuliereSpiel(rng, heim, gast, tag) {
     heim.kader, tag, heim.personnel, heim.passAnteil, heim.aufstellung);
   const gastStaerken = teamStaerken(
     gast.kader, tag, gast.personnel, gast.passAnteil, gast.aufstellung);
+  const heimSeite = seiteVon(heim, heimStaerken);
+  const gastSeite = seiteVon(gast, gastStaerken);
 
   // Wer keine vollständige Elf stellt, tritt nicht an. Dann wird gewertet
   // statt gespielt: der Verein bekommt null, der Gegner sechs Touchdowns.
@@ -425,7 +480,7 @@ export function simuliereSpiel(rng, heim, gast, tag) {
 
   const heimErwartet = clamp(
     BASE_POINTS
-      + vorteil(heimStaerken, gastStaerken, heimAnteil) * RATING_TO_POINTS
+      + vorteil(heimSeite, gastSeite, heimAnteil) * RATING_TO_POINTS
       + heimStaerken.special * 0.02
       + HOME_ADVANTAGE
       + randNormal(rng) * MATCH_NOISE,
@@ -433,7 +488,7 @@ export function simuliereSpiel(rng, heim, gast, tag) {
   );
   const gastErwartet = clamp(
     BASE_POINTS
-      + vorteil(gastStaerken, heimStaerken, gastAnteil) * RATING_TO_POINTS
+      + vorteil(gastSeite, heimSeite, gastAnteil) * RATING_TO_POINTS
       + gastStaerken.special * 0.02
       + randNormal(rng) * MATCH_NOISE,
     MIN_EXPECTED, MAX_EXPECTED,
@@ -462,8 +517,8 @@ export function simuliereSpiel(rng, heim, gast, tag) {
       if (rng() < 0.5) heimPunkte += 3; else gastPunkte += 3;
       break;
     }
-    const hOt = otBesitz(rng, vorteil(heimStaerken, gastStaerken, heimAnteil));
-    const gOt = otBesitz(rng, vorteil(gastStaerken, heimStaerken, gastAnteil));
+    const hOt = otBesitz(rng, vorteil(heimSeite, gastSeite, heimAnteil));
+    const gOt = otBesitz(rng, vorteil(gastSeite, heimSeite, gastAnteil));
     heimPunkte += hOt.punkte;
     gastPunkte += gOt.punkte;
     heimTds += hOt.td;

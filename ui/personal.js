@@ -18,8 +18,9 @@
 import { el, leere, tabelle as machTabelle, balken, sterne } from './dom.js';
 import { T } from '../i18n.js';
 import { istFit, talentSterne } from '../engine/spieler.js';
-import { LIGA_MAX_STAERKE, POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE }
-  from '../engine/constants.js';
+import {
+  LIGA_MAX_STAERKE, MAX_RATING, POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE,
+} from '../engine/constants.js';
 import { positionsKuerzel, hauptPosition, platzKuerzel } from '../engine/positionen.js';
 import { bestePlaetze, specialTechnik, PERSONNEL_REIHE } from '../engine/aufstellung.js';
 import { eigeneAufstellung, aufstellungVon, coachesVon } from '../engine/saison.js';
@@ -202,19 +203,24 @@ function coachZeile(coach, male) {
  * Die vier Blöcke eines Coaches, aufgeklappt unter seiner Zeile. Dieselbe
  * Balkenform wie beim Spieler, dieselbe Skala — ein Koordinator mit 22 steht
  * damit sichtbar unter jedem seiner Spieler, und das ist die Aussage.
+ *
+ * Die Ausnahme ist die Vertrautheit: sie wächst über den Ligadeckel hinaus bis
+ * an die 99, und ein Balken, der bei 79 voll ist, sähe einen Spezialisten mit
+ * 95 nicht mehr wachsen. Ihre Skala ist deshalb das Dach der Kurve.
  * @param {import('../engine/coach.js').Coach} coach
  */
 function coachWerteZeile(coach) {
   /**
    * @param {string} titel
    * @param {[string, number][]} eintraege Beschriftung und Wert
+   * @param {number} [skala] Vollausschlag des Balkens
    */
-  const block = (titel, eintraege) => el('div', { class: 'werteblock' },
+  const block = (titel, eintraege, skala = LIGA_MAX_STAERKE) => el('div', { class: 'werteblock' },
     el('h3', { class: 'klein', text: titel }),
     el('div', { class: 'werte' },
       eintraege.map(([name, wert]) => el('div', { class: 'wert' },
         el('span', { class: 'klein leise', text: name }),
-        balken(wert, LIGA_MAX_STAERKE),
+        balken(wert, skala),
         el('span', { class: 'klein', text: String(Math.round(wert)) })))));
 
   return el('tr', { class: 'wertezeile' },
@@ -222,7 +228,7 @@ function coachWerteZeile(coach) {
       block(T.coach.bloecke.soft, SOFT_SKILLS.map((s) => [T.coach.soft[s], coach.soft[s]])),
       block(T.coach.bloecke.scheme, SCHEME_SKILLS.map((s) => [T.coach.scheme[s], coach.scheme[s]])),
       block(T.coach.bloecke.personnel,
-        PERSONNEL_REIHE.map((p) => [`${p} · ${T.personnel[p]}`, coach.personnel[p]])),
+        PERSONNEL_REIHE.map((p) => [`${p} · ${T.personnel[p]}`, coach.personnel[p]]), MAX_RATING),
       block(T.coach.bloecke.technik,
         COACHING_GRUPPE_REIHE.map((g) => [T.coach.gruppen[g], coach.technik[g]]))));
 }

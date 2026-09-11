@@ -14,9 +14,12 @@ import assert from 'node:assert/strict';
 import {
   aehnlichkeit, gruppenProfil, gruppenPassAnteil, staerke, softWert, schemeWert, technikWert,
   macheCoach, ziehStab, COACHING_GRUPPE_REIHE, COACHING_GRUPPEN, SOFT_SKILLS, SCHEME_SKILLS,
+  lerneSystem, lerneTag, lerneSpiel, schemeBonus, vertrautheitMalus,
 } from '../engine/coach.js';
 import {
   makeRng, POSITIONS, COACH_ALTER_MIN, COACH_ALTER_MAX, COACH_BASIS_ANTEIL, COACH_SEITENFAKTOR,
+  PERSONNEL_ABSTAND_FAKTOR, MAX_RATING, VERTRAUTHEIT_TAGE_JE_JAHR, VERTRAUTHEIT_SPIELE_JE_SAISON,
+  COACH_SCHEME_FAKTOR, VERTRAUTHEIT_MALUS_JE_PUNKT,
 } from '../engine/constants.js';
 import { PERSONNEL_REIHE } from '../engine/aufstellung.js';
 import { neuesSpiel, coachesVon } from '../engine/saison.js';
@@ -208,4 +211,145 @@ test('die Coaches tragen keinen Namen aus dem eigenen Kader', () => {
       assert.ok(!namen.has(c.vorname + ' ' + c.nachname), `${t.id}: ${c.vorname} ${c.nachname} spielt auch`);
     }
   }
+});
+
+// --- Die Vertrautheit wächst ------------------------------------------------
+// Docs: docs/umbau-coaches.md, Abschnitt 7
+
+/**
+ * Ein OC mit glatten Werten, ohne Ziehung — die Kurve soll allein stehen.
+ * @param {string} heimat @param {number} skill
+ */
+function flacherOC(heimat, skill) {
+  const heim = PERSONNEL_REIHE.indexOf(/** @type {any} */ (heimat));
+  /** @type {Record<string, number>} */
+  const personnel = {};
+  PERSONNEL_REIHE.forEach((p, i) => {
+    personnel[p] = skill * Math.pow(PERSONNEL_ABSTAND_FAKTOR, Math.abs(i - heim));
+  });
+  return /** @type {import('../engine/coach.js').Coach} */ ({
+    id: 'oc', vorname: 'Test', nachname: 'Coach', alter: 35, rolle: 'OC', gruppe: 'QB',
+    soft: {}, scheme: { offenseLauf: 50, offensePass: 50, defenseLauf: 50, defensePass: 50 },
+    personnel, technik: {},
+  });
+}
+
+/** @param {import('../engine/coach.js').Coach} c */
+const vertrautSumme = (c) => PERSONNEL_REIHE.reduce((s, p) => s + c.personnel[p], 0);
+
+/**
+ * Ein volles Jahr in einem System: 365 Tage und zwölf Spiele.
+ * @param {import('../engine/coach.js').Coach} coach @param {string} personnel
+ */
+function jahrIn(coach, personnel) {
+  for (let t = 0; t < VERTRAUTHEIT_TAGE_JE_JAHR; t++) lerneTag(coach, personnel);
+  for (let s = 0; s < VERTRAUTHEIT_SPIELE_JE_SAISON; s++) lerneSpiel(coach, personnel);
+}
+
+test('ein Tick hebt das gespielte System, die Nachbarn weniger, die fernen fallen', () => {
+  const oc = flacherOC('11', 40);
+  const vorher = { ...oc.personnel };
+  lerneSystem(oc, '11', 0.1);
+  assert.ok(oc.personnel['11'] > vorher['11'], 'das gespielte System wächst nicht');
+  for (const n of ['10', '12']) {
+    assert.ok(oc.personnel[n] > vorher[n], `Nachbar ${n} wächst nicht`);
+    assert.ok(oc.personnel[n] - vorher[n] < (oc.personnel['11'] - vorher['11']) / 5,
+      `Nachbar ${n} lernt zu viel`);
+  }
+  for (const f of ['00', '01', '20', '21', '32']) {
+    assert.ok(oc.personnel[f] < vorher[f], `fernes System ${f} vergisst nicht`);
+  }
+});
+
+test('die Summe der acht steigt in jedem Tick', () => {
+  // Der Kern des Modells: das Vergessen ist ein Anteil des Gelernten, also
+  // bleibt `(1 − Anteil) · Gelernt` in jedem Tick übrig — bei jedem Coach,
+  // in jedem System, auch beim Wanderer, der nirgends ausgelernt hat.
+  const oc = flacherOC('10', 20);
+  let summe = vertrautSumme(oc);
+  const folge = ['11', '32', '00', '21', '10', '01', '20', '12'];
+  for (let jahr = 0; jahr < 40; jahr++) {
+    const sys = folge[jahr % folge.length];
+    for (let t = 0; t < 30; t++) {
+      lerneTag(oc, sys);
+      const neu = vertrautSumme(oc);
+      assert.ok(neu > summe, `Jahr ${jahr}, Tag ${t}: die Summe fiel von ${summe} auf ${neu}`);
+      summe = neu;
+    }
+  }
+});
+
+test('kein Wert fällt unter null oder steigt über das Dach', () => {
+  const oc = flacherOC('32', 20);
+  for (let jahr = 0; jahr < 60; jahr++) jahrIn(oc, '00');
+  for (const p of PERSONNEL_REIHE) {
+    assert.ok(oc.personnel[p] >= 0, `${p} unter null`);
+    assert.ok(oc.personnel[p] <= MAX_RATING, `${p} über dem Dach`);
+  }
+  assert.ok(oc.personnel['00'] > 95, 'sechzig Jahre Empty enden unter 95');
+  // Verblasst, aber nicht weg: das Vergessen hängt am Lernen, und wer am Dach
+  // steht, lernt nichts mehr — also bleibt der Rest stehen, wo er ist.
+  assert.ok(oc.personnel['32'] > 5 && oc.personnel['32'] < 20 * 0.7,
+    `das alte Heimatsystem steht bei ${oc.personnel['32']}`);
+});
+
+test('der Spezialist kennt das Nachbarsystem schlechter als der, der es alle acht Jahre spielt', () => {
+  // Der Fund, der die Nachbarregel geändert hat: als Anteil der *Rate*
+  // sammelte der Spezialist 25 Jahre lang Zuschauerwissen über 21 und lag
+  // damit über dem Wanderer, der es dreimal wirklich gespielt hat. Als Anteil
+  // des *Gewinns* hört das Zuschauen auf, sobald der Spezialist ausgelernt hat.
+  const spezialist = flacherOC('32', 20);
+  const wanderer = flacherOC('10', 20);
+  for (let jahr = 0; jahr < 24; jahr++) {
+    jahrIn(spezialist, '32');
+    jahrIn(wanderer, PERSONNEL_REIHE[jahr % PERSONNEL_REIHE.length]);
+  }
+  assert.ok(wanderer.personnel['21'] > spezialist.personnel['21'],
+    `Wanderer ${wanderer.personnel['21']} gegen Spezialist ${spezialist.personnel['21']}`);
+  assert.ok(spezialist.personnel['32'] > 90, 'der Spezialist ist nach 24 Jahren kein Meister');
+  assert.ok(spezialist.personnel['21'] < 30, 'der Spezialist kennt den Nachbarn zu gut');
+});
+
+test('ein halbes Jahr ohne Spiel zählt ein Viertel, die Spielhälfte den Rest', () => {
+  // Zwei frische Coaches ohne Vorwissen, damit die Luft zum Dach gleich ist
+  // und nur die Anteile zählen: A bekommt 182 Tage, B 183 Tage und alle Spiele.
+  const a = flacherOC('11', 0);
+  const b = flacherOC('11', 0);
+  for (let t = 0; t < 182; t++) lerneTag(a, '00');
+  for (let t = 0; t < 183; t++) lerneTag(b, '00');
+  for (let s = 0; s < VERTRAUTHEIT_SPIELE_JE_SAISON; s++) lerneSpiel(b, '00');
+  const gewinnA = a.personnel['00'];
+  const gewinnB = b.personnel['00'];
+  const anteilA = gewinnA / (gewinnA + gewinnB);
+  assert.ok(Math.abs(anteilA - 0.25) < 0.02, `A hat ${(anteilA * 100).toFixed(1)} % statt 25 %`);
+});
+
+test('lerneSystem kennt nur die acht Gruppierungen', () => {
+  assert.throws(() => lerneSystem(flacherOC('11', 20), '99', 0.1), /Unbekannte Gruppierung/);
+});
+
+// --- Die Wirkung am Spieltag ------------------------------------------------
+// Docs: docs/umbau-coaches.md, Abschnitt 8
+
+test('ein Scheme über der Mitte hilft, eines darunter schadet, und die Mitte ist null', () => {
+  const oc = flacherOC('11', 50);
+  assert.equal(schemeBonus(oc, 'offense', 0.5), 0);
+  oc.scheme.offensePass = 80;
+  oc.scheme.offenseLauf = 20;
+  assert.ok(Math.abs(schemeBonus(oc, 'offense', 1) - 30 * COACH_SCHEME_FAKTOR) < 1e-9,
+    'reines Passspiel liest den Passwert');
+  assert.ok(Math.abs(schemeBonus(oc, 'offense', 0) + 30 * COACH_SCHEME_FAKTOR) < 1e-9,
+    'reines Laufspiel liest den Laufwert');
+  assert.equal(schemeBonus(oc, 'offense', 0.5), 0, 'hälftig heben sich 80 und 20 auf');
+  assert.equal(schemeBonus(oc, 'defense', 0.5), 0, 'die andere Seite liest ihre eigenen Werte');
+});
+
+test('der Vertrautheitsmalus ist null am Dach und voll bei null', () => {
+  const oc = flacherOC('11', 0);
+  assert.ok(Math.abs(vertrautheitMalus(oc, '11') - MAX_RATING * VERTRAUTHEIT_MALUS_JE_PUNKT) < 1e-9);
+  oc.personnel['11'] = MAX_RATING;
+  assert.equal(vertrautheitMalus(oc, '11'), 0);
+  // Absolut, nicht relativ: ein Anfänger zahlt auch zu Hause.
+  const anfaenger = flacherOC('32', 20);
+  assert.ok(vertrautheitMalus(anfaenger, '32') > 4, 'der Anfänger zahlt zu Hause nichts');
 });

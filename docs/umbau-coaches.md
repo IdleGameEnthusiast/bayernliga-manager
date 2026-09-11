@@ -4,9 +4,10 @@ Bis hierher hatte ein Verein Spieler und sonst niemanden. Die Taktik kam aus
 dem Taktikreiter, die Entwicklung aus der Alterskurve, und wer beides
 verantwortet, stand nirgends. Jetzt steht er da: jeder Verein hat einen
 Offense Coordinator und einen Defense Coordinator, beide mit Werten, beide mit
-einer Stärke — und beide tun **noch nichts**. Dieses Dokument beschreibt, was
-ein Coach *ist*. Was er *bewirkt*, sind zwei eigene Umbauten, siehe
-Abschnitt 7.
+einer Stärke. Die Abschnitte 1 bis 6 beschreiben, was ein Coach *ist*;
+Abschnitt 7 sagt, wie seine Vertrautheit mit den Systemen wächst, Abschnitt 8,
+was er am Spieltag *bewirkt*. Was er mit der Entwicklung seiner Spieler
+macht, ist noch offen — Abschnitt 9.
 
 Gehört zu Block 5 aus [`naechste-schritte.md`](naechste-schritte.md); das
 Positionsmodell, aus dem die Ähnlichkeit kommt, steht in
@@ -65,7 +66,8 @@ hängt, rechnen alle fünf mit.
 - `personnel`: die **Vertrautheit** mit jeder der acht Gruppierungen, je eine
   Zahl. Ein OC hat ein Heimatsystem — das, was sein Verein spielt — und die
   Nachbarn auf `PERSONNEL_REIHE` fallen mit dem Abstand ab, mal 0,8 je Schritt.
-  Sieben Schritte sind noch 21 %.
+  Sieben Schritte sind noch 21 %. Das ist die **Ziehung** — danach wächst jeder
+  der acht Werte für sich, siehe Abschnitt 7.
 
 **Technik** — zehn Werte, einer je Coaching-Gruppe. Das Positionscoaching.
 
@@ -216,23 +218,216 @@ demselben Saatgut.
 Ein frischer Stand zieht den Stab sofort, nicht erst beim ersten Blick — ein
 Export soll dieselben Coaches tragen wie der Bildschirm.
 
-## 7 — Was noch nicht ist
+## 7 — Die Vertrautheit wächst
 
-Dieses Dokument hört da auf, wo ein Coach etwas **bewirkt**. Drei Dinge sind
-bewusst ausgeklammert und kommen als eigene Schritte:
+Der Fächer aus Abschnitt 2 — Heimatsystem mal `0,8` je Schritt — gilt **nur
+für die Ziehung**. Danach werden die acht Werte einzeln geführt und hängen an
+nichts mehr als an sich selbst: das gespielte System wird dem OC vertrauter,
+die Nachbarn ein wenig, die fernen Systeme verlieren — und die Summe der acht
+steigt trotzdem. Ein erfahrener Coach hat am Ende seiner Laufbahn hohe Werte,
+egal ob er dreißig Jahre dasselbe gespielt hat oder jedes Jahr etwas anderes.
+Der Unterschied ist die Form: Tiefe gegen Breite.
 
-- **Taktik.** Was die Schemewerte am Spieltag tun, was die Vertrautheit mit
-  einer Gruppierung kostet, und der Umbau des Taktikreiters mit OC- und
-  DC-Karte. Ein Vorschlag lag auf dem Tisch — `(skill − 50) · 0,1` auf die
-  Einheitsstärke, `(100 − vertrautheit) · 0,06` als Malus — und ist **nicht
-  entschieden**.
+### Die Formel
+
+Gerechnet wird in **Ticks**, nicht je Saison. Sei `p` das gespielte System,
+`d(i)` der Abstand eines Systems auf `PERSONNEL_REIHE`, `DACH = MAX_RATING`.
+Ein Tick mit dem Jahresanteil `a` bewegt drei Dinge, in dieser Reihenfolge:
+
+1. **Lernen.** Das gespielte System gewinnt
+   `a · LERNRATE · (DACH − V_p) / DACH` — eine Lernkurve, die am Dach von
+   selbst flach wird und es nie überschreitet.
+2. **Die Nachbarn** (`d = 1`) bekommen `NACHBAR_ANTEIL` **dieses Gewinns**,
+   mit ihrem eigenen Abstand zum Dach gestaucht. Nicht ein Anteil der Rate —
+   siehe unten, warum.
+3. **Vergessen.** Die fernen Systeme (`d ≥ 2`) verlieren zusammen
+   `VERGESSEN_ANTEIL` dessen, was in 1 und 2 gelernt wurde, verteilt im
+   Verhältnis ihrer Werte. So fällt keiner unter null, und ohne Nebenbedingung
+   folgt: `ΔSumme = (1 − VERGESSEN_ANTEIL) · Gelernt ≥ 0` in jedem Tick.
+
+Wer nichts Neues lernt, vergisst auch nichts. Ein Spezialist am Dach steht
+still, und was er vom Rest noch weiß, bleibt, wo es ist.
+
+### Zeit und Spiele
+
+Die Hälfte des Jahresgewinns kommt über die **Spiele**, die andere über die
+**Zeit** im System — auch in der Offseason wird trainiert:
+
+| Tick | Jahresanteil `a` | wer ruft |
+| --- | --- | --- |
+| ein Kalendertag | `(1 − SPIELANTEIL) / 365` | `weiter()`, mit jedem `tag++` |
+| eine gespielte Partie | `SPIELANTEIL / 12` | `spieleTag()`, nach jedem Spiel, das stattfand |
+
+Damit braucht niemand Buch zu führen, welches System ein Verein in welcher
+Woche gespielt hat: der Kalender fragt `personnelVon()` am Tag, die Partie am
+Spieltag, und ein Wechsel mitten in der Saison rechnet sich von allein
+anteilig. Wer nach einem halben Jahr ohne Spiel wechselt, schreibt dem alten
+System ein Viertel des Jahres gut und dem neuen drei — in den **Raten**; die
+realisierten Punkte weichen leicht ab, weil das ältere System meist weniger
+Luft zum Dach hat und in der zweiten Hälfte als fernes System ein wenig
+verliert (bei einem Double-Wing-Coach 20, ein halbes Jahr Empty: 4,2 → 7,0 →
+6,7 am Saisonende).
+
+Nur der **OC** lernt. Die Defense kennt kein Personnel, also lernt der DC
+keins — seine Vertrautheitswerte bleiben stehen, wie gezogen. Für alle zwölf
+Vereine, nicht nur den eigenen: sonst wären die KI-Stäbe nach zehn Jahren noch
+Anfänger.
+
+### Konstanten
+
+Alle in `engine/constants.js`, alle im Balancing-Katalog
+([`balancing.md`](balancing.md)):
+
+| Konstante | Wert | was sie tut |
+| --- | --- | --- |
+| `VERTRAUTHEIT_LERNRATE` | 12 | Gewinn eines vollen Jahres bei Vertrautheit 0; bei 20 sind es 9,6, bei 60 noch 4,7 |
+| `VERTRAUTHEIT_NACHBAR_ANTEIL` | 0,10 | was die Nachbarn vom Gewinn bekommen |
+| `VERTRAUTHEIT_VERGESSEN_ANTEIL` | 0,30 | was vom Gelernten den fernen Systemen verloren geht |
+| `VERTRAUTHEIT_SPIELANTEIL` | 0,5 | Anteil der Spiele am Jahresgewinn |
+| `VERTRAUTHEIT_TAGE_JE_JAHR` / `_SPIELE_JE_SAISON` | 365 / 12 | die Nenner |
+| `MAX_RATING` | 99 | das Dach — **nicht** der Ligadeckel 79, siehe Entscheidungslog |
+
+### Messprotokoll
+
+Vier Laufbahnen, jeweils vom 35. bis zum 60. Lebensjahr, Heimatwert 20 bei
+der Ziehung, gerundet angezeigt. Mit den Konstanten oben.
+
+**Der Spezialist** — Double-Wing-Coach, spielt 25 Jahre Double Wing:
+
+| Alter | 00 | 01 | 10 | 11 | 12 | 20 | 21 | 32 | Summe |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 35 | 4 | 5 | 7 | 8 | 10 | 13 | 16 | 20 | 83 |
+| 40 | 3 | 4 | 5 | 6 | 8 | 10 | 19 | 56 | 110 |
+| 45 | 3 | 3 | 4 | 5 | 6 | 8 | 21 | 76 | 125 |
+| 50 | 2 | 3 | 4 | 4 | 6 | 7 | 21 | 86 | 133 |
+| 55 | 2 | 3 | 3 | 4 | 5 | 6 | 22 | 92 | 138 |
+| 60 | 2 | 3 | 3 | 4 | 5 | 6 | 22 | 95 | 140 |
+
+**Der Umsteiger** — Double-Wing-Coach, spielt ab der ersten Saison Empty:
+
+| Alter | 00 | 01 | 10 | 11 | 12 | 20 | 21 | 32 | Summe |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 35 | 4 | 5 | 7 | 8 | 10 | 13 | 16 | 20 | 83 |
+| 40 | 47 | 9 | 5 | 7 | 8 | 10 | 13 | 16 | 116 |
+| 45 | 71 | 11 | 5 | 6 | 7 | 9 | 11 | 14 | 134 |
+| 50 | 84 | 12 | 4 | 5 | 7 | 8 | 10 | 13 | 144 |
+| 55 | 91 | 13 | 4 | 5 | 6 | 8 | 10 | 12 | 149 |
+| 60 | 94 | 13 | 4 | 5 | 6 | 8 | 10 | 12 | 152 |
+
+**Der Wanderer** — Spread-Coach, jede Saison ein zufälliges System (Seed
+2026; im Mittel über 500 Seeds steht er mit 60 bei `31 · 36 · 39 · 36 · 35 ·
+34 · 33 · 29`):
+
+| Alter | 00 | 01 | 10 | 11 | 12 | 20 | 21 | 32 | Summe |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 35 | 13 | 16 | 20 | 16 | 13 | 10 | 8 | 7 | 103 |
+| 40 | 11 | 24 | 28 | 25 | 22 | 19 | 7 | 5 | 142 |
+| 45 | 21 | 32 | 34 | 22 | 20 | 27 | 17 | 5 | 179 |
+| 50 | 37 | 39 | 33 | 30 | 28 | 25 | 15 | 5 | 212 |
+| 55 | 41 | 38 | 39 | 38 | 35 | 24 | 15 | 15 | 244 |
+| 60 | 39 | 43 | 44 | 36 | 33 | 23 | 26 | 33 | 277 |
+
+**Der Umsteiger auf Standard** — Double-Wing-Coach, wechselt sofort auf 11:
+mit 60 bei `2 · 2 · 14 · 95 · 17 · 6 · 8 · 10`, Summe 154.
+
+Was die Läufe sagen: ein Spezialist steht mit 60 bei 95, egal ob er dort
+angefangen hat oder mit 35 gewechselt ist — der Umstieg kostet nur die ersten
+Jahre. Die 80 erreicht er nach etwa dreizehn. Die Nachbarn bleiben bescheiden
+(22 neben Double Wing, 13 neben Empty). Der Wanderer hat die doppelte Summe
+und nirgends über 46.
+
+### Was verworfen wurde
+
+- **Die Nachbarn als Anteil der Rate** statt des Gewinns. Damit bekam der
+  Nachbar 25 Jahre lang ein Viertel der vollen Rate, ohne dass es je aufhörte,
+  und der Spezialist wusste über 21 mehr (55) als der Wanderer, der es drei
+  Saisons wirklich gespielt hatte (31). Als Anteil des Gewinns hört das
+  Zuschauen auf, sobald der Spezialist ausgelernt hat: 22 gegen 33.
+- **Ein Deckel für die Nachbarn** („höchstens 40 % des gespielten Systems").
+  Repariert dasselbe, aber mit einer Konstante mehr und einem Knick.
+- **Das Vergessen als Prozentsatz der fernen Werte.** Bei einem Wanderer, der
+  überall um die 60 steht, überholte der Verlust irgendwann den schrumpfenden
+  Gewinn, und die Summe fiel. Ans Gelernte gekoppelt ist das ausgeschlossen.
+- **Das Dach bei 79.** Der Ligadeckel gilt für Spieler**stärken**; die
+  Vertrautheit ist Wissen und darf bis 99. Mit 79 stünde der Spezialist nach
+  25 Jahren bei 78 und der Balken im Personal-Reiter wäre voll — er zeigt die
+  Vertrautheit deshalb auf der 99er-Skala, als einzigen Block.
+- **Ganzzahlig speichern.** Die Ziehung rundet, die Entwicklung nicht: die
+  Nachbargewinne liegen bei Zehnteln je Tick, gerundet wären sie null. Die
+  Form von `SpielStand` ändert das nicht — Zahl bleibt Zahl —, also kein
+  Migrationsschritt; gezogene Ganzzahlen sind gültige Startwerte.
+
+## 8 — Die Wirkung am Spieltag
+
+Zwei Summanden in `vorteilTeile()`, beide klein gegen die Duelle, beide im
+Taktikreiter aufgeführt:
+
+| Summand | Formel | liest |
+| --- | --- | --- |
+| **Eigener OC** | `schemeBonus(oc, 'offense', a) − vertrautheitMalus(oc, personnel)` | `offenseLauf`/`offensePass`, `personnel[gespielt]` |
+| **DC des Gegners** | `− schemeBonus(dc, 'defense', a)` | `defenseLauf`/`defensePass` |
+
+mit
+
+```
+schemeBonus(coach, seite, a) = ((Pass − 50) · a + (Lauf − 50) · (1 − a)) · COACH_SCHEME_FAKTOR
+vertrautheitMalus(coach, p)  = (MAX_RATING − V_p) · VERTRAUTHEIT_MALUS_JE_PUNKT
+```
+
+`a` ist der Passanteil des **angreifenden** Vereins, auch beim DC: gegen einen
+Werfer zählt seine Passverteidigung, nicht was er selbst lieber verteidigt.
+Weil beide Summanden an `a` hängen, bewegt der Regler auch sie, und ein
+Werfer-OC schiebt das rechnerische Optimum ein Stück Richtung Pass.
+
+**Warum ein Malus auch im eigenen System.** Die Formel rechnet gegen das Dach,
+nicht gegen den besten Wert des Coaches. Sie misst Wissen, nicht „bin ich im
+falschen System" — und seit die Vertrautheit wächst, ist das richtig: ein
+Anfänger zahlt zu Hause (20 → 4,7), nach zehn Jahren nicht mehr (78 → 1,3),
+und der Meister, der wechselt, zahlt wieder. Aus den Läufen oben, mit 0,06:
+
+| | mit 36 | mit 40 | mit 45 | mit 60 |
+| --- | --- | --- | --- | --- |
+| Spezialist | 4,3 | 2,6 | 1,4 | 0,2 |
+| Umsteiger auf Empty | 5,1 | 3,2 | 1,7 | 0,4 |
+| Wanderer (gespieltes System) | 4,4 | 4,6 | 4,7 | 4,0 |
+
+Relativ zum Bestwert gerechnet — immer null zu Hause — stünde ein Coach, der
+nirgends etwas kennt, malusfrei da, und der Meister zahlte für den Wechsel
+mehr, als ein Anfänger je zahlen kann. Verworfen.
+
+**Was es ausmacht.** Bei der Ziehung liegen die Koordinatoren um 22 bis 35,
+also alle unter der 50er-Mitte: der eigene OC kostet anfangs rund 2 bis 3
+(Scheme) plus 4 bis 5 (Vertrautheit), der fremde DC gibt 2 bis 3 zurück. Netto
+etwa −4,5 Stärkepunkte je Verein, das sind bei `RATING_TO_POINTS` 0,42 rund
+1,9 Punkte. Gemessen über acht Saisons mit festen Seeds: **24,41 → 22,77
+Punkte je Team**, mittlere Differenz 10,54 → 10,90. Wer die alten Zahlen
+zurückhaben will, dreht an `BASE_POINTS` — das ist Balancing, kein Modell.
+
+**Ohne Stab** rechnet `vorteil()` wie vorher. Das ist die Form, kein
+Übergang: der Ligaschnitt im Taktikreiter hat keinen DC, und ein Test, der das
+Duell zweier Kader prüft, muss keinen erfinden. `Antritt` trägt `coaches`
+optional; `alsGegner()` gibt sie mit.
+
+**Im Taktikreiter** steht seitdem eine Karte „Koordinatoren" — Name, die zwei
+Scheme-Werte der Seite, beim OC die Vertrautheit mit dem gewählten System und
+ihr Malus —, jede Systemschaltfläche nennt die Vertrautheit des OC mit diesem
+System (der Preis eines Wechsels gehört dorthin, wo gewechselt wird), und das
+Duell hat zwei Zeilen mehr: „Eigener OC" und „DC des Gegners".
+
+## 9 — Was noch nicht ist
+
 - **Spielerentwicklung.** Was die Technik eines Coaches mit der Drift und dem
   Talentwachstum seiner Gruppe macht, und wer eine Gruppe coacht, wenn kein
   Positionscoach da ist. Gehört ins Entwicklungskonzept aus Block 5.
+- **Alter und Rücktritt.** Coaches altern nicht; `alter` ist eine Zahl aus der
+  Ziehung. Gehört zum Markt.
 - **Markt.** Einstellen, Entlassen, Rekrutierung der Jüngeren, Verträge — es
-  gibt keine Finanzen, also gibt es das noch nicht.
-
-Bis dahin ist der Coaches-Reiter unter Personal reine Auskunft.
+  gibt keine Finanzen, also gibt es das noch nicht. Bis dahin hat der Manager
+  keinen Hebel am Stab außer dem System, das er spielen lässt.
+- **Schulungen** und andere äußere Einflüsse auf die Vertrautheit. Das Modell
+  aus Abschnitt 7 ist die Grundlinie ohne sie.
+- **Defense-Schemes.** Der DC hat Lauf und Pass, aber kein Gegenstück zum
+  Personnel und deshalb nichts zu lernen.
 
 ---
 
@@ -257,4 +452,9 @@ Bis dahin ist der Coaches-Reiter unter Personal reine Auskunft.
 | Special Teams | `kicks` und `returns` schon jetzt am Coach |
 | Stärke | abgeleitet je Rolle, nie gespeichert |
 | Migration | Schritt legt `coaches: {}` an, `coachesVon()` zieht nach |
-| Wirkung | Taktik und Entwicklung: **offen**, eigene Umbauten |
+| Vertrautheit wächst | je Tick: Lernen am Dach 99, Nachbarn 10 % des Gewinns, ferne verlieren 30 % des Gelernten — Summe steigt immer |
+| Tick | halb Zeit (je Tag, /365), halb Spiele (je Partie, /12); nur der OC, alle zwölf Vereine |
+| Speicherform | Nachkommastellen, kein Migrationsschritt |
+| Wirkung Spieltag | OC: `(Scheme − 50) · 0,1 − (99 − V) · 0,06`; DC des Gegners: `−(Scheme − 50) · 0,1`; nach Passanteil des Angriffs |
+| Malus | absolut gegen das Dach, nicht relativ zum Bestwert — der Anfänger zahlt auch zu Hause |
+| Wirkung Entwicklung | **offen**, eigener Umbau |

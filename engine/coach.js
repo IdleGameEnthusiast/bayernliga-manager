@@ -3,9 +3,11 @@
  * Coaches: wer die Taktik verantwortet und wer die Spieler trainiert.
  *
  * Reine Daten plus Ableitungen. Kein DOM, der Zufall kommt injiziert. Was ein
- * Coach im Spiel **bewirkt** — am Spieltag, in der Entwicklung — steht hier
- * noch nicht: das sind eigene Umbauten, und dieses Modul liefert ihnen die
- * Zahlen. Heute hat jeder Verein zwei Koordinatoren und sonst niemanden.
+ * Coach am Spieltag **bewirkt**, steht unten (`schemeBonus()`,
+ * `vertrautheitMalus()`), ebenso, wie seine Vertrautheit mit den Systemen
+ * wächst (`lerneSystem()`). Was er mit der **Entwicklung** seiner Spieler
+ * macht, ist noch ein eigener Umbau. Heute hat jeder Verein zwei
+ * Koordinatoren und sonst niemanden.
  *
  * Drei Blöcke trägt jeder Coach, und alle drei werden für jeden gezogen — auch
  * die, die seine Rolle kaum liest. Ein DC hat einen `offensePass`-Wert, ein
@@ -18,9 +20,12 @@
 
 import {
   ATTRIBUTE, EINHEIT_JE_GRUPPE, GRUPPE_JE_POSITION,
-  LIGA_MAX_STAERKE, RATING_UNTERGRENZE,
+  LIGA_MAX_STAERKE, MAX_RATING, RATING_UNTERGRENZE,
   COACH_BASIS_ANTEIL, COACH_STREUUNG, COACH_ATTRIBUT_STREUUNG,
   COACH_ALTER_MIN, COACH_ALTER_MAX, COACH_SEITENFAKTOR, PERSONNEL_ABSTAND_FAKTOR,
+  VERTRAUTHEIT_LERNRATE, VERTRAUTHEIT_NACHBAR_ANTEIL, VERTRAUTHEIT_VERGESSEN_ANTEIL,
+  VERTRAUTHEIT_SPIELANTEIL, VERTRAUTHEIT_TAGE_JE_JAHR, VERTRAUTHEIT_SPIELE_JE_SAISON,
+  COACH_SCHEME_MITTE, COACH_SCHEME_FAKTOR, VERTRAUTHEIT_MALUS_JE_PUNKT,
   clamp, randInt, randNormal, pick,
 } from './constants.js';
 import { generierungsProfil, PROFIL_BEITRAG } from './positionen.js';
@@ -38,7 +43,9 @@ import { ziehName } from './spieler.js';
  *   Technik kommt. Beim Positionscoach auch die Gruppe, die er coacht
  * @property {Record<string, number>} soft       die fünf aus `SOFT_SKILLS`
  * @property {Record<string, number>} scheme     die sechs aus `SCHEME_SKILLS`
- * @property {Record<string, number>} personnel  Vertrautheit je Gruppierung, 0..LIGA_MAX
+ * @property {Record<string, number>} personnel  Vertrautheit je Gruppierung, 0..MAX_RATING —
+ *   gezogen wird sie ganzzahlig unter dem Ligadeckel, aber sie wächst danach
+ *   in Zehnteln und über den Deckel hinaus, siehe `lerneSystem()`
  * @property {Record<string, number>} technik    je Coaching-Gruppe
  */
 
@@ -429,4 +436,134 @@ export function ziehStab(rng, teamId, basis, personnel, belegteNamen) {
     macheCoach(rng, `c-${teamId}-oc`, 'OC', pick(rng, offense), basis, { personnel, belegteNamen }),
     macheCoach(rng, `c-${teamId}-dc`, 'DC', pick(rng, defense), basis, { belegteNamen }),
   ];
+}
+
+// --- Die Vertrautheit wächst ------------------------------------------------
+// Docs: docs/umbau-coaches.md, Abschnitt 7
+
+/** @param {string} personnel */
+function reiheIndex(personnel) {
+  const i = PERSONNEL_REIHE.indexOf(/** @type {any} */ (personnel));
+  if (i < 0) throw new Error(`Unbekannte Gruppierung ${personnel}`);
+  return i;
+}
+
+/**
+ * Ein Tick Erfahrung im System `personnel`, mit dem Anteil `anteil` eines
+ * ganzen Jahres darin.
+ *
+ * Drei Bewegungen, in dieser Reihenfolge:
+ *
+ * 1. Das gespielte System gewinnt `anteil · LERNRATE · (DACH − V) / DACH` —
+ *    eine Lernkurve, die am Dach von selbst flach wird und es nie überschreitet.
+ * 2. Die beiden Nachbarn auf `PERSONNEL_REIHE` bekommen einen Anteil dieses
+ *    Gewinns, ebenfalls mit ihrem eigenen Abstand zum Dach gestaucht.
+ * 3. Die fernen Systeme (Abstand ≥ 2) verlieren zusammen einen Anteil dessen,
+ *    was in 1 und 2 gelernt wurde, verteilt im Verhältnis ihrer Werte — so
+ *    fällt keiner unter null, und die Summe der acht steigt in jedem Tick.
+ *
+ * Verworfen: das Vergessen als Prozentsatz der fernen Werte. Bei einem Coach,
+ * der viel wechselt und überall um die 60 steht, überholte der Verlust
+ * irgendwann den schrumpfenden Gewinn, und die Summe fiel. Ans Gelernte
+ * gekoppelt ist das ausgeschlossen. Ebenfalls verworfen: ein Deckel für die
+ * Nachbarn („höchstens 40 % des gespielten Systems") — eine Konstante mehr und
+ * ein Knick, wo die Kopplung an den Gewinn es von selbst richtig macht.
+ *
+ * Als Tick gerechnet und nicht je Saison, damit niemand Buch führen muss,
+ * welches System ein Verein in welcher Woche gespielt hat: der Kalender ruft
+ * `lerneTag()`, jede Partie `lerneSpiel()`, und ein Wechsel mitten in der
+ * Saison rechnet sich von allein anteilig.
+ * @param {Coach} coach
+ * @param {string} personnel Die gespielte Gruppierung
+ * @param {number} anteil Anteil eines Jahres, den dieser Tick wert ist
+ */
+export function lerneSystem(coach, personnel, anteil) {
+  const p = reiheIndex(personnel);
+  const v = coach.personnel;
+  const luft = (/** @type {string} */ id) => (MAX_RATING - (v[id] || 0)) / MAX_RATING;
+
+  const gewinn = anteil * VERTRAUTHEIT_LERNRATE * luft(personnel);
+  /** @type {Record<string, number>} */
+  const delta = { [personnel]: gewinn };
+  for (const n of [p - 1, p + 1]) {
+    if (n < 0 || n >= PERSONNEL_REIHE.length) continue;
+    const id = PERSONNEL_REIHE[n];
+    delta[id] = VERTRAUTHEIT_NACHBAR_ANTEIL * gewinn * luft(id);
+  }
+  let gelernt = 0;
+  for (const id in delta) gelernt += delta[id];
+
+  const fern = PERSONNEL_REIHE.filter((_, i) => Math.abs(i - p) >= 2);
+  let fernSumme = 0;
+  for (const id of fern) fernSumme += v[id] || 0;
+  const vergessen = Math.min(VERTRAUTHEIT_VERGESSEN_ANTEIL * gelernt, fernSumme);
+  if (fernSumme > 0) {
+    for (const id of fern) delta[id] = -vergessen * (v[id] || 0) / fernSumme;
+  }
+
+  for (const id in delta) v[id] = clamp((v[id] || 0) + delta[id], 0, MAX_RATING);
+}
+
+/**
+ * Ein Kalendertag im System des Vereins: die Zeithälfte, auf das Jahr verteilt.
+ * @param {Coach} coach @param {string} personnel
+ */
+export function lerneTag(coach, personnel) {
+  lerneSystem(coach, personnel, (1 - VERTRAUTHEIT_SPIELANTEIL) / VERTRAUTHEIT_TAGE_JE_JAHR);
+}
+
+/**
+ * Eine gespielte Partie in diesem System: die Spielhälfte, auf die Saison verteilt.
+ * @param {Coach} coach @param {string} personnel
+ */
+export function lerneSpiel(coach, personnel) {
+  lerneSystem(coach, personnel, VERTRAUTHEIT_SPIELANTEIL / VERTRAUTHEIT_SPIELE_JE_SAISON);
+}
+
+/**
+ * Wer im Stab die Offense verantwortet, oder null. Nur er lernt ein System —
+ * die Defense kennt kein Personnel.
+ * @param {Coach[] | undefined} stab
+ */
+export function ocVon(stab) {
+  return (stab && stab.find((c) => c.rolle === 'OC')) || null;
+}
+
+/** Und die Defense. @param {Coach[] | undefined} stab */
+export function dcVon(stab) {
+  return (stab && stab.find((c) => c.rolle === 'DC')) || null;
+}
+
+// --- Die Wirkung am Spieltag ------------------------------------------------
+// Docs: docs/umbau-coaches.md, Abschnitt 8
+
+/**
+ * Was ein Koordinator seiner Einheit bringt: die beiden Scheme-Werte seiner
+ * Seite, nach dem Passanteil des **angreifenden** Vereins gemischt, um die
+ * Mitte zentriert und in Stärkepunkte übersetzt. Über der Mitte hilft er,
+ * darunter schadet er.
+ *
+ * Gemischt wird nach dem Passanteil des Angriffs auch für den DC: gegen einen
+ * Verein, der wirft, zählt seine Passverteidigung — nicht, was er selbst
+ * lieber verteidigt.
+ * @param {Coach} coach
+ * @param {'offense'|'defense'} seite
+ * @param {number} passAnteil des angreifenden Vereins
+ */
+export function schemeBonus(coach, seite, passAnteil) {
+  const pass = coach.scheme[seite + 'Pass'] - COACH_SCHEME_MITTE;
+  const lauf = coach.scheme[seite + 'Lauf'] - COACH_SCHEME_MITTE;
+  return (pass * passAnteil + lauf * (1 - passAnteil)) * COACH_SCHEME_FAKTOR;
+}
+
+/**
+ * Was fehlende Vertrautheit mit dem gespielten System kostet, als positive
+ * Zahl in Stärkepunkten. Null erst bei `MAX_RATING` — also nie ganz für einen
+ * Coach, der noch lernt, und das ist gemeint.
+ * @param {Coach} coach
+ * @param {string} personnel Die gespielte Gruppierung
+ */
+export function vertrautheitMalus(coach, personnel) {
+  const v = coach.personnel[personnel] || 0;
+  return (MAX_RATING - v) * VERTRAUTHEIT_MALUS_JE_PUNKT;
 }

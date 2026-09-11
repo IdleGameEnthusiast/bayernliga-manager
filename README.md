@@ -147,8 +147,10 @@ Platz, und die Elf lässt sich ganz leeren und von Grund auf bauen — wer mit
 einem Loch antritt, verliert das Spiel mit 0:36 am grünen Tisch (siehe
 [`docs/umbau-aufstellung.md`](docs/umbau-aufstellung.md)), Personal mit
 Spielern und Stab — zwei Koordinatoren je Verein, aufgeklappt mit Soft Skills,
-Scheme, Vertrautheit und Positionstechnik (siehe
-[`docs/umbau-coaches.md`](docs/umbau-coaches.md)) —, Spielplan,
+Scheme, Vertrautheit und Positionstechnik; der OC lernt das gespielte System
+mit jedem Tag und jedem Spiel, und beide Koordinatoren zählen im Duell des
+Taktikreiters mit (siehe [`docs/umbau-coaches.md`](docs/umbau-coaches.md)) —,
+Spielplan,
 Spielbericht mit Box Score, Halbfinale und Finale als Bracket — das seine vier
 Plätze schon während der Gruppenrunde benennt und sagt, wer sie gerade hält —,
 Saisonwechsel mit Alterung und Rücktritten, Export und Import.

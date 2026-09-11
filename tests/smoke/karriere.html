@@ -173,15 +173,29 @@ try {
   // unterhalb der Reiter blieb weg. Genau deshalb steht diese Prüfung hier.
   // Jeder Klick zeichnet neu — ein festgehaltenes Element ist danach abgehängt
   // und sein Handler kennt den alten Zustand. Deshalb jedes Mal frisch suchen.
-  const zweiterWr = () => alle('.karte')[1].querySelectorAll('.aufstellung li')[4];
-  enthaelt('der fünfte Offense-Platz ist der zweite Receiver',
-    zweiterWr().querySelector('.platz').textContent, 'WR');
-  zweiterWr().click();
+  //
+  // Welches System der Verein spielt, lost die Karriere aus — ohne Seed, also
+  // jedes Mal anders. Deshalb wird nicht der fünfte Platz genommen, sondern
+  // der erste, dessen Kürzel schon einmal vorkam: in Double Wing ist das der
+  // zweite Fullback, sonst ein Receiver oder Tight End. Mit dem festen Index
+  // fiel die Seite in jedem achten Lauf, und niemand sah, warum.
+  const doppelter = () => {
+    const gesehen = new Set();
+    for (const li of alle('.karte')[1].querySelectorAll('.aufstellung li')) {
+      const kuerzel = li.querySelector('.platz').textContent;
+      if (gesehen.has(kuerzel)) return li;
+      gesehen.add(kuerzel);
+    }
+    throw new Error('kein doppelter Platz in der Offense');
+  };
+  const doppelKuerzel = doppelter().querySelector('.platz').textContent;
+  pruefe('ein Platz der Offense kommt zweimal vor', /^(WR|TE|FB|SL)$/.test(doppelKuerzel), doppelKuerzel);
+  doppelter().click();
   gleich('ein doppelt vergebener Platz lässt die Ansicht stehen',
     alle('.karte').length, 4);
   enthaelt('und die Liste links gilt für ihn',
-    alle('.karte')[1].querySelector('.verfuegbarkopf h3').textContent, 'WR');
-  zweiterWr().click();
+    alle('.karte')[1].querySelector('.verfuegbarkopf h3').textContent, doppelKuerzel);
+  doppelter().click();
   enthaelt('der zweite Tipp nimmt die Wahl zurück',
     alle('.karte')[1].querySelector('.verfuegbarkopf h3').textContent, 'Verfügbar');
 

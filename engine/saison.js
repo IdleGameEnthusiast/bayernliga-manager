@@ -38,7 +38,7 @@ import {
 } from './aufstellung.js';
 import { berechneTabelle } from './tabelle.js';
 import { teamStaerken } from './team.js';
-import { ziehStab } from './coach.js';
+import { ziehStab, ocVon, lerneTag, lerneSpiel } from './coach.js';
 
 /**
  * Der Stempel auf einem Speicherstand.
@@ -369,7 +369,22 @@ export function alsGegner(stand, teamId) {
     personnel: personnelVon(stand, teamId),
     passAnteil: passAnteilVon(stand, teamId),
     aufstellung: aufstellungVon(stand, teamId),
+    coaches: coachesVon(stand, teamId),
   };
+}
+
+/**
+ * Ein Kalendertag für jeden OC der Liga: ein Tick Vertrautheit mit dem
+ * System, das sein Verein gerade eingestellt hat. Für alle zwölf, nicht nur
+ * den eigenen — sonst wären die KI-Stäbe nach zehn Jahren noch Anfänger.
+ * Docs: docs/umbau-coaches.md, Abschnitt 7
+ * @param {SpielStand} stand
+ */
+function coachesLernenTag(stand) {
+  for (const t of TEAMS) {
+    const oc = ocVon(coachesVon(stand, t.id));
+    if (oc) lerneTag(oc, personnelVon(stand, t.id));
+  }
 }
 
 /**
@@ -674,6 +689,14 @@ function spieleTag(stand, tag) {
     verbucheEinsaetze(aufstellungen.heim);
     verbucheEinsaetze(aufstellungen.gast);
 
+    // Und die Koordinatoren haben es gecoacht: die Spielhälfte der
+    // Vertrautheit, siehe `lerneSpiel()`. Nur bei gespieltem Spiel — was am
+    // grünen Tisch entschieden wurde, hat niemandem etwas beigebracht.
+    for (const teamId of [p.heim, p.gast]) {
+      const oc = ocVon(coachesVon(stand, teamId));
+      if (oc) lerneSpiel(oc, personnelVon(stand, teamId));
+    }
+
     for (const v of ergebnis.verletzungen) {
       const spieler = stand.kader[v.teamId].find((s) => s.id === v.spielerId);
       // Wochen mal sieben: bei wöchentlichen Spieltagen ist das exakt dieselbe
@@ -894,6 +917,10 @@ export function weiter(stand, zielTag = null) {
     }
 
     stand.tag++;
+    // Ein Tag im System ist ein Tag gelernt — auch in der Sommerpause, auch
+    // ohne Spiel. Vor der Post, damit ein späteres Tagesereignis, das den
+    // Stab liest, schon den heutigen Stand sieht.
+    coachesLernenTag(stand);
     nachrichten.push(...sende(stand, stand.tag, eintraegeAmTag(stand, stand.tag)));
 
     if (offeneAntworten(stand).length > 0) return halt('antwort');
