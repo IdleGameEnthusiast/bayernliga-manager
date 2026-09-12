@@ -56,6 +56,28 @@ let hinweis = null;
 /** @type {import('./ui/frage.js').Frage | null} */
 let frage = null;
 
+/**
+ * Die Codes, die das Feld ganz unten kennt, und was sie freischalten. Nur
+ * einer bisher: `playtester` zeigt, was das Spiel sonst versteckt — das
+ * Commitment als Zahl, das Talent, den Rücktritt. Das ist keine Regel des
+ * Spiels, sondern ein Blick hinter die Kulissen, und deshalb liegt er hier
+ * und nicht in `engine/`.
+ */
+const CODES = /** @type {Record<string, 'playtester'>} */ ({ playtester: 'playtester' });
+
+/**
+ * Der Playtester-Modus liegt **neben** dem Speicherstand, nicht darin: er ist
+ * eine Eigenschaft dieses Browsers, keine der Karriere, und er soll einen
+ * Export nicht mitreisen lassen. Der Schlüssel fängt bewusst nicht mit dem
+ * des Speicherstands an, damit `loesche()` ihn in Ruhe lässt.
+ */
+const PLAYTESTER_KEY = 'bayernliga.playtester';
+
+let playtester = false;
+try {
+  playtester = localStorage.getItem(PLAYTESTER_KEY) === '1';
+} catch { /* dann eben nicht */ }
+
 const wurzel = /** @type {HTMLElement} */ (document.getElementById('app'));
 
 // --- Rendering -------------------------------------------------------------
@@ -97,7 +119,7 @@ function zeichne() {
       neuZeichnen: zeichne,
     }));
   } else if (ansicht === 'personal') {
-    wurzel.append(zeigePersonal(stand, zeichne));
+    wurzel.append(zeigePersonal(stand, zeichne, { playtester }));
   } else if (ansicht === 'taktik') {
     wurzel.append(zeigeTaktik(stand, beiTaktik));
   } else if (ansicht === 'spielplan') {
@@ -182,7 +204,34 @@ const postfachAktionen = {
   importieren: beiImport,
   neuesSpiel: beiNeu,
   neuZeichnen: zeichne,
+  loeseCode: beiCode,
+  istPlaytester: () => playtester,
+  playtesterAus: () => setzePlaytester(false),
 };
+
+/**
+ * Ein Code aus dem Feld unten. Groß- und Kleinschreibung spielt keine Rolle —
+ * auf dem iPad schreibt die Tastatur das erste Zeichen von selbst groß.
+ * @param {string} code
+ */
+function beiCode(code) {
+  const wirkung = CODES[code.trim().toLowerCase()];
+  if (wirkung === 'playtester') {
+    setzePlaytester(true);
+    return true;
+  }
+  return false;
+}
+
+/** @param {boolean} an */
+function setzePlaytester(an) {
+  playtester = an;
+  try {
+    if (an) localStorage.setItem(PLAYTESTER_KEY, '1');
+    else localStorage.removeItem(PLAYTESTER_KEY);
+  } catch { /* dann gilt er bis zum Neuladen */ }
+  zeichne();
+}
 
 /** @param {Ansicht} neu */
 function wechsle(neu) {

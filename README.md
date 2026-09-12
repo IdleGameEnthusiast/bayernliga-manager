@@ -54,6 +54,7 @@ in Millisekunden durchspielen können.
 | `engine/positionen.js` | Körperkorridore, Positionsformeln, Plätze, die Eignung |
 | `engine/spieler.js` | Spieler erzeugen, Attribute, Alterskurve, Verletzungen, Saisonwechsel |
 | `engine/coach.js` | Der Stab: Coaching-Gruppen und ihre Ähnlichkeit, die drei Blöcke, der Stärkewert je Rolle, die Ziehung |
+| `engine/commitment.js` | Commitment und Lebenslage: die fünf Stufen, die Ziehung aus Status und Mobilität — für Spieler und Coaches dieselbe |
 | `engine/aufstellung.js` | Personnel, die zweiundzwanzig Plätze, der Doppeleinsatz, die drei Special-Teams-Plätze, die Vorgabe des Managers |
 | `engine/team.js` | Aus einer Aufstellung werden Lauf- und Passwerte je Einheit |
 | `engine/spielplan.js` | Gruppenrunde nach dem Kreisverfahren, dazu das Bracket |
@@ -149,11 +150,17 @@ einem Loch antritt, verliert das Spiel mit 0:36 am grünen Tisch (siehe
 Spielern und Stab — zwei Koordinatoren je Verein, aufgeklappt mit Soft Skills,
 Scheme, Vertrautheit und Positionstechnik; der OC lernt das gespielte System
 mit jedem Tag und jedem Spiel, und beide Koordinatoren zählen im Duell des
-Taktikreiters mit (siehe [`docs/umbau-coaches.md`](docs/umbau-coaches.md)) —,
+Taktikreiters mit (siehe [`docs/umbau-coaches.md`](docs/umbau-coaches.md));
+jeder Mensch im Verein trägt außerdem eine **Bindung** in fünf Stufen und eine
+Lebenslage — Student ohne Auto, 40 km, in zwei Jahren Wegzug —, die im ersten
+Schritt nur angezeigt wird und sich noch nicht bewegt (Block 7 in
+[`docs/naechste-schritte.md`](docs/naechste-schritte.md)) —,
 Spielplan,
 Spielbericht mit Box Score, Halbfinale und Finale als Bracket — das seine vier
 Plätze schon während der Gruppenrunde benennt und sagt, wer sie gerade hält —,
-Saisonwechsel mit Alterung und Rücktritten, Export und Import.
+Saisonwechsel mit Alterung und Rücktritten, Export und Import. Ganz unten im
+Postfach steht ein Feld **Redeem Code**: `playtester` zeigt die Zahlen, die
+das Spiel sonst versteckt — Commitment, Talent, Rücktrittsalter.
 
 ## Wie eine Saison aussieht
 

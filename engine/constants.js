@@ -394,6 +394,43 @@ export const VETERAN_RUECKTRITT_MAX = 66;
 /** Where a fifty-year-old still plausibly lines up. */
 export const VETERAN_POSITIONEN = LINEMEN;
 
+// --- Commitment und Lebenslage ---------------------------------------------
+// Docs: docs/naechste-schritte.md, Block 7. Die Tabellen der Lebenslage
+// (welcher Status in welchem Alter, wie weit einer fährt) stehen als Modell in
+// `commitment.js`; hier stehen nur die Schrauben am Wert selbst.
+
+/**
+ * Die unteren Grenzen der Stufen 1 bis 4. Was darunter liegt, ist Stufe 0.
+ * Harte Bänder ohne Unschärfe — der Manager sieht nie die Zahl, nur die Stufe,
+ * und eine Stufe, die bei 59 und 61 verschieden lesen kann, wäre eine Zahl mit
+ * Umweg.
+ */
+export const COMMITMENT_STUFEN = /** @type {const} */ ([20, 40, 60, 80]);
+
+/** Wo die Ziehung anfängt, bevor Mobilität und Status daran ziehen. */
+export const COMMITMENT_BASIS = 52;
+/** Streuung um das Ergebnis — was die Formel nicht erklärt. */
+export const COMMITMENT_STREUUNG = 14;
+/**
+ * Was jeder Kilometer bis zum Training kostet, mit und ohne Auto. Der Weg
+ * ohne Auto ist der halbe Grund, warum ein Student im vierten Jahr aufhört.
+ */
+export const COMMITMENT_JE_KM_AUTO = 0.08;
+export const COMMITMENT_JE_KM_OHNE = 0.35;
+/** Höchstens so viel kostet die Strecke insgesamt. */
+export const COMMITMENT_STRECKE_MAX = 22;
+/** Was ein Jahr im Verein bringt, und ab wie vielen Jahren nichts mehr dazukommt. */
+export const COMMITMENT_JE_VEREINSJAHR = 1.2;
+export const COMMITMENT_VEREINSJAHRE_MAX = 10;
+/**
+ * Was der Status mitbringt. Der Student ist der einzige mit Abzug: er ist
+ * gekommen, um zu gehen, und weiß es. Der Rentner ganz oben, weil einer, der
+ * mit 65 noch auf dem Platz steht, nirgendwo anders hinwill.
+ */
+export const COMMITMENT_JE_STATUS = /** @type {Record<string, number>} */ ({
+  schueler: 4, student: -6, azubi: 4, arbeiter: 2, rentner: 10,
+});
+
 /** Match simulation. */
 export const BASE_POINTS = 20;        // what an evenly matched offence scores
 export const RATING_TO_POINTS = 0.42; // points gained per point of unit advantage

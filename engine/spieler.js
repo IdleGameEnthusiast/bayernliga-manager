@@ -45,6 +45,10 @@ import { VORNAMEN, NACHNAMEN } from './content.js';
  * @property {Record<string, number>} attribute  The fifteen, on the strength scale
  * @property {number} kickStaerke     How far he kicks it
  * @property {number} kickGenauigkeit How reliably it goes where he aimed
+ * @property {number} [commitment]    Der Halt, 0..99 — siehe `commitment.js`. Optional nur,
+ *   weil ein Stand von vor Block 7 ihn nicht trägt; `bindungVon()` in `saison.js` zieht
+ *   ihn beim ersten Zugriff aus dem Saatgut nach, und danach ist er da
+ * @property {import('./commitment.js').Lebenslage} [lebenslage]  Der Druck — ebenso
  */
 
 /** A player who has not been handed a number yet. 0 is a real jersey. */

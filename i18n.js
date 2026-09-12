@@ -105,6 +105,13 @@ export const DE = {
     speicherstand: 'Speicherstand',
     speicherstandHinweis: 'Der Speicherstand liegt im Browser. Exportiere ihn, um ihn zu '
       + 'sichern oder zwischen PC und iPad zu übertragen.',
+    // Das Codefeld ganz unten. Der Playtester-Code zeigt, was das Spiel sonst
+    // versteckt — Commitment als Zahl, das Talent, den Rücktritt.
+    code: 'Redeem Code',
+    codeEinloesen: 'Einlösen',
+    codeUnbekannt: 'Diesen Code kennt das Spiel nicht.',
+    playtesterAktiv: 'Playtester-Modus aktiv — versteckte Werte werden angezeigt.',
+    playtesterAus: 'Playtester-Modus beenden',
   },
 
   // Der Posteingang. Eine Nachricht speichert einen Schlüssel und ihre Daten —
@@ -294,6 +301,70 @@ export const DE = {
     sortieren: (spalte) => `Nach ${spalte} sortieren`,
     sortAb: '▾',
     sortAuf: '▴',
+    bindung: 'Bindung',
+    lebenslage: 'Lebenslage',
+    // Nur im Playtester-Modus: die Zahlen, die der Manager sonst nie sieht.
+    verstecktes: 'Versteckt',
+    versteckteWerte: (d) => `Commitment ${d.commitment} · Talent ${d.talent} · `
+      + `Rücktritt nach ${d.ruecktrittAlter}`,
+  },
+
+  // Die fünf Stufen, in denen der Manager das Commitment sieht — von unten
+  // nach oben, Index ist die Stufe aus `stufe()`. Sie klingen wie ein Trainer
+  // redet, nicht wie eine Skala: „verlässlich" ist ein Urteil, „3 von 5" wäre
+  // eine Zahl mit Umweg.
+  commitment: {
+    stufen: ['mit einem Bein draußen', 'wackelt', 'dabei', 'verlässlich', 'Herz und Seele'],
+    stufeTitel: (text) => `Bindung an den Verein: ${text}`,
+  },
+
+  // Der Satz zur Lebenslage, aus den Feldern gebaut. Es ist das, was der
+  // Spieler erzählt — Stichworte, wie ein Coach sie auf einen Zettel schreibt,
+  // durch Punkte getrennt.
+  lebenslage: {
+    status: {
+      schueler: 'Schüler',
+      student: 'Student',
+      azubi: 'Azubi',
+      arbeiter: 'Arbeiter',
+      rentner: 'Rentner',
+    },
+    // Was das Ereignis am Horizont beendet: beim Schüler die Schule, beim
+    // Studenten das Studium, beim Azubi die Ausbildung. Der Arbeiter und der
+    // Rentner haben nichts, was endet — bei ihnen steht das Ereignis allein.
+    abschnitt: {
+      schueler: 'Schule',
+      student: 'Studium',
+      azubi: 'Ausbildung',
+    },
+    satz: (l, jahr) => {
+      const teile = [T.lebenslage.status[l.status]];
+      if (l.entfernung <= 5) teile.push('wohnt um die Ecke');
+      else teile.push(`fährt ${l.entfernung} km ins Training`);
+      teile.push(l.auto ? 'mit dem Auto' : 'ohne Auto');
+      if (l.familie) teile.push('Familie');
+      teile.push(T.lebenslage.horizont(l, jahr));
+      teile.push(T.lebenslage.vereinsjahre(jahr - l.seit));
+      return teile.join(' · ');
+    },
+    horizont: (l, jahr) => {
+      const h = l.horizont;
+      if (!h) return 'fester Wohnsitz in der Gegend';
+      const jahre = Math.max(0, h.jahr - jahr);
+      const noch = jahre === 0 ? 'dieses Jahr' : jahre === 1 ? 'noch ein Jahr' : `noch ${jahre} Jahre`;
+      const abschnitt = T.lebenslage.abschnitt[l.status];
+      const danach = h.dann === 'wegzug'
+        ? `Wegzug, ${h.km} km entfernt`
+        : h.dann === 'bleibt' ? 'will bleiben' : 'Schluss';
+      if (abschnitt) return `${noch} ${abschnitt}, danach ${danach}`;
+      if (h.dann === 'schluss') {
+        return jahre <= 1 ? 'körperlich die letzte Saison' : `körperlich noch ${jahre} Saisons`;
+      }
+      if (h.dann === 'wegzug') return `plant ${jahre === 0 ? 'dieses Jahr' : `in ${jahre} ${jahre === 1 ? 'Jahr' : 'Jahren'}`} den Wegzug, ${h.km} km entfernt`;
+      return 'will bleiben';
+    },
+    vereinsjahre: (n) => (n <= 0 ? 'neu im Verein'
+      : n === 1 ? 'seit einem Jahr im Verein' : `seit ${n} Jahren im Verein`),
   },
 
   // Die Namen der drei Bereiche stehen schon unter `kader` — Offense, Defense

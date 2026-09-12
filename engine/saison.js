@@ -39,6 +39,7 @@ import {
 import { berechneTabelle } from './tabelle.js';
 import { teamStaerken } from './team.js';
 import { ziehStab, ocVon, lerneTag, lerneSpiel } from './coach.js';
+import { ziehBindung } from './commitment.js';
 
 /**
  * Der Stempel auf einem Speicherstand.
@@ -48,7 +49,7 @@ import { ziehStab, ocVon, lerneTag, lerneSpiel } from './coach.js';
  * der vorigen Nummer auf diese hebt. Ohne diesen Schritt wird ein solcher Stand
  * beim Laden weggeworfen — der Sprung ist billig, der Verlust nicht.
  */
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 
 /**
  * @typedef {object} SpielStand
@@ -143,7 +144,54 @@ export function coachesVon(stand, teamId) {
   const stab = ziehStab(rng, teamId, vereinsBasen(stand.meinTeam)[teamId],
     personnelVon(stand, teamId), belegt);
   stand.coaches[teamId] = stab;
+  // Ein nachgezogener Stab soll vollständig sein wie ein frischer — mit der
+  // Bindung, die aus ihrem eigenen Strom kommt und den hiesigen nicht stört.
+  for (const c of stab) bindungVon(stand, c);
   return stab;
+}
+
+/**
+ * Commitment und Lebenslage eines Menschen im Verein, notfalls nachgezogen.
+ *
+ * Derselbe Weg wie beim Stab: ein Stand von vor Block 7 trägt die beiden
+ * Felder nicht, und der Migrationsschritt legt sie auch nicht an — er
+ * müsste sonst den heutigen Generator kennen. Gezogen wird beim ersten
+ * Zugriff, aus einem eigenen Strom neben dem Saatgut, der an der Id des
+ * Menschen hängt: deterministisch, und unabhängig davon, wer zuerst
+ * angesehen wird.
+ *
+ * Das Jahr der Ziehung ist das laufende — ein Mann, der in einem alten Stand
+ * erst in der dritten Saison zum ersten Mal angesehen wird, ist dann eben
+ * „seit zwei Jahren im Verein" gerechnet ab jetzt. Das ist kein Fehler,
+ * sondern das Beste, was ein Stand ohne diese Felder hergibt.
+ * @param {SpielStand} stand
+ * @param {import('./spieler.js').Spieler | import('./coach.js').Coach} person
+ * @returns {{ commitment: number, lebenslage: import('./commitment.js').Lebenslage }}
+ */
+export function bindungVon(stand, person) {
+  if (typeof person.commitment !== 'number' || !person.lebenslage) {
+    const rng = makeRng(`${stand.seed}|bindung|${person.id}`);
+    const gezogen = ziehBindung(rng, person.alter, stand.jahr);
+    person.commitment = gezogen.commitment;
+    person.lebenslage = gezogen.lebenslage;
+  }
+  return { commitment: person.commitment, lebenslage: person.lebenslage };
+}
+
+/**
+ * Jeden im Verein, der noch keine Bindung trägt, mit einer versehen — alle
+ * Vereine, Spieler wie Stab. Das ist die eifrige Fassung von `bindungVon()`:
+ * ein frischer Stand soll vollständig sein, und ein Rookie nach dem
+ * Saisonwechsel soll nicht auf den ersten Blick ins Personal warten müssen.
+ * Für die KI-Vereine läuft es mit, sonst gibt es später nichts, was man
+ * abwerben könnte.
+ * @param {SpielStand} stand
+ */
+export function ergaenzeBindung(stand) {
+  for (const t of TEAMS) {
+    for (const s of stand.kader[t.id] || []) bindungVon(stand, s);
+    for (const c of coachesVon(stand, t.id)) bindungVon(stand, c);
+  }
 }
 
 /**
@@ -463,6 +511,7 @@ export function neuesSpiel(meinTeam, seed) {
   // frischer Stand soll vollständig sein, und der Export eines Standes soll
   // dieselben Coaches tragen wie der Bildschirm.
   for (const t of TEAMS) coachesVon(stand, t.id);
+  ergaenzeBindung(stand);
 
   // Der Amtsantritt ist die erste E-Mail, kein eigener Bildschirm: alles, was
   // der Verein vom Manager will, kommt über denselben Kanal.
@@ -965,6 +1014,9 @@ export function naechsteSaison(stand) {
   stand.jahr++;
   stand.tag = 1;
   stand.spielplan = frischerGruppenplan(rng);
+  // Die Rookies bekommen ihre Lebenslage im neuen Jahr — nach dem Hochzählen,
+  // damit „seit diesem Jahr im Verein" auch dieses Jahr meint.
+  ergaenzeBindung(stand);
 
   // Erst stutzen, dann eröffnen: die Post des neuen Jahres soll die Schere
   // nicht zu sehen bekommen.

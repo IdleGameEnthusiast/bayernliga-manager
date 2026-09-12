@@ -78,6 +78,9 @@ let gewaehlteId = null;
  * @property {() => void} importieren
  * @property {() => void} neuesSpiel
  * @property {() => void} neuZeichnen
+ * @property {(code: string) => boolean} loeseCode  Ob der Code etwas freigeschaltet hat
+ * @property {() => boolean} istPlaytester
+ * @property {() => void} playtesterAus
  */
 
 /**
@@ -569,7 +572,46 @@ function datenKarte(aktionen) {
     el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
       el('button', { class: 'neben', onclick: aktionen.exportieren }, T.aktion.exportieren),
       el('button', { class: 'neben', onclick: aktionen.importieren }, T.aktion.importieren),
-      el('button', { class: 'neben', onclick: aktionen.neuesSpiel }, T.aktion.neuesSpiel)));
+      el('button', { class: 'neben', onclick: aktionen.neuesSpiel }, T.aktion.neuesSpiel)),
+    codeZeile(aktionen));
+}
+
+/**
+ * Das Codefeld ganz unten. Was ein Code bewirkt, weiß `app.js`; hier steht
+ * nur das Feld, der Knopf und die Antwort darunter. Die Antwort bleibt an
+ * Ort und Stelle statt oben als Hinweis — wer unten tippt, schaut unten.
+ * @param {Aktionen} aktionen
+ */
+function codeZeile(aktionen) {
+  if (aktionen.istPlaytester()) {
+    return el('div', { class: 'codezeile' },
+      el('span', { class: 'klein versteckt', text: T.postfach.playtesterAktiv }),
+      el('button', { class: 'neben klein', onclick: aktionen.playtesterAus },
+        T.postfach.playtesterAus));
+  }
+
+  const eingabe = /** @type {HTMLInputElement} */ (el('input', {
+    type: 'text', 'aria-label': T.postfach.code, placeholder: T.postfach.code,
+    autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false',
+  }));
+  const antwort = el('span', { class: 'klein leise' });
+  const einloesen = () => {
+    const code = eingabe.value.trim();
+    if (!code) return;
+    // Ein angenommener Code zeichnet die Ansicht neu — dann steht hier die
+    // Zeile für den laufenden Modus. Nur die Ablehnung bleibt am Feld.
+    if (!aktionen.loeseCode(code)) antwort.textContent = T.postfach.codeUnbekannt;
+  };
+  eingabe.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    einloesen();
+  });
+
+  return el('div', { class: 'codezeile' },
+    eingabe,
+    el('button', { class: 'neben klein', onclick: einloesen }, T.postfach.codeEinloesen),
+    antwort);
 }
 
 /**

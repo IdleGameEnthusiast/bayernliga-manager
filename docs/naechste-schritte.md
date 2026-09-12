@@ -8,9 +8,9 @@ als Nächstes*.
 Reihenfolge: Block 1, Block 2 und Block 3 sind fertig, ebenso die Kick-Vorstufe
 aus 2c. Block 4 setzt auf allen dreien auf; aus Block 5 ist die Aufstellung von
 Hand vorgezogen und umgesetzt, weil die beiden offenen Balancefragen daran
-hängen — siehe [`umbau-aufstellung.md`](umbau-aufstellung.md). **Als Nächstes
-steht Block 7**, Schritt 1: Commitment und Lebenslage als Felder, ohne
-Bewegung.
+hängen — siehe [`umbau-aufstellung.md`](umbau-aufstellung.md). Aus Block 7
+ist Schritt 1 umgesetzt — Commitment und Lebenslage als Felder, ohne
+Bewegung. **Als Nächstes steht Block 7, Schritt 2**: Bewegung und Gespräch.
 
 ---
 
@@ -551,11 +551,28 @@ belohnt statt Verbrauch.
 
 ### Reihenfolge
 
-1. **Felder und Anzeige.** `commitment` und `lebenslage` an `Spieler` und
-   `Coach`, Ziehung bei der Generierung (Mobilität und Status, nicht Alter),
-   `engine/commitment.js` mit den Bändern, fünf Texte und die
-   Lebenslage-Vorlage in `i18n.js`, Anzeige im Kader- und Personalreiter,
-   Migration 9→10. Keine Drift. `ruecktrittAlter` bleibt vorerst.
+1. ~~**Felder und Anzeige.**~~ **Erledigt.** `commitment` und `lebenslage`
+   an `Spieler` und `Coach`, `engine/commitment.js` mit den Bändern und der
+   Ziehung (Mobilität und Status, nicht Alter), fünf Texte und die
+   Lebenslage-Vorlage in `i18n.js`, Anzeige im Personalreiter (Spalte
+   „Bindung" und der Satz unter den Werten, bei Spielern wie Coaches),
+   Migration 10→11. Keine Drift. `ruecktrittAlter` bleibt vorerst.
+   Abweichungen vom Plan, die beim Bau gefallen sind:
+   - **Nachgezogen statt generiert.** Die Ziehung hängt nicht im
+     `macheSpieler()`-Strom, sondern an einem eigenen Strom
+     `seed|bindung|id` — `bindungVon()` in `saison.js`, wie `coachesVon()`.
+     So bekommt ein alter Stand seine Felder deterministisch beim ersten
+     Zugriff, und der Migrationsschritt hebt nur die Nummer. Nebeneffekt:
+     jede Ziehung, die schon reproduzierbar war, ist es geblieben.
+   - **Jahreszahlen statt Zähler.** `seit` und `horizont.jahr` sind
+     Jahreszahlen; der Saisonwechsel zählt nichts hoch, und ein erreichter
+     Horizont liest sich als „dieses Jahr" statt als „noch 0 Jahre".
+   - **Der Plan ist vorerst die Wahrheit.** Eine zweite, versteckte Lebenslage
+     daneben kommt mit den Gesprächen in Schritt 2 — vorher gäbe es keinen Weg,
+     die Wahrheit zu erfahren, und ein Feld ohne Weg ist nur eine Falle.
+   - **Playtester-Modus.** Der Code `playtester` im Feld ganz unten im
+     Postfach zeigt die versteckten Zahlen (Commitment, Talent, Rücktritt).
+     Liegt in `app.js` und im Browser, nicht im Speicherstand.
 2. **Bewegung und Gespräch.** Drift durch Bank, Coach, Verletzung, Erfolg,
    Vereinsjahre; Stufenwechsel-Nachrichten vom Positionscoach; das Gespräch
    als Kalendertermin mit Kategorien; Wünsche.

@@ -181,6 +181,28 @@ nicht.
 Die Vereinsstärken selbst stehen im Katalog (`engine/content.js`), und
 `scripts/baseline-staerken.js` misst, was daraus wird.
 
+## 10 — Commitment: wie fest die Leute am Verein hängen
+
+*„Alle sind ‚dabei'"* oder *„die halbe Liga steht mit einem Bein draußen".*
+`engine/constants.js`, Docs [`naechste-schritte.md`](naechste-schritte.md)
+Block 7. Im ersten Schritt bewegt sich der Wert nicht — das hier ist nur die
+Ziehung. Der Manager sieht nie die Zahl, nur die Stufe.
+
+| Konstante | Wert | Wirkung | Richtung |
+| --- | --- | --- | --- |
+| `COMMITMENT_STUFEN` | 20 / 40 / 60 / 80 | die unteren Grenzen der Stufen 1–4; darunter Stufe 0 | Bänder verschieben heißt Texte verschieben, nicht Werte — wer mehr „Herz und Seele" will, senkt die 80 |
+| `COMMITMENT_BASIS` | 52 | wo die Ziehung anfängt | die eine Schraube, wenn die ganze Liga zu locker oder zu fest hängt |
+| `COMMITMENT_STREUUNG` | 14 | Streuung um das Ergebnis | höher = die Ränder füllen sich; bei 12 standen von 415 nur 5 ganz unten und 8 ganz oben, bei 14 sind es 4–9 und 17–30 |
+| `COMMITMENT_JE_KM_AUTO` / `_OHNE` | 0,08 / 0,35 | was jeder Kilometer bis zum Training kostet, mit und ohne Auto | ohne Auto 60 km = −21; das ist der Student, der im vierten Jahr aufhört |
+| `COMMITMENT_STRECKE_MAX` | 22 | Deckel auf die Streckenkosten | verhindert, dass 120 km ohne Auto den Wert auf null drückt |
+| `COMMITMENT_JE_STATUS` | Schüler +4, Student −6, Azubi +4, Arbeiter +2, Rentner +10 | was der Status mitbringt | der Student ist der Einzige mit Abzug — er ist gekommen, um zu gehen |
+| `COMMITMENT_JE_VEREINSJAHR` / `_MAX` | 1,2 / 10 | was ein Jahr im Verein bringt, und ab wann nichts mehr dazukommt | höher = die Alteingesessenen sind unkündbar |
+
+Gemessen beim Einbau (drei Seeds, je 415 Spieler): Stufen 0–4 im Schnitt
+**7 / 67 / 182 / 137 / 22**, Mittel 53–55. Die Lebenslage-Tabellen — welcher
+Status in welchem Alter, wie weit einer fährt, was am Horizont steht — sind
+Modell und stehen in `commitment.js`, nicht hier.
+
 ---
 
 ## Was nicht hier steht

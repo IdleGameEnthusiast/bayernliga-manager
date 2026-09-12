@@ -311,6 +311,18 @@ try {
   gleich('eine Zeile klappt die Werte auf', alle('tr.wertezeile').length, 1);
   enthaelt('samt der Kickwerte', txt('tr.wertezeile'), 'Kickstärke');
 
+  // 10b — Die Bindung: eine Spalte mit Stufe, der Satz unter den Werten, und
+  // die Zahl bleibt versteckt, solange niemand den Code eingelöst hat.
+  const stufen = ['mit einem Bein draußen', 'wackelt', 'dabei', 'verlässlich', 'Herz und Seele'];
+  const koepfe = alle('thead th').map((h) => h.textContent);
+  pruefe('die Tabelle hat eine Spalte Bindung', koepfe.some((k) => k.startsWith('Bindung')), koepfe.join(' | '));
+  const bindungZellen = alle('tr.spielerzeile td').filter((td) => stufen.includes(td.textContent));
+  pruefe('jede Zeile trägt eine Stufe', bindungZellen.length > 20, String(bindungZellen.length));
+  gleich('und keine Zahl daneben', alle('tr.spielerzeile .versteckt').length, 0);
+  enthaelt('unter den Werten steht die Lebenslage', txt('tr.wertezeile'), 'Lebenslage');
+  enthaelt('mit dem Verein darin', txt('tr.wertezeile'), 'im Verein');
+  gleich('die versteckten Zahlen stehen nicht da', alle('tr.wertezeile .versteckt').length, 0);
+
   // 11 — Coaches: zwei Koordinatoren, aufklappbar auf ihre vier Blöcke
   alle('.reiter.unter button').find((b) => b.textContent === 'Coaches').click();
   gleich('der Stab hat zwei Zeilen', alle('tr.coachzeile').length, 2);
@@ -319,6 +331,36 @@ try {
   gleich('eine Zeile klappt die Blöcke auf', alle('tr.wertezeile').length, 1);
   gleich('und es sind vier', alle('.werteblock').length, 4);
   enthaelt('mit der Vertrautheit', txt('tr.wertezeile'), 'Vertrautheit mit Personnel');
+  enthaelt('und der Lebenslage des Coaches', txt('tr.wertezeile'), 'Lebenslage');
+  gleich('auch der Stab trägt eine Spalte Bindung',
+    alle('thead th').filter((h) => h.textContent === 'Bindung').length, 1);
+
+  // 12 — Redeem Code: ein falscher Code sagt es, `playtester` zeigt die Zahlen
+  reiterKnopf('Posteingang').click();
+  gleich('das Feld steht ganz unten', alle('.codezeile input').length, 1);
+  const codeFeld = () => q('.codezeile input');
+  const codeKnopf = () => q('.codezeile button');
+  codeFeld().value = 'sesam';
+  codeKnopf().click();
+  enthaelt('ein unbekannter Code wird abgelehnt', txt('.codezeile'), 'kennt das Spiel nicht');
+  gleich('und nichts ist freigeschaltet', alle('.codezeile .versteckt').length, 0);
+  codeFeld().value = 'Playtester';
+  codeKnopf().click();
+  enthaelt('der richtige Code schaltet den Modus ein', txt('.codezeile'), 'Playtester-Modus aktiv');
+  gleich('das Feld ist dann weg', alle('.codezeile input').length, 0);
+  reiterKnopf('Personal').click();
+  alle('.reiter.unter button').find((b) => b.textContent === 'Spieler').click();
+  pruefe('jetzt steht die Zahl neben der Stufe', alle('tr.spielerzeile .versteckt').length > 20);
+  // Die erste Zeile steht seit Abschnitt 10 offen — die Ansicht merkt sich
+  // das über den Reiterwechsel hinweg. Ein Tipp schlösse sie wieder.
+  if (alle('tr.wertezeile').length === 0) q('tr.spielerzeile').click();
+  enthaelt('und unter den Werten die versteckten', txt('tr.wertezeile .versteckt'), 'Commitment');
+  enthaelt('samt Talent', txt('tr.wertezeile .versteckt'), 'Talent');
+  reiterKnopf('Posteingang').click();
+  q('.codezeile button').click();
+  gleich('der Modus lässt sich beenden', alle('.codezeile input').length, 1);
+  reiterKnopf('Personal').click();
+  gleich('und die Zahlen sind wieder weg', alle('tr.spielerzeile .versteckt').length, 0);
 } catch (e) { merkeFehler(e); }
 melde();
 </script></body></html>

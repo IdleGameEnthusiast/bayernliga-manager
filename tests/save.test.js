@@ -14,7 +14,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { neuesSpiel, SAVE_VERSION, coachesVon } from '../engine/saison.js';
+import { neuesSpiel, SAVE_VERSION, coachesVon, bindungVon } from '../engine/saison.js';
 import { migriere, exportiere, importiere } from '../engine/save.js';
 
 /** Ein loser Abzug eines frischen Standes. @param {string} seed */
@@ -90,6 +90,29 @@ test('ein Stand aus Version 9 verliert die Frage nach den unbesetzten Plätzen',
   assert.equal(neu.version, SAVE_VERSION);
   assert.equal(neu.post.length, vorher);
   assert.ok(neu.post.every((n) => n.art !== 'aufstellungUnvollstaendig'));
+});
+
+test('ein Stand aus Version 10 bekommt Commitment und Lebenslage nachgezogen', () => {
+  // Version 10 kannte weder das eine noch das andere. Der Schritt hebt nur die
+  // Nummer; die Felder zieht `bindungVon()` beim ersten Zugriff aus dem
+  // Saatgut nach — dieselben, die ein frischer Stand mit diesem Saatgut trägt.
+  const frisch = neuesSpiel('heg', 'zehn');
+  const alt = abzug('zehn');
+  alt.version = 10;
+  for (const teamId in alt.kader) {
+    for (const s of alt.kader[teamId]) { delete s.commitment; delete s.lebenslage; }
+  }
+  for (const teamId in alt.coaches) {
+    for (const c of alt.coaches[teamId]) { delete c.commitment; delete c.lebenslage; }
+  }
+
+  const neu = importiere(JSON.stringify(alt));
+  assert.equal(neu.version, SAVE_VERSION);
+  assert.equal(neu.kader.heg[0].commitment, undefined, 'der Schritt hat selbst gezogen');
+  const spieler = neu.kader.heg[3];
+  assert.deepEqual(bindungVon(neu, spieler), bindungVon(frisch, frisch.kader.heg[3]));
+  const coach = coachesVon(neu, 'heg')[1];
+  assert.deepEqual(bindungVon(neu, coach), bindungVon(frisch, coachesVon(frisch, 'heg')[1]));
 });
 
 test('ein Stand aus der Zukunft wird abgelehnt', () => {

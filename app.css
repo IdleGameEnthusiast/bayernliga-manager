@@ -929,6 +929,23 @@ tr.coachzeile.offen td:nth-child(2) { font-weight: inherit; }
   .postspalte, .postlese { max-height: 460px; overflow-y: auto; }
 }
 
+/* --- Redeem Code und Playtester ------------------------------------------
+   Das Feld steht unter den Speicherstand-Knöpfen. Was der Playtester-Modus
+   zusätzlich zeigt, ist gelb markiert — es soll nicht aussehen wie ein Wert,
+   den der Manager im Spiel sehen sollte. */
+
+.codezeile { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.codezeile input[type='text'] {
+  min-height: 36px; padding: 0 10px;
+  flex: 1 1 160px; max-width: 240px;
+  background: var(--bg-erhoben); color: var(--text);
+  border: 1px solid var(--rand); border-radius: var(--radius);
+  font: inherit; font-size: 13px;
+}
+.codezeile input[type='text']:focus { outline: none; border-color: var(--akzent); }
+
+.versteckt { color: var(--gelb); }
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }

@@ -47,6 +47,9 @@ import { ziehName } from './spieler.js';
  *   gezogen wird sie ganzzahlig unter dem Ligadeckel, aber sie wächst danach
  *   in Zehnteln und über den Deckel hinaus, siehe `lerneSystem()`
  * @property {Record<string, number>} technik    je Coaching-Gruppe
+ * @property {number} [commitment]    Der Halt, 0..99 — dieselbe Stufenlogik wie beim Spieler,
+ *   siehe `commitment.js`; nachgezogen über `bindungVon()` in `saison.js`
+ * @property {import('./commitment.js').Lebenslage} [lebenslage]
  */
 
 /** @typedef {'OC'|'DC'|'POS'} Rolle */

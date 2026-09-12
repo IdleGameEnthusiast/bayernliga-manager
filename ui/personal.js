@@ -23,10 +23,19 @@ import {
 } from '../engine/constants.js';
 import { positionsKuerzel, hauptPosition, platzKuerzel } from '../engine/positionen.js';
 import { bestePlaetze, specialTechnik, PERSONNEL_REIHE } from '../engine/aufstellung.js';
-import { eigeneAufstellung, aufstellungVon, coachesVon } from '../engine/saison.js';
+import {
+  eigeneAufstellung, aufstellungVon, coachesVon, bindungVon, ergaenzeBindung,
+} from '../engine/saison.js';
 import {
   staerke as coachStaerke, SOFT_SKILLS, SCHEME_SKILLS, COACHING_GRUPPE_REIHE,
 } from '../engine/coach.js';
+import { stufe } from '../engine/commitment.js';
+
+/**
+ * Was die Ansicht zeigt, das der Manager sonst nicht sieht. Kommt aus
+ * `app.js` — ob der Modus an ist, entscheidet nicht diese Datei.
+ * @typedef {{ playtester: boolean }} Einblick
+ */
 
 /**
  * Eine Spalte des Depth Charts: Beschriftung, Zellinhalt und der Wert, nach
@@ -49,6 +58,10 @@ const SPALTEN = [
   { id: 'alter', kopf: T.kader.alter, wert: (sp) => sp.alter },
   { id: 'staerke', kopf: T.kader.staerke, wert: (sp) => sp.staerke },
   { id: 'talent', kopf: T.kader.talent, wert: (sp) => sp.talent },
+  // Sortiert nach der versteckten Zahl, nicht nach der Stufe: innerhalb einer
+  // Stufe ist die Reihenfolge dann nicht willkürlich. Die Zahl steht am Mann,
+  // sobald `ergaenzeBindung()` einmal über den Kader gelaufen ist.
+  { id: 'bindung', kopf: T.kader.bindung, wert: (sp) => sp.commitment ?? 0 },
   { id: 'status', kopf: T.kader.status, wert: (sp, tag) => (istFit(sp, tag) ? 0 : sp.verletztBis - tag) },
 ];
 
@@ -84,17 +97,22 @@ const offeneCoaches = new Set();
 /**
  * @param {import('../engine/saison.js').SpielStand} stand
  * @param {() => void} neuZeichnen
+ * @param {Einblick} einblick
  */
-export function zeigePersonal(stand, neuZeichnen) {
+export function zeigePersonal(stand, neuZeichnen, einblick) {
+  // Ein alter Stand trägt die Bindung noch nicht; hier wird sie nachgezogen,
+  // bevor eine Spalte danach sortiert.
+  ergaenzeBindung(stand);
   return el('div', {},
     unterreiter(neuZeichnen),
-    bereich === 'coaches' ? coachesKarte(stand) : spielerKarte(stand));
+    bereich === 'coaches' ? coachesKarte(stand, einblick) : spielerKarte(stand, einblick));
 }
 
 /**
  * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {Einblick} einblick
  */
-function spielerKarte(stand) {
+function spielerKarte(stand, einblick) {
   const kader = stand.kader[stand.meinTeam];
   const tag = stand.tag;
 
@@ -117,8 +135,8 @@ function spielerKarte(stand) {
     halter.append(machTabelle(
       [...SPALTEN.map((sp) => kopfzelle(sp, male)), el('th', { 'aria-label': T.kader.werte })],
       liste.flatMap((spieler, i) => [
-        zeile(spieler, tag, male, trennerVor(liste, i), starter.get(spieler.id)),
-        offeneWerte.has(spieler.id) ? werteZeile(spieler) : null,
+        zeile(spieler, stand, male, trennerVor(liste, i), starter.get(spieler.id), einblick),
+        offeneWerte.has(spieler.id) ? werteZeile(spieler, stand, einblick) : null,
       ].filter(Boolean))));
   };
   male();
@@ -136,8 +154,9 @@ function spielerKarte(stand) {
  * Keine Sortierung — bei zwei Zeilen wäre der Spaltenkopf ein Versprechen ohne
  * Inhalt. Kommt sie, wenn der Stab wächst.
  * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {Einblick} einblick
  */
-function coachesKarte(stand) {
+function coachesKarte(stand, einblick) {
   const stab = coachesVon(stand, stand.meinTeam);
   const halter = el('div', {});
   const male = () => {
@@ -149,11 +168,12 @@ function coachesKarte(stand) {
         el('th', { text: T.coach.gruppe }),
         el('th', { text: T.coach.alter }),
         el('th', { text: T.coach.staerke }),
+        el('th', { text: T.kader.bindung }),
         el('th', { 'aria-label': T.kader.werte }),
       ],
       stab.flatMap((coach) => [
-        coachZeile(coach, male),
-        offeneCoaches.has(coach.id) ? coachWerteZeile(coach) : null,
+        coachZeile(coach, stand, male, einblick),
+        offeneCoaches.has(coach.id) ? coachWerteZeile(coach, stand) : null,
       ].filter(Boolean))));
   };
   male();
@@ -166,11 +186,27 @@ function coachesKarte(stand) {
 }
 
 /**
- * @param {import('../engine/coach.js').Coach} coach
- * @param {() => void} male
+ * Die Stufe als Text — und im Playtester-Modus die Zahl dahinter. Für Spieler
+ * und Coaches dieselbe Zelle, weil es dieselbe Skala ist.
+ * @param {number} commitment
+ * @param {Einblick} einblick
  */
-function coachZeile(coach, male) {
+function bindungZelle(commitment, einblick) {
+  const text = T.commitment.stufen[stufe(commitment)];
+  return el('td', { class: 'leise', title: T.commitment.stufeTitel(text) },
+    text,
+    einblick.playtester ? el('span', { class: 'versteckt', text: ` ${commitment}` }) : null);
+}
+
+/**
+ * @param {import('../engine/coach.js').Coach} coach
+ * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {() => void} male
+ * @param {Einblick} einblick
+ */
+function coachZeile(coach, stand, male, einblick) {
   const offen = offeneCoaches.has(coach.id);
+  const bindung = bindungVon(stand, coach);
   const werte = () => {
     if (offen) offeneCoaches.delete(coach.id); else offeneCoaches.add(coach.id);
     male();
@@ -196,7 +232,21 @@ function coachZeile(coach, male) {
     el('td', { class: 'leise', text: T.kader.alterWert(coach.alter) }),
     el('td', { style: { fontWeight: '600' }, title: T.coach.staerkeTitel(rolle),
       text: String(Math.round(coachStaerke(coach))) }),
+    bindungZelle(bindung.commitment, einblick),
     el('td', { class: 'werteknopf leise', text: offen ? T.kader.sortAuf : T.kader.sortAb }));
+}
+
+/**
+ * Die Lebenslage als eine Zeile unter den Werten: was der Mann erzählt, in
+ * Stichworten. Der Satz kommt aus der Vorlage in `i18n.js`; die Felder
+ * dahinter kennt nur die Engine.
+ * @param {import('../engine/commitment.js').Lebenslage} lebenslage
+ * @param {number} jahr
+ */
+function lebenslageZeile(lebenslage, jahr) {
+  return el('div', { class: 'plaetze' },
+    el('span', { class: 'klein leise', text: T.kader.lebenslage }),
+    el('span', { class: 'klein', text: T.lebenslage.satz(lebenslage, jahr) }));
 }
 
 /**
@@ -208,8 +258,10 @@ function coachZeile(coach, male) {
  * an die 99, und ein Balken, der bei 79 voll ist, sähe einen Spezialisten mit
  * 95 nicht mehr wachsen. Ihre Skala ist deshalb das Dach der Kurve.
  * @param {import('../engine/coach.js').Coach} coach
+ * @param {import('../engine/saison.js').SpielStand} stand
  */
-function coachWerteZeile(coach) {
+function coachWerteZeile(coach, stand) {
+  const bindung = bindungVon(stand, coach);
   /**
    * @param {string} titel
    * @param {[string, number][]} eintraege Beschriftung und Wert
@@ -224,13 +276,14 @@ function coachWerteZeile(coach) {
         el('span', { class: 'klein', text: String(Math.round(wert)) })))));
 
   return el('tr', { class: 'wertezeile' },
-    el('td', { colspan: '6' },
+    el('td', { colspan: '7' },
       block(T.coach.bloecke.soft, SOFT_SKILLS.map((s) => [T.coach.soft[s], coach.soft[s]])),
       block(T.coach.bloecke.scheme, SCHEME_SKILLS.map((s) => [T.coach.scheme[s], coach.scheme[s]])),
       block(T.coach.bloecke.personnel,
         PERSONNEL_REIHE.map((p) => [`${p} · ${T.personnel[p]}`, coach.personnel[p]]), MAX_RATING),
       block(T.coach.bloecke.technik,
-        COACHING_GRUPPE_REIHE.map((g) => [T.coach.gruppen[g], coach.technik[g]]))));
+        COACHING_GRUPPE_REIHE.map((g) => [T.coach.gruppen[g], coach.technik[g]])),
+      lebenslageZeile(bindung.lebenslage, stand.jahr)));
 }
 
 /** @param {() => void} neuZeichnen */
@@ -330,14 +383,17 @@ function trennerVor(liste, i) {
  * beantwortet die Frage rückwärts, wie sie gestellt wird: nicht „wer steht",
  * sondern „wer steht **nicht**".
  * @param {import('../engine/spieler.js').Spieler} sp
- * @param {number} tag
+ * @param {import('../engine/saison.js').SpielStand} stand
  * @param {() => void} male
  * @param {string} [trenner] Zusatzklasse für die Linie über der Zeile
  * @param {string[]} [plaetze] Die Plätze, die er in der Elf hält
+ * @param {Einblick} [einblick]
  */
-function zeile(sp, tag, male, trenner, plaetze) {
+function zeile(sp, stand, male, trenner, plaetze, einblick = { playtester: false }) {
+  const tag = stand.tag;
   const fit = istFit(sp, tag);
   const offen = offeneWerte.has(sp.id);
+  const bindung = bindungVon(stand, sp);
   const werte = () => {
     if (offen) offeneWerte.delete(sp.id); else offeneWerte.add(sp.id);
     male();
@@ -372,6 +428,7 @@ function zeile(sp, tag, male, trenner, plaetze) {
     el('td', { class: 'leise', text: T.kader.alterWert(sp.alter) }),
     el('td', { style: { fontWeight: '600' }, text: String(sp.staerke) }),
     el('td', {}, sterne(talentSterne(sp.talent), T.kader.talentTitel(sp.talent))),
+    bindungZelle(bindung.commitment, einblick),
     el('td', { class: fit ? 'leise' : 'verletzt' },
       fit ? T.kader.fit : T.kader.verletztBis(sp.verletztBis - tag)),
     el('td', { class: 'werteknopf leise', text: offen ? T.kader.sortAuf : T.kader.sortAb }));
@@ -389,10 +446,13 @@ function zeile(sp, tag, male, trenner, plaetze) {
  * Bein und Zielwasser stehen abgesetzt daneben: sie gehören zu keiner der
  * fünfzehn und zu keinem der Plätze, sondern zu den Special Teams.
  * @param {import('../engine/spieler.js').Spieler} sp
+ * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {Einblick} einblick
  */
-function werteZeile(sp) {
+function werteZeile(sp, stand, einblick) {
   const heimat = positionsKuerzel(sp);
   const technik = specialTechnik(sp);
+  const bindung = bindungVon(stand, sp);
 
   return el('tr', { class: 'wertezeile' },
     el('td', { colspan: String(SPALTEN.length + 1) },
@@ -423,5 +483,15 @@ function werteZeile(sp) {
           },
             el('b', { text: eintrag.kuerzel }),
             el('span', { text: String(wert) }));
-        }))));
+        })),
+      lebenslageZeile(bindung.lebenslage, stand.jahr),
+      // Die Zahlen, die das Spiel versteckt, in einer Zeile — nur für den, der
+      // den Code eingelöst hat.
+      einblick.playtester
+        ? el('div', { class: 'plaetze versteckt' },
+          el('span', { class: 'klein leise', text: T.kader.verstecktes }),
+          el('span', { class: 'klein', text: T.kader.versteckteWerte({
+            commitment: bindung.commitment, talent: sp.talent, ruecktrittAlter: sp.ruecktrittAlter,
+          }) }))
+        : null));
 }

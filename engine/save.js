@@ -37,6 +37,17 @@ export const STORAGE_KEY = 'bayernliga.save';
  * @type {Record<number, (roh: any) => any>}
  */
 const MIGRATIONEN = {
+  // 10 → 11: Commitment und Lebenslage kamen an Spieler und Coach. Der
+  // Schritt fasst keinen Menschen an — die Felder zieht `bindungVon()` beim
+  // ersten Zugriff aus dem Saatgut nach, wie den Stab. Zöge der Schritt sie
+  // hier, kennte er den heutigen Generator und müsste mitwachsen, sobald sich
+  // die Ziehung ändert. Was er hebt, ist nur die Nummer: sie sagt, dass die
+  // Felder ab hier fehlen dürfen, ohne dass etwas kaputt ist.
+  10: (roh) => {
+    roh.version = 11;
+    return roh;
+  },
+
   // 9 → 10: die Nachricht „Unbesetzte Plätze" mit ihrer Antwortpflicht gibt es
   // nicht mehr — die Frage stellt jetzt der Kickoff-Knopf. Ein Stand, der so
   // eine Nachricht noch trägt, verlöre sie beim Zeichnen des Postfachs, denn
