@@ -725,6 +725,12 @@ td.werteknopf { width: 1%; padding-left: 0; padding-right: 8px; text-align: righ
   overflow: hidden; white-space: nowrap;
   color: var(--gelb);
 }
+/* Im Roster stehen die Sterne in einer Zeile mit Nummer, Name, Alter und
+   Zahl — in der Größe des Personal-Reiters nähmen sie dem Namen den Platz,
+   den er auf dem Telefon ohnehin kaum hat. Sie schrumpfen nicht mit, damit
+   die Zeile nicht höher wird, sobald rechts die zweite Zahl dazukommt. */
+.talent-klein { font-size: 10px; flex: 0 0 auto; }
+.talent-klein .sterne { letter-spacing: 0; }
 
 .marke {
   font-size: 11px; padding: 1px 6px; border-radius: 999px; white-space: nowrap;

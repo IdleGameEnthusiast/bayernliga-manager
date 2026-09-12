@@ -42,14 +42,14 @@
  * wer einspringt, sagt die Engine.
  */
 
-import { el } from './dom.js';
+import { el, sterne } from './dom.js';
 import { anfassen } from './ziehen.js';
 import { T } from '../i18n.js';
 import { platzKuerzel, positionsKuerzel } from '../engine/positionen.js';
 import {
   specialSpieler, SPECIAL_PLAETZE, SPECIAL_WERT, SPECIAL_TOP,
 } from '../engine/aufstellung.js';
-import { OHNE_NUMMER } from '../engine/spieler.js';
+import { OHNE_NUMMER, talentSterne } from '../engine/spieler.js';
 
 /**
  * @typedef {{ spieler: import('../engine/spieler.js').Spieler, wert: number }} Kandidat
@@ -95,6 +95,21 @@ function name(p) {
     }),
     ` ${p.spieler.vorname.charAt(0)}. ${p.spieler.nachname}`,
   ];
+}
+
+/**
+ * Die Talentsterne eines Manns, klein genug für eine Zeile des Rosters.
+ *
+ * Sie standen nur im Personal-Reiter, und wer beim Aufstellen wissen wollte,
+ * ob der Mann mit 58 nächstes Jahr 62 hat oder 56, musste den Reiter wechseln.
+ * Dabei fällt genau hier die Entscheidung zwischen zwei Gleichstarken — und
+ * die fällt fast immer für den, der noch wächst. Das Alter steht aus demselben
+ * Grund schon daneben; erst beide zusammen sagen, wohin es geht.
+ * @param {import('../engine/spieler.js').Spieler} s
+ */
+function talent(s) {
+  return el('span', { class: 'talent-klein' },
+    sterne(talentSterne(s.talent), T.kader.talentTitel(s.talent)));
 }
 
 /** @param {import('../engine/spieler.js').Spieler} s */
@@ -283,6 +298,7 @@ function verfuegbarSpalte(verfuegbare, steuerung, a, special) {
           // und erst zusammen sagen beide, ob er es nächstes Jahr noch kann.
           el('span', { class: 'leise klein', title: T.kader.alter,
             text: T.aufstellung.jahre(spieler.alter) }),
+          talent(spieler),
           el('span', { class: 'leise klein', text: positionsKuerzel(spieler) }),
           platz && special ? topWerte(spieler, platz) : null,
           wo ? el('span', { class: 'marke tausch', text: platzKuerzel(wo.platz) }) : null,
@@ -398,6 +414,7 @@ function platzZeile(p, steuerung) {
       ? el('span', { class: 'marke doppel', title: T.taktik.doppelHinweis, text: T.taktik.doppel })
       : null,
     hier ? el('span', { class: 'marke steht', text: T.aufstellung.stehtSchon }) : null,
+    p.spieler ? talent(p.spieler) : null,
     el('span', {
       class: 'platz-pos leise',
       text: p.spieler ? positionsKuerzel(p.spieler) : '',
@@ -515,6 +532,7 @@ function specialZeile(a, schluessel, steuerung) {
     el('span', { class: 'platz', title: T.special[schluessel], text: schluessel }),
     el('span', { class: 'platz-name', text: spieler ? kurzName(spieler) : T.taktik.keiner }),
     hier ? el('span', { class: 'marke steht', text: T.aufstellung.stehtSchon }) : null,
+    spieler ? talent(spieler) : null,
     // Seine Position, wie in jeder Zeile der Elf: wer hier steht, spielt sie
     // weiter, und ohne sie hieß der Punter nur „Huber".
     el('span', {
