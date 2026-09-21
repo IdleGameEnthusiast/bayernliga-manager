@@ -30,6 +30,7 @@ import {
   staerke as coachStaerke, SOFT_SKILLS, SCHEME_SKILLS, COACHING_GRUPPE_REIHE,
 } from '../engine/coach.js';
 import { stufe } from '../engine/commitment.js';
+import { druck, halt } from '../engine/lebenslauf.js';
 
 /**
  * Was die Ansicht zeigt, das der Manager sonst nicht sieht. Kommt aus
@@ -492,6 +493,9 @@ function werteZeile(sp, stand, einblick) {
           el('span', { class: 'klein leise', text: T.kader.verstecktes }),
           el('span', { class: 'klein', text: T.kader.versteckteWerte({
             commitment: bindung.commitment, talent: sp.talent, ruecktrittAlter: sp.ruecktrittAlter,
+            druck: Math.round(druck(bindung.lebenslage)),
+            halt: Math.round(halt(bindung.commitment, bindung.lebenslage, stand.jahr)),
+            druckJahre: bindung.lebenslage.druckJahre || 0,
           }) }))
         : null));
 }

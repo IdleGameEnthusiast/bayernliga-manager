@@ -37,6 +37,20 @@ export const STORAGE_KEY = 'bayernliga.save';
  * @type {Record<number, (roh: any) => any>}
  */
 const MIGRATIONEN = {
+  // 11 → 12: der Lebenslauf kam — die Lebenslage bewegt sich jetzt von Jahr
+  // zu Jahr. Dabei wuchs sie um Felder, die ein alter Stand alle nicht trägt
+  // und alle nicht braucht: `druckJahre` (fehlt = 0), `verlaengert` (fehlt =
+  // nein), `horizont.grund` an einem Schluss (fehlt = Körper, wie der Satz es
+  // vorher jedem Schluss zuschrieb), der Plan `familie`, und die Gründe an der
+  // Rücktritts-Nachricht (fehlen = nur die Namen). Ein Arbeiter ohne Horizont
+  // bekommt seinen Zyklus beim ersten Saisonwechsel aus dem Saatgut. Der
+  // Schritt hebt deshalb nur die Nummer — und ist trotzdem einer, denn ohne
+  // ihn flöge jede Karriere von gestern beim Laden weg.
+  11: (roh) => {
+    roh.version = 12;
+    return roh;
+  },
+
   // 10 → 11: Commitment und Lebenslage kamen an Spieler und Coach. Der
   // Schritt fasst keinen Menschen an — die Felder zieht `bindungVon()` beim
   // ersten Zugriff aus dem Saatgut nach, wie den Stab. Zöge der Schritt sie

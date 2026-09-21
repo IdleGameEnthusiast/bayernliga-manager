@@ -40,6 +40,7 @@ import { berechneTabelle } from './tabelle.js';
 import { teamStaerken } from './team.js';
 import { ziehStab, ocVon, lerneTag, lerneSpiel } from './coach.js';
 import { ziehBindung } from './commitment.js';
+import { lebensjahr } from './lebenslauf.js';
 
 /**
  * Der Stempel auf einem Speicherstand.
@@ -49,7 +50,7 @@ import { ziehBindung } from './commitment.js';
  * der vorigen Nummer auf diese hebt. Ohne diesen Schritt wird ein solcher Stand
  * beim Laden weggeworfen — der Sprung ist billig, der Verlust nicht.
  */
-export const SAVE_VERSION = 11;
+export const SAVE_VERSION = 12;
 
 /**
  * @typedef {object} SpielStand
@@ -515,7 +516,7 @@ export function neuesSpiel(meinTeam, seed) {
 
   // Der Amtsantritt ist die erste E-Mail, kein eigener Bildschirm: alles, was
   // der Verein vom Manager will, kommt über denselben Kanal.
-  saisonEroeffnung(stand, [], true);
+  saisonEroeffnung(stand, [], [], true);
   return stand;
 }
 
@@ -529,15 +530,16 @@ export function neuesSpiel(meinTeam, seed) {
  * später in keinem Kader mehr.
  * @param {SpielStand} stand
  * @param {import('./spieler.js').Spieler[]} ruecktritte
+ * @param {import('./commitment.js').Grund[]} gruende je einer, in derselben Reihenfolge
  * @param {boolean} antritt Ob es der Amtsantritt ist und nicht bloß ein Jahreswechsel
  */
-function saisonEroeffnung(stand, ruecktritte, antritt) {
+function saisonEroeffnung(stand, ruecktritte, gruende, antritt) {
   /** @type {{ art: string, daten?: Record<string, any> }[]} */
   const eintraege = [];
   if (ruecktritte.length > 0) {
     eintraege.push({
       art: 'ruecktritte',
-      daten: { namen: ruecktritte.map((s) => `${s.vorname} ${s.nachname}`) },
+      daten: { namen: ruecktritte.map((s) => `${s.vorname} ${s.nachname}`), gruende },
     });
   }
   eintraege.push({
@@ -1002,12 +1004,21 @@ export function naechsteSaison(stand) {
   const rng = makeRng(`${stand.seed}|offseason|${stand.jahr}`);
   /** @type {import('./spieler.js').Spieler[]} */
   const alleRuecktritte = [];
+  /** @type {import('./commitment.js').Grund[]} */
+  const gruende = [];
 
   const basen = vereinsBasen(stand.meinTeam);
   for (const t of TEAMS) {
-    const { kader, ruecktritte } = saisonWechsel(rng, stand.kader[t.id], basen[t.id]);
+    const abgaenge = lebensjahrKader(stand, t.id);
+    const { kader, ruecktritte } = saisonWechsel(rng, stand.kader[t.id], basen[t.id],
+      new Set(abgaenge.keys()));
     stand.kader[t.id] = kader;
-    if (t.id === stand.meinTeam) alleRuecktritte.push(...ruecktritte);
+    if (t.id === stand.meinTeam) {
+      alleRuecktritte.push(...ruecktritte);
+      // Wer über das Alter geht, geht aus Körpergründen — das ist, was
+      // `ruecktrittAlter` bis Schritt 3 bedeutet.
+      gruende.push(...ruecktritte.map((s) => abgaenge.get(s.id) || 'koerper'));
+    }
   }
 
   stand.aufstellung = ohneAbgaenge(stand.aufstellung, stand.kader[stand.meinTeam]);
@@ -1021,9 +1032,33 @@ export function naechsteSaison(stand) {
   // Erst stutzen, dann eröffnen: die Post des neuen Jahres soll die Schere
   // nicht zu sehen bekommen.
   stutzePost(stand);
-  const nachrichten = saisonEroeffnung(stand, alleRuecktritte, false);
+  const nachrichten = saisonEroeffnung(stand, alleRuecktritte, gruende, false);
 
   return { meister: champion, ruecktritte: alleRuecktritte, nachrichten };
+}
+
+/**
+ * Ein Jahr Lebenslauf für jeden im Kader eines Vereins — vor dem
+ * Kaderwechsel, mit dem neuen Alter und dem neuen Jahr. Zurück kommen die,
+ * die gehen, mit ihrem Grund; die Lebenslagen der anderen sind schon geändert.
+ *
+ * Jeder Mensch hat seinen eigenen Strom `seed|lebenslauf|jahr|id`: so stört
+ * der Lebenslauf den `offseason`-Strom nicht, an dem die Rookies hängen, und
+ * die Reihenfolge im Kader spielt keine Rolle.
+ * @param {SpielStand} stand
+ * @param {string} teamId
+ * @returns {Map<string, import('./commitment.js').Grund>}
+ */
+function lebensjahrKader(stand, teamId) {
+  const neuesJahr = stand.jahr + 1;
+  /** @type {Map<string, import('./commitment.js').Grund>} */
+  const abgaenge = new Map();
+  for (const s of stand.kader[teamId] || []) {
+    const rng = makeRng(`${stand.seed}|lebenslauf|${neuesJahr}|${s.id}`);
+    const ereignis = lebensjahr(rng, bindungVon(stand, s), s.alter + 1, neuesJahr);
+    if (ereignis && ereignis.art === 'abgang') abgaenge.set(s.id, ereignis.grund);
+  }
+  return abgaenge;
 }
 
 export { anzahlSpieltage };

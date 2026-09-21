@@ -657,12 +657,18 @@ export function verfalleEinsaetze(einsaetze) {
  * One year on: everyone ages, and strength re-derives from talent. Whoever is
  * past his own `ruecktrittAlter` stops and is replaced by a rookie at the same
  * position. Numbers survive — only the newcomers draw.
+ *
+ * `abgaenge` sind die, die der Lebenslauf gehen lässt (`lebenslauf.js`) — sie
+ * nehmen denselben Weg wie der Rücktritt, für jeden Verein gleich, damit die
+ * Symmetrie zur KI hält. Wer sie ausrechnet, ist `naechsteSaison()`; hier
+ * werden sie nur ersetzt.
  * @param {() => number} rng
  * @param {Spieler[]} kader
  * @param {number} teamStaerke
+ * @param {Set<string>} [abgaenge] Ids derer, die aus dem Lebenslauf heraus gehen
  * @returns {{ kader: Spieler[], ruecktritte: Spieler[] }}
  */
-export function saisonWechsel(rng, kader, teamStaerke) {
+export function saisonWechsel(rng, kader, teamStaerke, abgaenge = new Set()) {
   /** @type {Spieler[]} */
   const neu = [];
   /** @type {Spieler[]} */
@@ -672,7 +678,7 @@ export function saisonWechsel(rng, kader, teamStaerke) {
 
   for (const s of kader) {
     const alter = s.alter + 1;
-    if (alter > (s.ruecktrittAlter || RUECKTRITT_ALTER)) {
+    if (alter > (s.ruecktrittAlter || RUECKTRITT_ALTER) || abgaenge.has(s.id)) {
       ruecktritte.push(s);
       belegteNamen.delete(s.vorname + ' ' + s.nachname);
       neu.push(macheSpieler(rng, s.position, teamStaerke, {

@@ -9,8 +9,10 @@ Reihenfolge: Block 1, Block 2 und Block 3 sind fertig, ebenso die Kick-Vorstufe
 aus 2c. Block 4 setzt auf allen dreien auf; aus Block 5 ist die Aufstellung von
 Hand vorgezogen und umgesetzt, weil die beiden offenen Balancefragen daran
 hängen — siehe [`umbau-aufstellung.md`](umbau-aufstellung.md). Aus Block 7
-ist Schritt 1 umgesetzt — Commitment und Lebenslage als Felder, ohne
-Bewegung. **Als Nächstes steht Block 7, Schritt 2**: Bewegung und Gespräch.
+sind Schritt 1 (Commitment und Lebenslage als Felder) und Schritt 2a (der
+Statusübergangs-Motor: Horizonte, Statuswechsel, Druck gegen Halt) umgesetzt.
+**Als Nächstes steht Block 7, Schritt 2b**: die Drift des Werts, die
+Gespräche, die Nachrichten vom Positionscoach, die Wünsche.
 
 ---
 
@@ -399,7 +401,9 @@ hineinpassen.
   kann, wenn er auf der Bank sitzt und niemand mit ihm redet, und weil
   Mobilität mehr erklärt als Alter: der 23-jährige Student ohne Auto fährt
   weniger weit als der 30-jährige Arbeiter, der eine neue Herausforderung
-  sucht. Das Alter steckt in der Lebenslage, nicht im Wert.
+  sucht. Das Alter steckt in der Lebenslage, nicht im Wert. **Nachtrag aus
+  2a:** die Mobilität steckt seither auch nicht mehr im Wert, sondern
+  ausschließlich im Druck — im Wert stünde sie mit der Waage doppelt.
 
 ### Die Lebenslage
 
@@ -549,11 +553,250 @@ Verletzung — landet in einem **Ehemaligen-Pool** und ist der, den man am
 ehesten als Coach oder Orga gewinnt. Das ist die Schleife, die Pflege
 belohnt statt Verbrauch.
 
+### Statusübergänge — geplant für Schritt 2, hier nur festgehalten
+
+Heute bleibt ein Schüler Schüler bis zum Rentner-Abgang, auch wenn sein
+Horizont längst verstrichen ist (`Math.max(0, …)` in `i18n.js` fängt das nur
+in der Anzeige ab). Es gibt keinen Übergang Schüler → Student/Azubi/Arbeiter,
+keinen neuen Horizont danach, kein Pendeln nach Wegzug, keine Rückkehr nach
+dem Studium. Für Schritt 2 vorgesehen:
+
+- **Der Übergang selbst.** Beim Saisonwechsel den Horizont abarbeiten: erreicht
+  ein Schüler sein Jahr, wird aus ihm Student/Azubi/Arbeiter mit neuem
+  Horizont aus einer (noch zu bauenden) altersabhängigen Tabelle. `bleibt`
+  heißt Status wechselt, Ort bleibt. `wegzug` heißt die Entfernung wird zu
+  km — ob daraus Pendeln oder Abgang wird, entscheidet Druck gegen Halt
+  (siehe unten), setzt also Schritt 3 voraus. Die Rückkehr nach dem Studium
+  ist dann ein späteres Ereignis am Horizont des Weggezogenen — setzt voraus,
+  dass Weggezogene überhaupt noch existieren, also ebenfalls Schritt 3.
+- **Gespräche und Commitment-Status nehmen Einfluss auf den Übergang**, nicht
+  nur die Uhr allein: ein Gespräch kann den Plan aufdecken oder verschieben
+  (siehe Plan/Wahrheit unten), und ein hohes Commitment kann einen
+  eigentlich anstehenden Wegzug in ein Bleiben oder Pendeln drehen, ein
+  niedriges einen eigentlich unauffälligen Übergang zum Abgang zuspitzen —
+  der Übergang ist ein weiterer Ort, an dem Druck gegen Halt gewogen wird,
+  nicht nur der Abgang selbst.
+- **Kein fester Abschluss mit einer Alterszahl.** Die erste Idee — „Arbeiter
+  hört mit 30 aus Körpergründen auf" — ist verworfen. Verletzungen und
+  Gespräche sollen den **Plan** des Spielers verändern können: eine lange
+  Verletzung zieht den Körper-Horizont näher, ein Gespräch kann einen
+  Studienabbruch oder ein längeres Studium aufdecken (Plan ≠ Wahrheit, siehe
+  oben — „das Studium dauert fünf Jahre statt vier" ist das Beispiel dafür).
+  Der Horizont bekommt dafür ein Feld **Grund** (Körper · Lust · Beruf ·
+  Familie), altersabhängig gezogen — ein 24-jähriger Arbeiter mit Schluss in
+  fünf Jahren braucht einen anderen Grund als der 32-jährige, sonst liest
+  sich der Lebenslage-Satz falsch (`T.lebenslage.horizont` sagt heute für
+  jeden `schluss` „körperlich", unabhängig vom Alter — das ist der konkrete
+  Fehler im aktuellen Stand, den diese Änderung mitbehebt).
+
+~~Reine Planung, nichts davon ist gebaut.~~ **Gebaut als Schritt 2a** — die
+Ausarbeitung mit allen Verteilungen steht im nächsten Abschnitt. Die
+Ziehungen (Abschlussalter, Horizont, Grund, Wegzug-Kilometer) liegen bei den
+anderen in [`engine/commitment.js`](../engine/commitment.js), der Jahresschritt
+— Horizont abarbeiten, Status wechseln, wiegen — in
+[`engine/lebenslauf.js`](../engine/lebenslauf.js).
+
+### Statusübergänge — die Verteilungen (Schritt 2a, gebaut)
+
+Was im Gespräch fiel und dann so gebaut wurde. Die Zahlen sind Modell und
+stehen in `commitment.js` und `lebenslauf.js`; die wenigen echten
+Stellschrauben (Faktoren, Schwellen) in `constants.js` und
+[`balancing.md`](balancing.md) Abschnitt 11.
+
+**Abschlussalter statt Schulart.** Die Schulart wird nirgends gespeichert. Beim
+Eintritt eines Schülers — heute mit 18, später in der Jugend mit 10 — wird
+einmal ein **Abschlussalter** gezogen, und das ist sein Horizont. Die Verteilung
+dahinter bildet die drei bayerischen Schularten nach, ohne dass ein Feld je
+„Gymnasium" sagt: die Zahl codiert schon alles, was die Engine braucht.
+
+| Schulart (intern, ungespeichert) | Anteil | Abschlussalter |
+| --- | --- | --- |
+| Gymnasium | 40 % | 17 (15 %) · 18 (55 %) · 19 (30 %) |
+| Realschule | 30 % | 16 (85 %) · 17 (15 %) |
+| Mittelschule | 30 % | 15 (60 %) · 16 (40 %) |
+
+Wer beim Eintritt schon älter ist als das Gezogene, ist im nächsten Jahr fertig
+— ein 18-jähriger Schüler ist per Definition auf dem Gymnasium und in der
+letzten oder vorletzten Klasse.
+
+**Der Schulabschluss.** Das Abschlussalter wirkt als Proxy für die Schulart und
+bestimmt, was danach kommt: mit 16 fertig heißt praktisch nie Student, meist
+Azubi. Mit 18 oder 19 heißt es Student oder Azubi, beides plausibel.
+
+| Abschlussalter | Student | Azubi | Arbeiter (ungelernt) |
+| --- | --- | --- | --- |
+| ≤ 16 | 10 % | 65 % | 25 % |
+| 17–19 | 55 % | 35 % | 10 % |
+
+**Plan und Kippen.** Der Horizont trägt weiterhin einen **Plan** (`dann`:
+bleibt · wegzug · schluss · familie), der beim Eintritt oder beim Beginn des
+Abschnitts gezogen und dem Manager angezeigt wird. Am Horizont selbst kann das
+Commitment den Plan **kippen** — das ist der Ort, an dem „ein hohes Commitment
+einen anstehenden Wegzug in ein Bleiben dreht, ein niedriges einen unauffälligen
+Übergang zuspitzt", wie oben gefordert:
+
+| Commitment-Stufe | geplanter Wegzug wird Bleiben | geplantes Bleiben wird Wegzug |
+| --- | --- | --- |
+| Herz und Seele | 60 % | — |
+| verlässlich | 30 % | — |
+| dabei | — | — |
+| wackelt | — | 30 % |
+| mit einem Bein draußen | — | 60 % |
+
+Dieselbe Tabelle kippt einen geplanten **Schluss** in ein Bleiben — außer der
+Grund ist der **Körper**, den redet niemand weg. Verworfen: die Ortsachse erst
+am Horizont aus dem Commitment zu ziehen, ohne Plan. Dann wüsste der Manager
+jahrelang nichts, und der Plan im Lebenslage-Satz wäre eine Attrappe.
+
+**Wie weit ein Wegzug führt.** Log-normal, nicht mehr gleichverteilt 30–400
+km wie in Schritt 1: Median 80 km beim Schüler (die Uni-Stadt), 60 beim
+Studenten und Arbeiter, 40 beim Azubi, Streuung 0,8 im Logarithmus, gekappt
+auf 10–400. Als Plan-Anzeige war die Gleichverteilung egal; mit der Waage
+nicht mehr — ab rund 150 km ohne Auto ist der Druck 99, und die Waage wäre
+kein Abwägen, sondern ein Urteil. Gemessen: 2,1 Abgänge je Verein und Saison
+gleichverteilt gegen 1,4 log-normal, siehe `balancing.md` Abschnitt 11.
+
+**Student.** Frischer Horizont 3–5 Jahre; Plan wie bisher 55 % Wegzug, 45 %
+Bleiben. Am Studienende: **Arbeiter 65 %**, **weiterstudieren 30 %**
+(Master, 1–2 Jahre — und nur **einmal**, `verlaengert` merkt es sich, sonst
+studiert einer ewig), **Azubi 5 %**. Wer weggezogen ist, bleibt weg — die
+Entfernung schrumpft nicht von selbst; ob er sie aushält, entscheidet die Waage
+unten. Eine eigene Rückkehr-Tabelle gab es im Entwurf und ist gestrichen: sie
+hätte dieselbe Frage („hält er die Strecke aus") ein zweites Mal beantwortet.
+
+**Azubi.** Frischer Horizont 3 Jahre (je 10 % verkürzt auf 2 oder verlängert auf
+4); Plan wie bisher 15 % Wegzug, 85 % Bleiben — der Betrieb ist vor Ort. Am
+Ausbildungsende: **Arbeiter 88 %**, **Student 12 %** (Fachabitur, duales
+Studium). Wer aufsteigt — Azubi, Arbeiter — kauft sich mit der
+Wahrscheinlichkeit seines neuen Status ein Auto, wenn er keines hat: ein
+Schüler ohne soll nicht als Arbeiter ohne enden.
+
+**Arbeiter — der Zyklus.** Kein fester Horizont-Typ, sondern ein Zyklus von 2–4
+Jahren, an dessen Ende ein Ereignis steht. Neu darunter: **Familie gegründet**
+kippt die `familie`-Flag — vorher hing das Feld in der Luft. Die Gewichte
+hängen am Alter:
+
+| Altersband | Bleibt | Familie gegründet* | Wegzug | Schluss |
+| --- | --- | --- | --- | --- |
+| < 32 | 45 % | 20 % | 25 % | 10 % |
+| 32–37 | 40 % | 15 % | 25 % | 20 % |
+| 38+ | 35 % | 5 % | 15 % | 45 % |
+
+\* nur solange `familie` noch `false` ist; sonst fällt der Anteil auf „Bleibt".
+
+Das **Schluss-Gewicht** wird vor der Ziehung mit dem Halt skaliert — sonst
+hinge, ob ein 28-Jähriger weiterspielt, allein am Alter, und genau das war die
+ursprüngliche Warnung bei „Rücktritt als berechneter Wert":
+
+| Commitment-Stufe | Multiplikator auf Schluss |
+| --- | --- |
+| Herz und Seele | × 0,5 |
+| verlässlich | × 0,75 |
+| dabei | × 1,0 |
+| wackelt | × 1,4 |
+| mit einem Bein draußen | × 2,0 |
+
+Der **Grund** eines Schlusses wird mit dem Plan gezogen, altersabhängig — das
+behebt den Fehler, dass `T.lebenslage.horizont` jedem Schluss „körperlich"
+zuschrieb. Ein junger Arbeiter hört aus Lust oder wegen des Berufs auf, ein
+alter wegen des Körpers:
+
+| Altersband | Körper | Lust | Beruf | Familie |
+| --- | --- | --- | --- | --- |
+| < 30 | 10 % | 40 % | 30 % | 20 % |
+| 30–37 | 25 % | 20 % | 25 % | 30 % |
+| 38+ | 55 % | 10 % | 10 % | 25 % |
+
+Ab 45 wird ein Arbeiter mit 3 % je Zyklus **Rentner** (Frührente,
+Berufsunfähigkeit). Der Rentner ist sonst ein Status, den die Generierung
+vergibt, kein Ziel im Kreislauf; sein Horizont ist 70 % Schluss in 1–3 Jahren
+(Körper 75 %, Familie 25 %), 30 % nichts.
+
+**Druck gegen Halt — die Waage.** Eine Funktion für jeden Status, jede Saison,
+in [`engine/lebenslauf.js`](../engine/lebenslauf.js):
+
+```
+entfernung_effektiv = entfernung × mobilitätsfaktor × familienfaktor
+    mobilitätsfaktor = Auto ? 0,4 : 1,0
+    familienfaktor   = (Arbeiter oder Rentner) und familie ? 1,3 : 1,0
+Druck = min(99, entfernung_effektiv)
+
+Halt  = commitment + 2 × Vereinsjahre + familienbonus
+    familienbonus = Schüler, Student oder Azubi ? 15 : 0
+```
+
+Druck > Halt setzt einen **Zähler** in Gang, nichts Sofortiges — „nie sofort,
+sonst kippt jeder an einem schlechten Wochenende". Liegt der Halt in einer
+Saison wieder oben, fällt der Zähler auf null. **Zwei Saisons in Folge**
+darüber heißt Abgang, Grund Familie, wenn sie den Druck mitgetragen hat, sonst
+Beruf.
+
+Drei Entscheidungen stecken in der Formel, alle gegen eine Doppelzählung:
+
+- **Die Strecke ist aus der Commitment-Ziehung heraus.** Bis Schritt 1 zog sie
+  bis zu 22 Punkte vom Wert ab (`COMMITMENT_JE_KM_*`, `COMMITMENT_STRECKE_MAX`).
+  Mit der Waage stünde die Entfernung sonst zweimal da: einmal senkt sie den
+  Halt, einmal ist sie der Druck. Der Wert kommt jetzt aus Basis, Status,
+  Vereinsjahren und Streuung; die Mobilität steht ausschließlich im Druck.
+- **Der Familienfaktor gilt nur für die eigene Familie.** Beim Studenten ist
+  die Familie die Eltern — und die wohnen da, wo der Verein steht, weil jeder
+  Spieler dort anfängt. Seine Entfernung *ist* also schon die Entfernung zur
+  Familie; ein Faktor darauf zählte denselben Umstand doppelt. Dass Familie für
+  die Jungen mehr wiegt, steht deshalb auf der Halt-Seite als fester Bonus.
+  Unter 1,0 darf der Faktor bei den Jungen auch nicht: das wäre dieselbe
+  Doppelzählung, nur zu ihren Gunsten.
+- **Kein Jugend-Mobilitäts-Rabatt.** Junge Leute sind mobil, weil sie
+  ausprobieren wollen — das macht sie nicht fester, eher lockerer. Zwei Achsen,
+  die sich nicht decken; kein Hebel.
+
+**Zwei Uhren, die sich nicht blockieren.** Der Zyklus (Horizont) sagt, wann das
+nächste Lebensereignis fällig ist; die Waage sagt jede Saison, ob er den Verein
+bis dahin überhaupt aushält. Ein 4-Jahres-Zyklus, in dem der Druck zwei Saisons
+oben liegt, endet nach der zweiten — die restlichen zwei Jahre werden nie
+erreicht. Umgekehrt läuft der Zähler über ein Zyklusende hinweg einfach weiter.
+Weil die Waage für jeden rechnet, braucht sie keinen Sonderfall: bei kleiner
+Entfernung kommt der Druck nie über den Halt, und der Zähler bleibt null.
+
+**Was der Motor noch nicht tut**, mit Absicht:
+
+- Das **Commitment bewegt sich nicht** — Bank, Coach, Verletzung, Erfolg kommen
+  in 2b. Der Halt ist der heutige Wert.
+- **Der Plan ist die Wahrheit.** Die Abweichungen beim Studenten (65 % trifft
+  · 20 % ein Jahr länger · 10 % Abbruch · 5 % ein Jahr früher) und beim Azubi
+  (80 · 15 · 5) sind entworfen, aber nicht gebaut: ohne Gespräch gäbe es keinen
+  Weg, die Wahrheit zu erfahren, und ein Feld ohne Weg ist eine Falle. Der
+  Abbruch (Student → Azubi 45 %, Arbeiter 55 %; Azubi → neue Ausbildung 40 %)
+  kommt mit.
+- **`ruecktrittAlter` bleibt** als Backstop bei 37 — die 38+-Zeile trifft bis
+  Schritt 3 praktisch nur Veteranen. Dort geht das Feld in der Waage auf.
+- **Abgänge nehmen den Rookie-Weg**, wie der Rücktritt heute: für jeden
+  Verein derselbe Ersatz, also bleibt die Symmetrie zur KI gewahrt, die Block 7
+  verlangt. Die Rekrutierung von Hand ist Schritt 3.
+- **Coaches durchlaufen den Motor nicht.** Sie tragen die Felder, aber ein
+  Coach, der geht, bräuchte einen Ersatzweg, den es nicht gibt.
+- **Die Entfernung kennt nur den eigenen Verein** (offene Entscheidung 10).
+
+**Abwerben passt hinein, ohne Umbau.** Ein Angebot eines anderen Vereins ist
+ein externes Ereignis — keine Uhr, kein Horizont — und rechnet mit derselben
+Formel ein zweites Mal: `Halt_aktuell` gegen einen Zug des Rivalen, in dem
+dessen Entfernung, Spritgeld und erlassene Teamgebühr die effektive Entfernung
+zu **ihm** senken, und dessen Gespräche das Vorzeichen der eigenen tragen. Das
+„80 km näher" aus der Einleitung hat damit eine Zahl. Kommt mit Schritt 3.
+
+**Was im Stand dazukam** (`SAVE_VERSION` 12): `lebenslage.druckJahre` (der
+Zähler), `lebenslage.verlaengert` (die Einmal-Sperre), `horizont.grund` am
+Schluss, `dann: 'familie'` als vierter Plan, und die Rücktritts-Nachricht trägt
+neben den Namen die Gründe. Alles darf in einem alten Stand fehlen — der
+Schritt 11→12 hebt nur die Nummer. Im **Playtester-Modus** stehen Druck, Halt
+und der Zähler in der Versteckt-Zeile; das Abschlussalter braucht keinen
+eigenen Platz, es steht als „noch zwei Jahre Schule" ohnehin im Satz.
+
 ### Reihenfolge
 
 1. ~~**Felder und Anzeige.**~~ **Erledigt.** `commitment` und `lebenslage`
    an `Spieler` und `Coach`, `engine/commitment.js` mit den Bändern und der
-   Ziehung (Mobilität und Status, nicht Alter), fünf Texte und die
+   Ziehung (~~Mobilität und~~ Status, nicht Alter — die Strecke ist mit 2a
+   auf die Druck-Seite gewandert, siehe oben), fünf Texte und die
    Lebenslage-Vorlage in `i18n.js`, Anzeige im Personalreiter (Spalte
    „Bindung" und der Satz unter den Werten, bei Spielern wie Coaches),
    Migration 10→11. Keine Drift. `ruecktrittAlter` bleibt vorerst.
@@ -573,11 +816,20 @@ belohnt statt Verbrauch.
    - **Playtester-Modus.** Der Code `playtester` im Feld ganz unten im
      Postfach zeigt die versteckten Zahlen (Commitment, Talent, Rücktritt).
      Liegt in `app.js` und im Browser, nicht im Speicherstand.
-2. **Bewegung und Gespräch.** Drift durch Bank, Coach, Verletzung, Erfolg,
-   Vereinsjahre; Stufenwechsel-Nachrichten vom Positionscoach; das Gespräch
-   als Kalendertermin mit Kategorien; Wünsche.
-3. **Abgänge und Rekrutierung**, zusammen: Druck gegen Halt, Grund beim
-   Abgang, Kanäle, Ehemaligen-Pool; `ruecktrittAlter` geht darin auf.
+2. **Bewegung und Gespräch**, in zwei Hälften:
+   - ~~**2a — der Statusübergangs-Motor.**~~ **Erledigt**, siehe „die
+     Verteilungen" oben: Abschlussalter, Schulabschluss, Studien- und
+     Ausbildungsende, der Arbeiter-Zyklus mit Familie und Schluss samt Grund,
+     das Kippen des Plans durch das Commitment, und die Waage Druck gegen Halt
+     mit dem Zwei-Saisons-Zähler. Abgänge daraus nehmen den Rookie-Weg.
+   - **2b — Drift, Gespräche, Nachrichten, Wünsche.** Drift durch Bank, Coach,
+     Verletzung, Erfolg, Vereinsjahre; Stufenwechsel-Nachrichten vom
+     Positionscoach; das Gespräch als Kalendertermin mit Kategorien, das den
+     Halt hebt und den Plan aufdecken oder verschieben kann — damit kommt die
+     Wahrheit neben den Plan (Abbruch, längeres Studium); Wünsche.
+3. **Abgänge und Rekrutierung**, zusammen: der Grund beim Abgang wird
+   sichtbar gemacht, Kanäle, Ehemaligen-Pool, Abwerben als externes Ereignis
+   mit derselben Waage; `ruecktrittAlter` geht in der Waage auf.
 4. **Mit den Finanzen:** Spritgeld, Betreuung bei Verletzung, bezahlte
    Coaches, die gehen, wenn sie nicht bezahlt werden. Versprechen und Freunde
    zum Schluss.
@@ -858,7 +1110,13 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Gutschriftschranke | `KOERPERMALUS_GUTSCHRIFT_ANTEIL` = 0,5: die Körper-Gutschrift nimmt höchstens die Hälfte des linearen Malus weg. Unbeschränkt hob sie ihn ab 16,7 kg Übergewicht ganz auf, abstandsunabhängig, weil beide Summanden linear im Abstand sind |
 | Linebacker im Laufspiel | MIKE und SAM haben `beweglichkeit` (und SAM `schnelligkeit`) in der Laufformel. Ohne sie bestand ihre Formel aus denselben vier Attributen wie die des Nose Tackle, und ein Sam war ein kleiner Nose Tackle. Was den Linebacker vom Lineman trennt, ist nicht Kraft, sondern dass er läuft |
 | Formeln wirken zweimal | eine Änderung an `FORMELN` ändert die Bewertung **und** die Ziehung, weil `generierungsProfil()` daraus kommt. Das ist der Hebel, nicht der Nebeneffekt: der Sam bekommt echte Beweglichkeit statt der Bodenplatte und zugleich weniger Kraft |
-| Commitment | `commitment` 0–99 an Spieler und Coach (Orga, sobald es Orga gibt); der Manager sieht nur eine von fünf Textstufen, harte Bänder, einmal in `engine/commitment.js`. Nicht aus Alter, nicht aus Soft Skills gezogen — aus Mobilität und Status |
+| Commitment | `commitment` 0–99 an Spieler und Coach (Orga, sobald es Orga gibt); der Manager sieht nur eine von fünf Textstufen, harte Bänder, einmal in `engine/commitment.js`. Nicht aus Alter, nicht aus Soft Skills, seit 2a auch nicht mehr aus der Strecke gezogen — aus Status und Vereinsjahren; die Entfernung ist Druck |
+| Abschlussalter | statt einer Schulart: eine gezogene Zahl (40 % Gymnasium 17–19, 30 % Realschule 16–17, 30 % Mittelschule 15–16), die als Horizont des Schülers steht und beim Abschluss den Folgestatus gewichtet (≤ 16: Azubi 65 %; 17–19: Student 55 %) |
+| Plan und Kippen | der Horizont trägt einen Plan, der Manager sieht ihn; am Horizont kippt das Commitment ihn mit 30/60 % (Stufe 3/4: Wegzug → Bleiben, Schluss → Bleiben außer Körper; Stufe 1/0: Bleiben → Wegzug) |
+| Arbeiter-Zyklus | 2–4 Jahre, am Ende Bleibt / Familie gegründet / Wegzug / Schluss nach Altersband; das Schluss-Gewicht × 0,5 … × 2,0 nach Commitment-Stufe; der Grund (Körper · Lust · Beruf · Familie) altersabhängig mit dem Plan gezogen |
+| Die Waage | `Druck = min(99, km × (Auto ? 0,4 : 1) × (eigene Familie ? 1,3 : 1))`, `Halt = commitment + 2 × Vereinsjahre + 15 (Schüler/Student/Azubi)`; zwei Saisons Druck > Halt = Abgang. Für jeden Status, jede Saison, unabhängig vom Zyklus |
+| Keine Doppelzählung | ein Umstand steht auf **einer** Seite der Waage: Strecke nur im Druck (nicht mehr in der Ziehung), die Eltern der Jungen nur als Halt-Bonus (nicht als Faktor auf ihre Entfernung, die schon zu den Eltern führt), kein Jugend-Mobilitäts-Rabatt |
+| Abwerben | ein externes Ereignis, keine Uhr; dieselbe Waage ein zweites Mal gegen den Zug des Rivalen, dessen Spritgeld und Gebührenerlass die Entfernung zu ihm senken. Schritt 3 |
 | Lebenslage | Felder, nie Text: Status · Entfernung · mobil · Familie · Horizont · Vereinsjahre. Der Satz kommt aus einer Vorlage. Was der Manager liest, ist der **Plan**, den der Spieler erzählt — die Wahrheit liegt daneben und erfährt man nur im Gespräch |
 | Druck und Halt | Abgänge sind Druck aus der Lebenslage gegen Halt aus dem Commitment, über eine Weile. Lebensereignisse ziehen **nicht** vom Commitment ab; ein Wert, nicht zwei (Verein/Sport) — der Grund wird beim Abgang gezogen |
 | Keine Drift ohne Hebel | Schritt 1 zeigt nur an. Bewegung erst mit dem Gespräch als knappem Kalendertermin; sonst ist es eine unsichtbare Strafe |

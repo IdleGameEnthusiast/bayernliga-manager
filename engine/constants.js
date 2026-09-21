@@ -407,18 +407,10 @@ export const VETERAN_POSITIONEN = LINEMEN;
  */
 export const COMMITMENT_STUFEN = /** @type {const} */ ([20, 40, 60, 80]);
 
-/** Wo die Ziehung anfängt, bevor Mobilität und Status daran ziehen. */
+/** Wo die Ziehung anfängt, bevor Status und Vereinsjahre daran ziehen. */
 export const COMMITMENT_BASIS = 52;
 /** Streuung um das Ergebnis — was die Formel nicht erklärt. */
 export const COMMITMENT_STREUUNG = 14;
-/**
- * Was jeder Kilometer bis zum Training kostet, mit und ohne Auto. Der Weg
- * ohne Auto ist der halbe Grund, warum ein Student im vierten Jahr aufhört.
- */
-export const COMMITMENT_JE_KM_AUTO = 0.08;
-export const COMMITMENT_JE_KM_OHNE = 0.35;
-/** Höchstens so viel kostet die Strecke insgesamt. */
-export const COMMITMENT_STRECKE_MAX = 22;
 /** Was ein Jahr im Verein bringt, und ab wie vielen Jahren nichts mehr dazukommt. */
 export const COMMITMENT_JE_VEREINSJAHR = 1.2;
 export const COMMITMENT_VEREINSJAHRE_MAX = 10;
@@ -430,6 +422,48 @@ export const COMMITMENT_VEREINSJAHRE_MAX = 10;
 export const COMMITMENT_JE_STATUS = /** @type {Record<string, number>} */ ({
   schueler: 4, student: -6, azubi: 4, arbeiter: 2, rentner: 10,
 });
+
+// --- Druck gegen Halt — die Waage in `lebenslauf.js` -----------------------
+// Die Strecke stand bis Schritt 1 in der Commitment-Ziehung (bis zu 22 Punkte
+// Abzug). Sie ist dort heraus, weil sie mit der Waage zweimal gezählt hätte:
+// einmal als niedrigerer Halt, einmal als Druck. Ein Umstand steht auf einer
+// Seite.
+
+/** Was ein Auto von der Strecke nimmt: 80 km mit Auto drücken wie 32 ohne. */
+export const DRUCK_FAKTOR_AUTO = 0.4;
+/**
+ * Was die eigene Familie auf die Strecke legt — nur beim Arbeiter und
+ * Rentner. Beim Studenten sind „Familie" die Eltern, und die wohnen da, wo der
+ * Verein steht: seine Entfernung ist schon die zu ihnen, ein Faktor darauf
+ * zählte sie doppelt.
+ */
+export const DRUCK_FAKTOR_FAMILIE = 1.3;
+/** Die Skala des Drucks ist die des Commitments: 0 bis 99. */
+export const DRUCK_MAX = 99;
+/** Was ein Jahr im Verein an Halt bringt — ungedeckelt, anders als in der Ziehung. */
+export const HALT_JE_VEREINSJAHR = 2;
+/**
+ * Was die Eltern einem Schüler, Studenten oder Azubi an Halt geben. Auf der
+ * Halt-Seite und nicht als Faktor unter 1 auf den Druck — das wäre dieselbe
+ * Doppelzählung, nur zu seinen Gunsten.
+ */
+export const HALT_FAMILIENBONUS_JUNG = 15;
+/**
+ * So viele Saisons in Folge muss der Druck über dem Halt liegen, bis einer
+ * geht. Nie sofort — sonst kippt jeder an einem schlechten Wochenende.
+ */
+export const DRUCK_JAHRE_BIS_ABGANG = 2;
+/**
+ * Multiplikator auf das Schluss-Gewicht im Arbeiter-Zyklus, je Stufe 0..4.
+ * Ohne ihn hinge, ob ein 28-Jähriger weiterspielt, allein am Alter.
+ */
+export const SCHLUSS_JE_STUFE = /** @type {const} */ ([2.0, 1.4, 1.0, 0.75, 0.5]);
+/**
+ * Mit welcher Wahrscheinlichkeit das Commitment am Horizont den Plan kippt,
+ * je Stufe 0..4: unten wird aus Bleiben ein Wegzug, oben aus Wegzug oder
+ * Schluss ein Bleiben. Die Mitte kippt nichts.
+ */
+export const KIPPEN_JE_STUFE = /** @type {const} */ ([0.6, 0.3, 0, 0.3, 0.6]);
 
 /** Match simulation. */
 export const BASE_POINTS = 20;        // what an evenly matched offence scores

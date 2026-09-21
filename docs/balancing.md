@@ -185,16 +185,14 @@ Die Vereinsstärken selbst stehen im Katalog (`engine/content.js`), und
 
 *„Alle sind ‚dabei'"* oder *„die halbe Liga steht mit einem Bein draußen".*
 `engine/constants.js`, Docs [`naechste-schritte.md`](naechste-schritte.md)
-Block 7. Im ersten Schritt bewegt sich der Wert nicht — das hier ist nur die
-Ziehung. Der Manager sieht nie die Zahl, nur die Stufe.
+Block 7. Der Wert bewegt sich noch nicht — das hier ist nur die Ziehung. Der
+Manager sieht nie die Zahl, nur die Stufe.
 
 | Konstante | Wert | Wirkung | Richtung |
 | --- | --- | --- | --- |
 | `COMMITMENT_STUFEN` | 20 / 40 / 60 / 80 | die unteren Grenzen der Stufen 1–4; darunter Stufe 0 | Bänder verschieben heißt Texte verschieben, nicht Werte — wer mehr „Herz und Seele" will, senkt die 80 |
 | `COMMITMENT_BASIS` | 52 | wo die Ziehung anfängt | die eine Schraube, wenn die ganze Liga zu locker oder zu fest hängt |
 | `COMMITMENT_STREUUNG` | 14 | Streuung um das Ergebnis | höher = die Ränder füllen sich; bei 12 standen von 415 nur 5 ganz unten und 8 ganz oben, bei 14 sind es 4–9 und 17–30 |
-| `COMMITMENT_JE_KM_AUTO` / `_OHNE` | 0,08 / 0,35 | was jeder Kilometer bis zum Training kostet, mit und ohne Auto | ohne Auto 60 km = −21; das ist der Student, der im vierten Jahr aufhört |
-| `COMMITMENT_STRECKE_MAX` | 22 | Deckel auf die Streckenkosten | verhindert, dass 120 km ohne Auto den Wert auf null drückt |
 | `COMMITMENT_JE_STATUS` | Schüler +4, Student −6, Azubi +4, Arbeiter +2, Rentner +10 | was der Status mitbringt | der Student ist der Einzige mit Abzug — er ist gekommen, um zu gehen |
 | `COMMITMENT_JE_VEREINSJAHR` / `_MAX` | 1,2 / 10 | was ein Jahr im Verein bringt, und ab wann nichts mehr dazukommt | höher = die Alteingesessenen sind unkündbar |
 
@@ -202,6 +200,50 @@ Gemessen beim Einbau (drei Seeds, je 415 Spieler): Stufen 0–4 im Schnitt
 **7 / 67 / 182 / 137 / 22**, Mittel 53–55. Die Lebenslage-Tabellen — welcher
 Status in welchem Alter, wie weit einer fährt, was am Horizont steht — sind
 Modell und stehen in `commitment.js`, nicht hier.
+
+**Gestrichen mit Schritt 2a:** `COMMITMENT_JE_KM_AUTO` / `_OHNE` (0,08 / 0,35)
+und `COMMITMENT_STRECKE_MAX` (22). Die Strecke zog bis zu 22 Punkte vom Wert
+ab; mit der Waage (Abschnitt 11) stünde sie zweimal da — einmal als
+niedrigerer Halt, einmal als Druck. Ohne den Abzug: Stufen 0–4 **2 / 51 / 181
+/ 151 / 29**, Mittel 56–58 (vorher 7 / 67 / 182 / 137 / 22, Mittel 53–55) —
+die Stufe 0 ist fast leer, weil sie vorher aus den Weitfahrern ohne Auto
+bestand, und die stehen jetzt auf der Druck-Seite. Wer die alte Verteilung
+zurückwill, senkt `COMMITMENT_BASIS` um etwa 3.
+
+## 11 — Die Waage: wer die Strecke aushält und wer geht
+
+*„Jedes Jahr ist der halbe Kader neu"* oder *„es geht nie einer".*
+`engine/constants.js`, Modell in `engine/lebenslauf.js`, Docs
+[`naechste-schritte.md`](naechste-schritte.md) Block 7, „Statusübergänge —
+die Verteilungen". Druck und Halt liegen auf der Skala des Commitments; nur
+der Playtester sieht sie.
+
+| Konstante | Wert | Wirkung | Richtung |
+| --- | --- | --- | --- |
+| `DRUCK_FAKTOR_AUTO` | 0,4 | womit die Strecke multipliziert wird, wenn einer ein Auto hat | tiefer = das Auto entscheidet mehr; bei 0,4 drücken 80 km mit Auto wie 32 ohne |
+| `DRUCK_FAKTOR_FAMILIE` | 1,3 | was die **eigene** Familie (Arbeiter, Rentner) auf die Strecke legt | höher = Familienväter mit langem Weg gehen; für Schüler, Studenten, Azubis gilt er nicht — ihre Entfernung ist schon die zu den Eltern |
+| `DRUCK_MAX` | 99 | Deckel des Drucks | nicht drehen — die Skala ist die des Commitments |
+| `HALT_JE_VEREINSJAHR` | 2 | was ein Jahr im Verein an Halt bringt, ungedeckelt | höher = die Alteingesessenen halten jede Strecke aus; zehn Jahre sind schon eine ganze Stufe |
+| `HALT_FAMILIENBONUS_JUNG` | 15 | was die Eltern einem Schüler, Studenten oder Azubi an Halt geben | höher = die Jungen pendeln länger; auf der Halt-Seite und nicht als Faktor unter 1 auf den Druck, das wäre eine Doppelzählung |
+| `DRUCK_JAHRE_BIS_ABGANG` | 2 | so viele Saisons in Folge muss der Druck über dem Halt liegen | 1 wäre „sofort", und dann kippt jeder an einem schlechten Wochenende; 3 heißt, ein Gespräch hat zwei Jahre Zeit |
+| `SCHLUSS_JE_STUFE` | × 2,0 / 1,4 / 1,0 / 0,75 / 0,5 | Multiplikator auf das Schluss-Gewicht im Arbeiter-Zyklus, je Stufe 0–4 | flacher = das Alter entscheidet allein, ob ein 28-Jähriger weiterspielt |
+| `KIPPEN_JE_STUFE` | 60 / 30 / 0 / 30 / 60 % | wie oft das Commitment am Horizont den Plan kippt (unten Bleiben → Wegzug, oben Wegzug oder Schluss → Bleiben) | höher = der Plan im Satz ist öfter falsch; bei 0 ist er die Wahrheit, und das Commitment hat am Horizont nichts zu sagen |
+
+Gemessen beim Einbau (drei Seeds, acht Saisons, 415 Spieler): über den
+Lebenslauf gehen **1,3–1,5 je Verein und Saison**, übers Alter weitere ~1,2 —
+also rund 7 % des Kaders im Jahr. Mit den alten gleichverteilten
+Wegzug-Kilometern (30–400) waren es 2,1–2,2: ab etwa 150 km ohne Auto ist der
+Druck 99, und die Waage urteilt statt zu wägen. Deshalb ist der Wegzug jetzt
+log-normal (Median 60 km beim Studenten, 80 beim Schüler, 40 beim Azubi,
+Streuung 0,8 im Logarithmus) — die Mediane stehen als Modell in
+`commitment.js`. Beim Start liegen 8–12 von 415 über dem Druck; sie sind nach
+zwei Saisons weg.
+
+**Nebenwirkung, gemessen und offen gelassen:** der Anteil der Studenten sinkt
+über acht Saisons von ~19 % auf ~13 %, der der Arbeiter steigt von 62 % auf
+~76 %. Der Rookie kommt mit 18–21 und ist damit selten Student; wer studiert,
+wird nach drei bis fünf Jahren Arbeiter. Wer mehr Studenten will, dreht am
+Rookie-Alter oder an der Student-Zeile nach dem Schulabschluss (55 %).
 
 ---
 

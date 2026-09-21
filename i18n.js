@@ -220,9 +220,13 @@ export const DE = {
       betreff: (d) => (d.namen.length === 1
         ? 'Ein Spieler hört auf'
         : `${d.namen.length} Spieler hören auf`),
+      // Der Grund steht in Klammern hinter dem Namen, wenn die Nachricht einen
+      // trägt — eine aus einem Stand vor Version 12 tut das nicht.
       text: (d) => [
-        'Diese Männer haben ihre Karriere beendet:',
-        d.namen.join(', '),
+        'Diese Männer sind nicht mehr dabei:',
+        d.namen.map((name, i) => (d.gruende && d.gruende[i]
+          ? `${name} (${T.lebenslage.grund[d.gruende[i]]})`
+          : name)).join(', '),
       ],
     },
   },
@@ -304,9 +308,12 @@ export const DE = {
     bindung: 'Bindung',
     lebenslage: 'Lebenslage',
     // Nur im Playtester-Modus: die Zahlen, die der Manager sonst nie sieht.
+    // Druck und Halt sind die Waage aus `lebenslauf.js`, der Zähler die
+    // Saisons in Folge, in denen der Druck oben lag — bei zwei geht er.
     verstecktes: 'Versteckt',
     versteckteWerte: (d) => `Commitment ${d.commitment} · Talent ${d.talent} · `
-      + `Rücktritt nach ${d.ruecktrittAlter}`,
+      + `Rücktritt nach ${d.ruecktrittAlter} · Druck ${d.druck} gegen Halt ${d.halt}`
+      + (d.druckJahre > 0 ? ` (${d.druckJahre}. Saison drüber)` : ''),
   },
 
   // Die fünf Stufen, in denen der Manager das Commitment sieht — von unten
@@ -337,6 +344,24 @@ export const DE = {
       student: 'Studium',
       azubi: 'Ausbildung',
     },
+    // Warum einer aufhört — in der Rücktritts-Nachricht hinter dem Namen.
+    grund: {
+      koerper: 'Körper',
+      lust: 'keine Lust mehr',
+      beruf: 'Beruf',
+      familie: 'Familie',
+    },
+    // Ein Schluss mit Grund, wie ein Coach ihn notiert: „körperlich noch zwei
+    // Saisons", „hat noch für eine Saison Lust". Vorher hieß jeder Schluss
+    // „körperlich", auch beim 24-Jährigen — das war der Fehler, den der Grund
+    // am Horizont behebt. Ein Schluss ohne Grund stammt aus einem alten Stand
+    // und heißt Körper.
+    schluss: {
+      koerper: (n) => (n <= 1 ? 'körperlich die letzte Saison' : `körperlich noch ${n} Saisons`),
+      lust: (n) => (n <= 1 ? 'hat noch für eine Saison Lust' : `hat noch für ${n} Saisons Lust`),
+      beruf: (n) => (n <= 1 ? 'der Job lässt noch eine Saison zu' : `der Job lässt noch ${n} Saisons zu`),
+      familie: (n) => (n <= 1 ? 'die Familie gibt noch eine Saison her' : `die Familie gibt noch ${n} Saisons her`),
+    },
     satz: (l, jahr) => {
       const teile = [T.lebenslage.status[l.status]];
       if (l.entfernung <= 5) teile.push('wohnt um die Ecke');
@@ -357,10 +382,10 @@ export const DE = {
         ? `Wegzug, ${h.km} km entfernt`
         : h.dann === 'bleibt' ? 'will bleiben' : 'Schluss';
       if (abschnitt) return `${noch} ${abschnitt}, danach ${danach}`;
-      if (h.dann === 'schluss') {
-        return jahre <= 1 ? 'körperlich die letzte Saison' : `körperlich noch ${jahre} Saisons`;
-      }
-      if (h.dann === 'wegzug') return `plant ${jahre === 0 ? 'dieses Jahr' : `in ${jahre} ${jahre === 1 ? 'Jahr' : 'Jahren'}`} den Wegzug, ${h.km} km entfernt`;
+      if (h.dann === 'schluss') return T.lebenslage.schluss[h.grund || 'koerper'](jahre);
+      const wann = jahre === 0 ? 'dieses Jahr' : `in ${jahre} ${jahre === 1 ? 'Jahr' : 'Jahren'}`;
+      if (h.dann === 'wegzug') return `plant ${wann} den Wegzug, ${h.km} km entfernt`;
+      if (h.dann === 'familie') return `plant ${wann} Familie`;
       return 'will bleiben';
     },
     vereinsjahre: (n) => (n <= 0 ? 'neu im Verein'

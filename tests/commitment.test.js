@@ -68,12 +68,30 @@ test('das Commitment bleibt im Band und trifft jede Stufe', () => {
   assert.ok(mittel > 35 && mittel < 65, `Mittel ${mittel.toFixed(1)} — die Liga kippt`);
 });
 
-test('die Strecke ohne Auto kostet mehr als mit', () => {
-  // Gleiche Lebenslage, gleiches Rauschen — nur das Auto fehlt.
+test('die Strecke zählt nicht mehr in der Ziehung — sie ist Druck', () => {
+  // Gleiche Lebenslage, gleiches Rauschen — nur die Entfernung und das Auto
+  // sind anders. Stünde die Strecke noch im Wert, zählte sie mit der Waage
+  // doppelt: einmal als niedrigerer Halt, einmal als Druck.
   const basis = ziehLebenslage(makeRng('x'), 25, 2026);
-  const weit = { ...basis, entfernung: 60, auto: true };
-  const ohne = { ...weit, auto: false };
-  assert.ok(ziehCommitment(makeRng('gleich'), ohne, 2026) < ziehCommitment(makeRng('gleich'), weit, 2026));
+  const nah = { ...basis, entfernung: 3, auto: true };
+  const weit = { ...basis, entfernung: 120, auto: false };
+  assert.equal(ziehCommitment(makeRng('gleich'), nah, 2026), ziehCommitment(makeRng('gleich'), weit, 2026));
+});
+
+test('ein Schluss trägt seinen Grund, ein Arbeiter immer einen Zyklus', () => {
+  const rng = makeRng('grund');
+  for (let i = 0; i < 300; i++) {
+    const l = ziehLebenslage(rng, 22 + (i % 45), 2026);
+    if (l.status === 'arbeiter') assert.ok(l.horizont, 'ein Arbeiter ohne Zyklus');
+    if (l.horizont && l.horizont.dann === 'schluss') {
+      assert.ok(['koerper', 'lust', 'beruf', 'familie'].includes(/** @type {string} */ (l.horizont.grund)),
+        `Schluss ohne Grund: ${l.horizont.grund}`);
+    }
+    if (l.horizont && l.horizont.dann === 'familie') {
+      assert.equal(l.status, 'arbeiter', 'nur ein Arbeiter plant Familie');
+      assert.equal(l.familie, false, 'er hat schon eine');
+    }
+  }
 });
 
 test('der Satz zur Lebenslage lässt sich für jede Ziehung bauen', () => {
