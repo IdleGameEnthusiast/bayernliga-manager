@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import {
   saisonStart, saisonLaenge, wochentag, datum, tagVonDatum, tageImMonat,
   rasterVersatz, SPIELTAG_TAGE, GRUPPEN_SPIELTAGE, tagVonSpieltag, spieltagAmTag,
-  PHASEN, phaseAmTag, phasenBeginn,
+  PHASEN, phaseAmTag, phasenBeginn, nachDemFinale,
 } from '../engine/kalender.js';
 
 /** Die Tabelle aus §3: Saisonlabel → dritter Samstag im Oktober des Vorjahres. */
@@ -112,19 +112,26 @@ test('Etikett und Termin sind dieselbe Sache von zwei Seiten', () => {
   assert.throws(() => tagVonSpieltag(0), /Kein Termin/);
 });
 
-test('die vier Phasen liegen dort, wo das Saisonjahr sie beschreibt', () => {
-  assert.equal(phaseAmTag(1), 'vorbereitung');
-  assert.equal(phaseAmTag(182), 'vorbereitung', 'bis zum Vorabend von Spieltag 1');
-  assert.equal(phaseAmTag(183), 'gruppe');
-  assert.equal(phaseAmTag(253), 'gruppe', 'der zehnte Spieltag zählt noch dazu');
-  assert.equal(phaseAmTag(254), 'playoffs');
-  assert.equal(phaseAmTag(281), 'playoffs', 'das Finale auch');
-  assert.equal(phaseAmTag(282), 'sommerpause');
-  assert.equal(phaseAmTag(364), 'sommerpause');
+test('die Phasen liegen dort, wo das Saisonjahr sie beschreibt', () => {
+  assert.equal(phaseAmTag(1), 'offseason');
+  assert.equal(phaseAmTag(154), 'offseason', 'bis zum Vorabend der Preseason');
+  assert.equal(phaseAmTag(155), 'preseason', 'vier Wochen vor Spieltag 1');
+  assert.equal(phaseAmTag(182), 'preseason', 'bis zum Vorabend von Spieltag 1');
+  assert.equal(phaseAmTag(183), 'regularSeason');
+  assert.equal(phaseAmTag(253), 'regularSeason', 'der zehnte Spieltag zählt noch dazu');
+  assert.equal(phaseAmTag(254), 'postseason');
+  assert.equal(phaseAmTag(281), 'postseason', 'das Finale auch');
+  assert.equal(phaseAmTag(282), 'offseason', 'nach dem Finale dieselbe Phase wie im Herbst');
+  assert.equal(phaseAmTag(364), 'offseason');
 
-  assert.deepEqual(PHASEN.map((p) => p.ab), [1, 183, 254, 282]);
+  assert.deepEqual(PHASEN.map((p) => p.ab), [1, 155, 183, 254, 282]);
   for (const p of PHASEN) assert.equal(phasenBeginn(p.ab), true, p.name);
   assert.equal(phasenBeginn(184), false);
+
+  // Die eine Frage, die der Phasenname seit der Fusion nicht mehr beantwortet.
+  assert.equal(nachDemFinale(281), false, 'am Finaltag läuft noch ein Spiel');
+  assert.equal(nachDemFinale(282), true);
+  assert.equal(nachDemFinale(1), false, 'die Offseason im Herbst liegt davor');
 });
 
 test('das Monatsraster bekommt seine Maße aus dem Kalender', () => {

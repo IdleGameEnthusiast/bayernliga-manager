@@ -26,7 +26,7 @@ import { T } from '../i18n.js';
 import { teamById } from '../engine/content.js';
 import {
   datum, tagVonDatum, tageImMonat, rasterVersatz, spieltagAmTag, phaseAmTag,
-  saisonLaenge,
+  saisonLaenge, nachDemFinale,
 } from '../engine/kalender.js';
 import { brauchtAntwort, antwortenZu } from '../engine/postfach.js';
 import { naechsterStopp, eigenePartieAmTag } from '../engine/saison.js';
@@ -307,7 +307,7 @@ function tagesKarte(stand, aktionen) {
       : T.phase[phaseAmTag(stopp.tag)]);
 
   return karte(
-    phaseAmTag(stand.tag) === 'sommerpause' ? T.postfach.saisonEnde : T.postfach.spielfrei,
+    nachDemFinale(stand.tag) ? T.postfach.saisonEnde : T.postfach.spielfrei,
     T.postfach.naechsterTermin(T.datum.ohneJahr(datum(stand.jahr, stopp.tag)), wohin),
     el('button', { class: 'haupt', onclick: () => aktionen.weiter(null) },
       T.postfach.bisDahin));

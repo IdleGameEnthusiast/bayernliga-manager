@@ -50,8 +50,10 @@ try {
   gleich('sie verlangt keine Antwort', alle('.postzeichen.antwort').length, 0);
   gleich('der Weg zum ersten Spieltag ist frei', knopf(), 'Bis dahin');
   enthaelt('nächster Termin', tageskarte(), 'Nächster Termin');
-  enthaelt('am 18. April', tageskarte(), 'Sa 18. Apr');
-  enthaelt('zu Spieltag 1', tageskarte(), 'Spieltag 1');
+  // Der nächste Zwangsstopp ist nicht der erste Spieltag, sondern der Beginn
+  // der Preseason vier Wochen davor — die Offseason endet mit einem Halt.
+  enthaelt('am 21. März', tageskarte(), 'Sa 21. Mär');
+  enthaelt('zur Preseason', tageskarte(), 'Preseason');
 
   // Lesen heißt lesen: die Nachricht schlägt rechts auf und bleibt links stehen.
   enthaelt('rechts steht noch nichts', txt('.postlese'), 'Wähle eine Nachricht');
@@ -101,7 +103,11 @@ try {
   gleich('bis zum 30. April', letzterApr.querySelector('.kalzahl').textContent, '30');
   letzterApr.click();
   q('.kalauswahl button.haupt').click();
-  gleich('die Uhr hält am eigenen Spiel, nicht am Ziel', txt('.kopf-datum'), 'Sa 18. Apr 2026');
+  gleich('die Uhr hält am Beginn der Preseason, nicht am Ziel',
+    txt('.kopf-datum'), 'Sa 21. Mär 2026');
+  q('.tageskarte button.haupt').click();
+  gleich('und danach am eigenen Spiel, immer noch nicht am Ziel',
+    txt('.kopf-datum'), 'Sa 18. Apr 2026');
   gleich('Raster ist zum heutigen Tag zurückgekehrt', txt('.kalkopf h2'), 'April 2026');
   gleich('heute ist der 18. April', txt('.kaltag.heute .kalzahl'), '18');
   gleich('Tageskarte trägt den Kickoff', knopf(), 'Kickoff');

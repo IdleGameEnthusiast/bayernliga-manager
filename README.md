@@ -169,8 +169,9 @@ Eine Saison läuft von einem **dritten Oktobersamstag zum nächsten** — die Sa
 2027 beginnt am 17.10.2026 — und dauert deshalb immer volle Wochen: 364 Tage,
 alle paar Jahre 371. Tag 1 ist immer ein Samstag, und jeder Spieltag liegt auf
 `tag ≡ 1 (mod 7)`; der Wochentag ist eine Modulorechnung und kein Kalender.
-Gespielt wird von Mitte April bis Ende Juli, davor liegt die Vorbereitung und
-dahinter die Sommerpause. Die Termine stehen als Liste in
+Gespielt wird von Mitte April bis Ende Juli — Regular Season, dann Postseason.
+Davor liegen vier Wochen **Preseason**, und der ganze Rest des Jahres, vor wie
+nach der Saison, ist **Offseason**. Die Termine stehen als Liste in
 [`engine/kalender.js`](engine/kalender.js) — beim nächsten Formatwechsel ist das
 die eine Stelle, an der die Antwort steht. Alles Weitere in
 [`docs/umbau-kalender.md`](docs/umbau-kalender.md).

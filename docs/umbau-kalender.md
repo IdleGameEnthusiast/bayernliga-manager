@@ -99,8 +99,14 @@ wochentag(tag)             // → 0..6, 0 = Samstag. Reine Modulorechnung
 SPIELTAG_TAGE              // [183, 190, …] — die Saisonform als Daten
 tagVonSpieltag(nr)         // Etikett → Tag
 spieltagAmTag(tag)         // Tag → Etikett | null
-phaseAmTag(tag)            // 'vorbereitung'|'gruppe'|'playoffs'|'sommerpause'
+phaseAmTag(tag)            // 'offseason'|'preseason'|'regularSeason'|'postseason'
 ```
+
+Die Phasen hießen einmal `'vorbereitung'|'gruppe'|'playoffs'|'sommerpause'`
+und sind auf Sportbegriffe umbenannt (siehe `naechste-schritte.md`, Block 7,
+„Kalenderphasen") — `sommerpause` ist darin aufgegangen: dieselbe Phase wie
+`offseason`, nur an der `jahr`-Grenze künstlich zerschnitten. Reine
+Umbenennung, `Phase` steht nie im Speicherstand.
 
 `SPIELTAG_TAGE` als Konstantenliste ist zugleich die Antwort auf „welche
 Saisonform" beim nächsten Formatwechsel — sie steht an einer Stelle, nicht
@@ -115,14 +121,15 @@ Saison 2027, Tag 1 = Sa 17.10.2026:
 | Tag | Datum | Phase |
 | --- | --- | --- |
 | 1 | Sa 17.10.2026 | **Saisonwechsel**: Alterung, Rücktritte, Nachwuchs, Auslosung |
-| 2–182 | Okt – Apr | Vorbereitung — heute leer, später Transfers und Training |
+| 2–154 | Okt – Mär | Offseason — heute leer, später Transfers und die Rollen-Kampagne |
+| 155–182 | Mär – Apr | Preseason (letzte vier Wochen vor Spieltag 1) |
 | 183 | Sa 17.04.2027 | Spieltag 1 |
 | 190, 197, 204, 211 | wöchentlich | Spieltage 2–5 |
 | 218 | Sa 22.05.2027 | spielfrei |
 | 225, 232, 239, 246, 253 | wöchentlich | Spieltage 6–10 |
 | 267 | Sa 10.07.2027 | Halbfinale |
 | 281 | Sa 24.07.2027 | Finale |
-| 282–364 | Jul – Okt | Sommerpause |
+| 282–364 | Jul – Okt | Offseason (bis zum Umbau „Sommerpause" genannt) |
 
 Die spielfreie Woche nach Spieltag 5 ist neu. Sie kostet nichts und ist der
 Grund, warum das Bracket zwei Wochen Abstand bekommt statt einer: der Spielplan

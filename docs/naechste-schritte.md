@@ -361,9 +361,10 @@ Block 6 haben sich beim Spielen nicht gehalten und sind nachgezogen worden:
 [`engine/save.js`](../engine/save.js) ist der erste des wieder eingeführten
 Migrationspfads.
 
-**Offen geblieben:** die Vorbereitung (Tag 2–182) und die Sommerpause sind
-noch leer. Sie sind der Haken, an dem Transfers, Training und Rekrutierung
-hängen — das ist der nächste Block, nicht mehr dieser.
+**Offen geblieben:** Offseason und Preseason (Tag 2–182, damals noch
+„Vorbereitung" und „Sommerpause") sind noch leer. Sie sind der Haken, an dem
+Transfers, Training und Rekrutierung hängen — das ist der nächste Block, nicht
+mehr dieser.
 
 ---
 
@@ -496,32 +497,252 @@ Wenn er sich bewegt, dann durch diese Dinge, in dieser Gewissheit:
   ist für den Manager **einsehbar**, mit Frist und Stand. Ein Versprechen, das
   nur der Spieler kennt, ist keins.
 
+### Kalenderphasen — umbenannt auf Sportbegriffe ✅ gebaut
+
+`Phase` in [`engine/kalender.js`](../engine/kalender.js) hieß
+`'vorbereitung'|'gruppe'|'playoffs'|'sommerpause'` und wird zu
+**`'offseason'|'preseason'|'regularSeason'|'postseason'`** — Regel 3 aus
+`CLAUDE.md` verlangt das ohnehin schon für Sportbegriffe („Offense, Defense,
+QB, MIKE" bleiben englisch, auch im deutschen Text). `T.phase` in `i18n.js`
+bekommt dieselben vier englischen Wörter als Anzeigetext, nicht übersetzt.
+
+- **Preseason** sind die letzten vier Wochen vor `SPIELTAG_TAGE[0]` —
+  Vorbereitungsspiele, Trainingscamp. Der Rest von `vorbereitung` davor wird
+  **Offseason**.
+- **Regular Season** = bisher `gruppe`, **Postseason** = bisher `playoffs`.
+- **`sommerpause` fällt weg und geht in Offseason auf.** Beides ist derselbe
+  Zustand — Saison vorbei, nichts los —, nur künstlich an der `jahr`-Grenze
+  zerschnitten. `PHASEN` bekommt `'offseason'` zweimal in der Liste (ab Tag 1
+  und noch einmal ab dem Tag nach dem Finale); `phaseAmTag()` und
+  `phasenBeginn()` ändern sich nicht. `Phase` wird nirgends gespeichert,
+  sondern immer aus `tag` berechnet — **keine Migration nötig**, reine
+  Umbenennung.
+- Eine Stelle mit echter Logik statt nur Text: [`ui/postfach.js`](../ui/postfach.js)
+  unterschied per `phaseAmTag(tag) === 'sommerpause'`, ob „Saison vorbei" oder
+  „spielfrei" angezeigt wird. Gebaut als `nachDemFinale(tag)` in `kalender.js`
+  — der Text-Unterschied bleibt, seine Grundlage ist jetzt der Tag und nicht
+  mehr der Phasenname.
+
+**Beim Bau gefallen, und es war keine reine Umbenennung:** der fünfte Eintrag
+in `PHASEN` macht den Beginn der Preseason zu einem **Phasenbeginn**, und ein
+Phasenbeginn ist ein Zwangsstopp ([`engine/saison.js`](../engine/saison.js),
+`naechsterStopp()`). Die Uhr hält seither einmal mehr im Jahr an, vier Wochen
+vor Spieltag 1. Inhaltlich gewollt — die Offseason-Kampagne braucht genau
+diesen Halt als Frist —, aber drei Tests in `saison.test.js` und der
+Rauchtest-Durchlauf `karriere.html` haben es gemerkt, weil sie „der nächste
+Stopp ist das eigene Spiel" als Selbstverständlichkeit geschrieben hatten.
+- **Randnotiz für später:** „Postseason bis zum letzten Spiel, danach
+  Offseason" ist eigentlich eine Aussage **je Team/Liga**, keine feste
+  Kalenderspanne. Mit einer Liga und einem Bracket fällt das heute für jeden
+  auf denselben Tag; sobald es mehrere Ligen mit unterschiedlichem Saisonende
+  gibt (eine, die bis in den September/Oktober spielt), muss das sauber pro
+  Team gedacht werden. Nicht jetzt bauen, nur nicht als globale Konstante
+  festbetonieren, wo es keine ist.
+
 ### Gespräche
 
-- Ein Gespräch ist ein **Kalendertermin** und damit knapp. Ohne Knappheit ist
-  es ein Knopf für +5, und das ganze System eine Fleißaufgabe. Später wird
-  Zeit die Ressource, aus der auch anderes bezahlt wird — ein Gespräch *oder*
-  der Instagram-Kanal.
-- Gespräche haben **Kategorien** — Perspektive, Rolle, Lebenslage abfragen,
-  Wunsch anhören, Versprechen — und jede hat eine andere Wirkung und ein
-  anderes Risiko. Die Liste fällt beim Bau von Schritt 2.
-- Das Postfach ist der Weg hinein: die Trend-Nachricht (unten) bietet „Ich
-  rede mit ihm" als Antwort in `ANTWORTEN` an, und diese Antwort *ist* der
-  Termin.
+Ein Gespräch ist ein **Kalendertermin** und damit knapp — ohne Knappheit ist
+es ein Knopf für +5. Zugang auf zwei Wegen: **proaktiv** über einen Knopf im
+Personal-Tab je Spieler, und **reaktiv** über Antworten im Postfach (siehe
+Nachrichten unten) — beide öffnen denselben Dialog, dasselbe Kontingent regelt
+beide gleich.
+
+**Kontingent.** Kein Countdown-Feld, das jede Woche zurückgesetzt werden
+müsste, sondern ein **Log**: `stand.gespraeche` sammelt `{ tag, spielerId }`
+für jedes geführte Gespräch, wie `stand.post` Nachrichten sammelt. Verfügbar
+diese Woche = Wochenbudget minus Einträge mit derselben Woche, Woche =
+`Math.floor((tag − 1) / 7)` — eine neue reine Funktion in `kalender.js`, die
+genau auf den Rhythmus passt, den `SPIELTAG_TAGE` schon hat (jeder Spieltag
+liegt auf `tag ≡ 1 mod 7`). Kein Reset-Sonderfall im Tick nötig; das Fenster
+verschiebt sich von selbst. Beim Saisonwechsel wird das Log geleert, wie der
+Papierkorb der Post. Der Startwert fürs Wochenbudget ist eine
+Balancing-Konstante, kein Design-Entscheid.
+
+**Fünf Kategorien**, jede mit eigener Wirkung und eigenem Risiko:
+
+| Kategorie | Was sie tut |
+| --- | --- |
+| Nach Lebenslage fragen | Fragt nach dem Plan (Horizont). Deckt ab dem `wissbarAb`-Jahr (siehe unten) verlässlich auf, wenn er sich geändert hat |
+| Über persönliche Themen sprechen | Reiner Beziehungsaufbau, kein Informationsertrag. Zuverlässiger kleiner Commitment-Gewinn — „der Coach interessiert sich für mich" |
+| Rolle | Setzt oder ändert die Rollen-Erwartung an der Einsatzzeit. Eigener Abschnitt unten, größtes Stück |
+| Wunsch anhören | Kein Wunsch → das Fragen selbst ist schon leicht positiv. Wunsch vorhanden → informiert nur; die Wirkung kommt erst beim späteren Erfüllen oder Verweigern |
+| Überzeugen | Der Manager drängt auf eine Positions-Umschulung, gegen die der Spieler sich sperrt. Eigener Abschnitt unten |
+
+**Versprechen ist verworfen**, nicht nur „kommt zuletzt". Der Fehler in der
+ursprünglichen Idee: ein Versprechen trägt nur, wenn der Manager selbst
+liefert — „du bleibst" ist aber der Entschluss des *Spielers*, nicht des
+Managers, und das Einzige, was der Manager wirklich selbst zusagen könnte
+(Physio bei Verletzung, Spritgeld, Gebührenerlass), hängt am Finanzen-Block,
+der noch nicht existiert. Ohne den ist jedes Versprechen entweder ein
+verkapptes Rollen-Versprechen (das Rolle jetzt sauberer löst) oder ein Griff
+nach etwas, das gar nicht in der Hand des Managers liegt. Wird neu aufgesetzt,
+sobald Finanzen etwas liefert, das sich ehrlich versprechen lässt.
+
+### Rolle
+
+Fünf Stufen, keine Ableitung aus dem tatsächlichen Einsatzmuster — die Rolle
+wird vom Manager **gesetzt**, nie erraten:
+
+| Rolle | Erwartung | Passt zu |
+| --- | --- | --- |
+| Unangefochtener Stammspieler | praktisch jedes Spiel, keine Konkurrenz in Aussicht | die klare Nummer eins der Position |
+| Starter | aktuell die Nummer eins, aber angreifbar | stark, ohne komfortablen Vorsprung |
+| Rotationsspieler | ein Anteil der Spiele, im Wechsel mit einem anderen | zwei etwa gleich starke Kandidaten auf demselben Platz |
+| Perspektivspieler | selten, mit Aussicht auf mehr | jung, Neuzugang — muss sich erst im Training beweisen |
+| Ergänzungsspieler | selten, ohne Aussicht auf mehr | akzeptiert seine Grenze, typischerweise alt/körperlich am Limit |
+
+Perspektivspieler und Ergänzungsspieler erwarten **dieselbe** knappe
+Einsatzzeit — der Unterschied ist nicht die Zahl, sondern, ob das Etikett zum
+Spieler passt. Ein 50-Jähriger, der Perspektivspieler wird, ist irritiert (er
+hat keine Perspektive mehr zu entwickeln); derselbe Spieler als
+Ergänzungsspieler nickt. Ein junger Rookie als Ergänzungsspieler klingt nach
+Aufgeben; als Perspektivspieler klingt es nach einem Plan. Diese Passung
+hängt am **Alter**, unabhängig von der Perzentil-Rechnung unten.
+
+**Leer am Anfang, über die Offseason gefüllt.** Jeder Spieler startet mit
+`rolle: null` und behält sie über den Jahreswechsel, sofern er schon eine
+hatte — nur wer noch nie eine bekam (Rookie, Neuzugang), taucht in der
+Warteschlange wieder auf. Zu Beginn jeder Offseason eine **jährliche,
+nicht blockierende** Erinnerung vom Assistenztrainer: die Spieler wollen
+wissen, was sie erwarten sollen — unabhängig davon, ob noch jemand ohne Rolle
+dasteht. Danach, **jede Woche** (am Wochenanfang, siehe Nachrichten unten),
+so viele Einzel-Anfragen, dass die Liste **rechtzeitig** leer wird:
+
+```
+Tempo diese Woche = ⌈Rollenlose ÷ verbleibende Wochen bis 2 Wochen vor Preseason-Ende⌉
+```
+
+Kein Zufallstempo, das vielleicht reicht — eine Rechnung, die es garantiert.
+Führt der Manager selbst schon proaktiv Rollen-Gespräche, schrumpft die
+Warteschlange und das Tempo automatisch mit. Jede fällige Einzel-Anfrage ist
+eine **eigene, blockierende** Postfach-Nachricht („X möchte wissen, was er
+erwarten soll", Antworten `gespraech`/`spaeter`) — „später" beantwortet sie
+und lässt den Kalender weiterlaufen, schiebt ihn aber zurück in die
+Warteschlange, ohne die Frist zu verlängern.
+
+**Die Reaktion beim Setzen** kombiniert drei Signale:
+1. **Perzentil seiner Stärke** — vor allem an seiner Position im eigenen
+   Kader, zu einem kleineren Teil kaderweit.
+2. **Der Sprung von der vorherigen Rolle** — ein Downgrade wiegt schwerer als
+   dieselbe Zielrolle bei jemandem ohne Vorgeschichte (Verlustaversion).
+3. **Alter**, ausschließlich für die Perspektivspieler/Ergänzungsspieler-Passung
+   oben — unabhängig von 1 und 2.
+
+**Setzen ist billiger als Verfehlen-lassen** — der Kernpunkt, um den es hier
+geht: ein Downgrade-Gespräch kostet einmalig etwas Commitment
+(`ROLLE_AENDERUNG_ABZUG`, klein), aber **weniger**, als wenn die alte Rolle
+stehen bleibt, während die Einsatzzeit nicht mehr passt und der laufende
+Mismatch-Abzug (nächster Absatz) über mehrere Spiele zieht. Erfüllt oder
+übertrifft er die Rolle, bewegt sich Commitment nach **oben**, nicht nur nach
+unten.
+
+**Rollen-Mismatch ist der Bank-Drift.** Ohne gesetzte Rolle gibt es **keinen**
+Drift — kein Hebel ohne Definition. Mit gesetzter Rolle: über ein rollierendes
+Fenster der letzten `ROLLE_FENSTER` Spiele (3–5), in denen er fit war,
+Erwartung gegen tatsächliche Platzierung (heute noch binär — ganzes Spiel oder
+gar nicht, siehe `Platz` in [`aufstellung.js`](../engine/aufstellung.js);
+Snap-Anteile kommen erst mit dem künftigen Rotations-Umbau, und dann ersetzt
+ein Bruchteil einfach das Ja/Nein an derselben Stelle). Die Toleranz, wie viel
+Abweichung ignoriert wird, bevor Commitment reagiert, skaliert nach
+**Coaching-Gruppe** (`COACHING_GRUPPEN` aus [`coach.js`](../engine/coach.js)
+gibt es schon) — ein Starter-QB erwartet fast jeden Snap, eine DL-Rotation ist
+normal und braucht mehr Toleranz. Garbage-Time-Gewichtung ist bewusst
+ausgelassen: es gibt heute keinen Spielverlauf, in dem innerhalb eines Spiels
+umgestellt wird (eine Aufstellung gilt fürs ganze Spiel), das kommt erst mit
+der Rotations-Engine.
+
+**Cooldown.** `letzteRollenAenderung` (Tag) am Spieler verhindert ein erneutes
+Ändern „vor kurzem" — echtes Zustandsfeld, weil sich das aus nichts anderem
+rekonstruieren lässt.
+
+**Reichweite: nur Spieler.** Commitment gilt laut Doku auch für Coaches
+(später Orga), aber Rolle ist ein reines Spieler-Konzept. Mit diesem Baustein
+bekommt nur der Spieler eine echte Drift-Quelle — Coach-Commitment bewegt sich
+weiterhin nirgends und braucht einen eigenen, noch offenen Hebel.
+
+### Wunsch anhören
+
+Drei Typen für den Start, alle mit einem **echten Anlass**, nie aus einem
+Würfelwurf allein — Wünsche ohne erkennbaren Grund lesen sich als Zufall,
+nicht als Person:
+
+- **Position.** Nur bei einem konkreten Anlass, zum Beispiel ein Spieler, der
+  auf einem umgestellten Platz (`umgestellt: true`) über längere Zeit deutlich
+  schwächer bewertet wird als auf seinem gelernten Platz.
+- **Nummer.** Die Bedingung steht schon fest dokumentiert (weiter unten,
+  „Nummernwunsch"): ein guter Spieler will beim Jahreswechsel auf eine frei
+  gewordene einstellige Nummer. „Wunsch anhören" prüft dieselbe Bedingung nur
+  **vorzeitig**, statt bis zum automatischen Jahreswechsel-Ereignis zu warten.
+- **Verantwortung** (Captain, Special-Teams-Rolle) ist **zurückgestellt** —
+  beides existiert im Spiel noch nicht (kein Captain-Feld, K/P/LS werden aus
+  dem bestehenden Kader geliehen, keine echten Special-Teams-Einheiten). Kein
+  Feld ohne Weg. Kommt automatisch mit, sobald diese Konzepte selbst gebaut
+  werden.
+
+„Mehr spielen" ist **kein eigener Wunschtyp** — inhaltlich dasselbe Problem
+wie eine Rollen-Änderung, und ein solcher Wunsch verweist im Text schlicht auf
+das Rollen-Gespräch, statt eine zweite Lösung für dieselbe Frage zu bauen.
+
+**Kein Datenmodell für „wie gern spielt er Position X" als volle Matrix.**
+Diskutiert und verworfen: eine Affinität je Spieler und Position wäre für die
+meisten der zwanzig-plus Positionen nie relevant — Positionsverweigerung ist
+laut Grundregel ein *seltener Ausnahmefall*, keine Mechanik, die bei jeder
+Umstellung zieht. Stattdessen zwei schlanke, unabhängige Felder:
+- `wunschPosition` — was er gerne spielen würde (kann leer sein).
+- `abgelehntePositionen` — eine kleine Menge, gegen die er sich sperrt (in der
+  Regel leer; „ich will WR spielen" und „ich will nicht QB spielen" sind
+  bewusst getrennte Zustände, keiner impliziert den anderen).
+
+### Überzeugen
+
+Die Gegenseite von „Wunsch anhören": nicht der Spieler will etwas vom
+Manager, sondern der Manager will etwas vom Spieler — eine Umschulung
+durchsetzen, gegen die eine Ablehnung in `abgelehntePositionen` steht. Nur
+relevant, wenn eine solche Ablehnung aktiv ist; sonst bleibt die Kategorie im
+Dialog unsichtbar.
+
+- Jedes Gespräch hebt einen versteckten Fortschritt **je Zielposition** — ein
+  einzelnes reicht selten, „Investment von Gesprächen" wörtlich genommen.
+  Tempo hängt vermutlich am Halt (leichter zu überzeugen, wer ohnehin
+  committed ist) und an der Nähe der Positionen zueinander.
+- Ein Risiko wie bei jeder anderen Kategorie: zu forsches Drängen kostet eine
+  Spur Commitment, auch wenn es (noch) nicht zieht.
+
+### Nach Lebenslage fragen — der Zeitpunkt einer Enthüllung
+
+„Die Wahrheit liegt daneben" (siehe oben) heißt nicht, dass sie von Anfang an
+feststeht *und bekannt wäre* — ein Student mit Vier-Jahres-Plan weiß am Tag
+der Einschreibung nicht, dass er in Jahr zwei abbricht; er entscheidet sich
+erst unterwegs. Deshalb bekommt eine gezogene Abweichung (`horizontWahrheit`)
+zusätzlich ein Jahr **`wissbarAb`**, gewichtet irgendwo zwischen 30 % und
+90 % der Strecke bis zum ursprünglich geplanten Ereignis. Vor diesem Jahr
+bestätigt „Nach Lebenslage fragen" ehrlich den bisherigen Plan — keine Lüge,
+der Spieler hat sich selbst noch nicht entschieden. **Ab** `wissbarAb` deckt
+das Gespräch die Wahrheit **verlässlich** auf, sobald gefragt wird.
 
 ### Nachrichten
 
-Der Manager erfährt vom Trend, aber nicht als Zahl:
+Zwei verschiedene Nachrichtentypen, mit unterschiedlicher Gate-Logik:
 
-- Auslöser ist ein **Stufenwechsel**, nie „−X in drei Wochen". Von „dabei"
-  auf „wackelt" ist eine Nachricht, alles dazwischen keine. Sonst wird das
-  Postfach bei 45 Spielern zur Spam-Quelle. Das ist der zweite Grund für die
-  fünf Stufen.
-- Absender ist der **Positionscoach** seiner Gruppe: „Ich habe gemerkt, XY
-  kommt mit den Niederlagen nicht klar, dass er nicht spielt und du nicht mit
-  ihm sprichst, macht ihn unsicher." Ob er es früh merkt (beim Trend) oder
-  erst, wenn der Spieler weg ist, hängt an seiner **Empathie**. Gibt es keinen
-  Coach für die Gruppe, sagt es niemand.
+- **Die generische Trend-Nachricht** (künftige Drift-Quellen wie Verletzung,
+  Erfolg): Auslöser ist ein **Stufenwechsel abwärts**, nie „−X in drei
+  Wochen" — sonst wird das Postfach bei 45 Spielern zur Spam-Quelle. Absender
+  ist der **Positionscoach** der Gruppe; ob er es merkt, hängt an seiner
+  **Empathie** (Chance abhängig vom Wert, gewürfelt mit dem ohnehin
+  fließenden `tagRng` aus `spieleTag()`). Verpasst er einen Wechsel, ist die
+  Warnung für *diesen* Wechsel weg, nicht aufgeschoben — kein zusätzlicher
+  Zustand nötig, der nächste Abfall ist ein neuer, unabhängiger Wurf. Kein
+  Coach für die Gruppe → nie eine Nachricht.
+- **Die Rollen-Mismatch-Nachricht** läuft **ohne** dieses Gate: fragt ein
+  Spieler selbst nach, weil seine gesetzte Rolle deutlich nicht zur
+  tatsächlichen Einsatzzeit passt, sagt er das direkt — unabhängig davon, wie
+  aufmerksam sein Coach ist. Ein Spieler bemerkt seine eigene Bank selbst.
+
+**Timing der Offseason-Kampagne**: ein neuer `wochenBeginn(tag)`-Check
+(`(tag − 1) % 7 === 0`) neben `phasenBeginn()` im Tagesschritt. An jedem
+Wochenanfang während Offseason/Preseason: die für diese Woche fälligen
+Rollen-Anfragen raus, im selben Moment, in dem sich das Gesprächs-Kontingent
+aufs nächste Fenster verschiebt.
 
 ### Die KI-Vereine
 
@@ -822,11 +1043,26 @@ eigenen Platz, es steht als „noch zwei Jahre Schule" ohnehin im Satz.
      Ausbildungsende, der Arbeiter-Zyklus mit Familie und Schluss samt Grund,
      das Kippen des Plans durch das Commitment, und die Waage Druck gegen Halt
      mit dem Zwei-Saisons-Zähler. Abgänge daraus nehmen den Rookie-Weg.
-   - **2b — Drift, Gespräche, Nachrichten, Wünsche.** Drift durch Bank, Coach,
-     Verletzung, Erfolg, Vereinsjahre; Stufenwechsel-Nachrichten vom
-     Positionscoach; das Gespräch als Kalendertermin mit Kategorien, das den
-     Halt hebt und den Plan aufdecken oder verschieben kann — damit kommt die
-     Wahrheit neben den Plan (Abbruch, längeres Studium); Wünsche.
+   - **2b — Rolle, Gespräche, Nachrichten, Wünsche.** Ausformuliert im
+     Abschnitt „Gespräche" oben, mit allen fünf Kategorien, der
+     Rollen-Kampagne und den zwei Nachrichtentypen. **Baureihenfolge
+     innerhalb von 2b:**
+     1. ~~Kalenderphasen umbenennen (Offseason/Preseason/Regular
+        Season/Postseason).~~ **Erledigt**, siehe „Kalenderphasen" oben.
+        Keine Migration — `Phase` steht nie im Speicherstand. Nicht ganz
+        kostenlos: der Beginn der Preseason ist ein neuer Zwangsstopp.
+     2. Die Rollen-Kampagne: leeres `rolle`-Feld, die jährliche Erinnerung,
+        das wöchentliche Tempo, die blockierenden Einzel-Anfragen, die
+        Perzentil/Vorgeschichte/Alter-Reaktion beim Setzen. Das größte Stück,
+        aber die Grundlage für den Rest — ohne Rolle kein Bank-Drift, kein
+        Mismatch, keine Trigger-Substanz.
+     3. Der Gesprächs-Dialog und das Wochenkontingent (Log-basiert), an den
+        die fünf Kategorien andocken.
+     4. Nach Lebenslage fragen + `wissbarAb`, Über persönliche Themen
+        sprechen, Wunsch anhören (Position, Nummer), Überzeugen
+        (`abgelehntePositionen`).
+     Drift durch Coach, Verletzung, Erfolg, Vereinsjahre bleibt **offen** und
+     ist nicht Teil dieses Zuschnitts — Rolle deckt nur die Bank ab.
 3. **Abgänge und Rekrutierung**, zusammen: der Grund beim Abgang wird
    sichtbar gemacht, Kanäle, Ehemaligen-Pool, Abwerben als externes Ereignis
    mit derselben Waage; `ruecktrittAlter` geht in der Waage auf.

@@ -19,12 +19,20 @@ import {
 import {
   offeneAntworten, antwortenZu, sende, markiereGelesen, loescheNachricht,
 } from '../engine/postfach.js';
-import { tagVonSpieltag } from '../engine/kalender.js';
+import { tagVonSpieltag, PHASEN } from '../engine/kalender.js';
 import { PERSONNEL } from '../engine/aufstellung.js';
 import { teamStaerken } from '../engine/team.js';
 import { partienDerRunde, sieger } from '../engine/spielplan.js';
 import { SAVE_VERSION } from '../engine/saison.js';
 import { exportiere, importiere } from '../engine/save.js';
+
+/**
+ * Der erste Zwangsstopp nach Tag 1: der Beginn der Preseason.
+ *
+ * Steht als Ableitung aus `PHASEN` da und nicht als Zahl, weil die vier Wochen
+ * vor Spieltag 1 eine Balancing-Frage sind und kein Naturgesetz.
+ */
+const PRESEASON_BEGINN = PHASEN.find((p) => p.name === 'preseason')?.ab;
 
 // --- Der Weg durch den Kalender ---------------------------------------------
 //
@@ -332,12 +340,17 @@ test('ein Zwangsstopp hält ein Ziel auf', () => {
   const s = neuesSpiel('heg', 'stopp');
   raeumeAntworten(s);
 
-  // Tag 300 liegt tief in den Playoffs. Der Kalender kommt nicht hin: am ersten
-  // Spieltag steht das eigene Spiel, und ein eigenes Spiel wird nicht
-  // übersprungen, nur weil weiter hinten ein Ziel steht.
+  // Tag 300 liegt tief in der Postseason. Der Kalender kommt nicht hin: erst
+  // fängt die Preseason an, dann steht am ersten Spieltag das eigene Spiel, und
+  // keins von beidem wird übersprungen, nur weil weiter hinten ein Ziel steht.
   const f = weiter(s, 300);
-  assert.equal(f.bisTag, tagVonSpieltag(1));
-  assert.equal(f.grund, 'spiel');
+  assert.equal(f.bisTag, PRESEASON_BEGINN);
+  assert.equal(f.grund, 'phase');
+  assert.equal(s.tag, PRESEASON_BEGINN);
+
+  const g = weiter(s, 300);
+  assert.equal(g.bisTag, tagVonSpieltag(1));
+  assert.equal(g.grund, 'spiel');
   assert.equal(s.tag, tagVonSpieltag(1));
 });
 
@@ -360,9 +373,11 @@ test('eine offene Antwort blockiert die Uhr', () => {
     assert.deepEqual(f.partien, []);
   }
 
-  // Erst die Antwort löst die Bremse.
+  // Erst die Antwort löst die Bremse. Wo die Uhr dann stehen bleibt, ist hier
+  // gleichgültig — der nächste Zwangsstopp ist der Beginn der Preseason —,
+  // geprüft wird, dass sie sich überhaupt wieder bewegt.
   raeumeAntworten(s);
-  assert.equal(weiter(s).grund, 'spiel');
+  assert.notEqual(weiter(s).grund, 'antwort');
   assert.ok(s.tag > 1);
 });
 
@@ -380,7 +395,7 @@ test('naechsterStopp sagt nur, was käme, und ändert nichts', () => {
   const s = neuesSpiel('heg', 'vorschau');
 
   const frei = JSON.stringify(s);
-  assert.deepEqual(naechsterStopp(s), { tag: tagVonSpieltag(1), grund: 'spiel' });
+  assert.deepEqual(naechsterStopp(s), { tag: PRESEASON_BEGINN, grund: 'phase' });
   assert.equal(JSON.stringify(s), frei, 'die Vorschau hat den Stand angefasst');
 
   sende(s, s.tag, [{ art: 'aufstellungUngueltig', daten: { namen: ['Wer auch immer'] } }]);

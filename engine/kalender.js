@@ -137,21 +137,34 @@ export function spieltagAmTag(tag) {
   return i === -1 ? null : i + 1;
 }
 
-/** @typedef {'vorbereitung'|'gruppe'|'playoffs'|'sommerpause'} Phase */
+/** @typedef {'offseason'|'preseason'|'regularSeason'|'postseason'} Phase */
+
+/** Wie lange die Preseason vor dem ersten Spieltag läuft: vier Wochen. */
+const PRESEASON_TAGE = 28;
 
 /**
- * Die vier Abschnitte eines Saisonjahres, mit ihrem ersten Tag.
+ * Die Abschnitte eines Saisonjahres, mit ihrem ersten Tag.
  *
  * Sie stehen als Liste da und nicht als Kette von Vergleichen, weil der Tick
  * dieselbe Liste zweimal liest: einmal für „welche Phase ist gerade" und
  * einmal für „fängt heute eine an" — und ein Phasenbeginn ist ein Zwangsstopp.
+ *
+ * `offseason` steht **zweimal** drin, und das ist kein Versehen: die Zeit nach
+ * dem Finale und die Zeit vor der Preseason sind derselbe Zustand — Saison
+ * vorbei, nichts los —, nur an der `jahr`-Grenze künstlich zerschnitten. Sie
+ * denselben Namen tragen zu lassen kostet nichts (`phaseAmTag()` nimmt den
+ * letzten Treffer, `phasenBeginn()` fragt nur nach dem Tag) und erspart der
+ * Anzeige einen zweiten Namen für dieselbe Sache. Eine eigene `sommerpause`
+ * gab es früher; wer sie unterscheiden will, fragt nach dem Tag, nicht nach
+ * dem Phasennamen.
  * @type {{ name: Phase, ab: number }[]}
  */
 export const PHASEN = [
-  { name: 'vorbereitung', ab: 1 },
-  { name: 'gruppe', ab: SPIELTAG_TAGE[0] },
-  { name: 'playoffs', ab: SPIELTAG_TAGE[GRUPPEN_SPIELTAGE - 1] + 1 },
-  { name: 'sommerpause', ab: SPIELTAG_TAGE[SPIELTAG_TAGE.length - 1] + 1 },
+  { name: 'offseason', ab: 1 },
+  { name: 'preseason', ab: SPIELTAG_TAGE[0] - PRESEASON_TAGE },
+  { name: 'regularSeason', ab: SPIELTAG_TAGE[0] },
+  { name: 'postseason', ab: SPIELTAG_TAGE[GRUPPEN_SPIELTAGE - 1] + 1 },
+  { name: 'offseason', ab: SPIELTAG_TAGE[SPIELTAG_TAGE.length - 1] + 1 },
 ];
 
 /** @param {number} tag @returns {Phase} */
@@ -164,4 +177,17 @@ export function phaseAmTag(tag) {
 /** Ob an diesem Tag eine Phase anfängt. @param {number} tag */
 export function phasenBeginn(tag) {
   return PHASEN.some((p) => p.ab === tag);
+}
+
+/**
+ * Ob das Finale schon gelaufen ist — die zweite Offseason des Jahres.
+ *
+ * Braucht die Anzeige, die zwischen „Saison vorbei" und „diese Woche
+ * spielfrei" unterscheidet. Früher war das `phaseAmTag(tag) === 'sommerpause'`;
+ * seit beide Hälften des Jahres `offseason` heißen, ist die Frage eine Frage
+ * nach dem Tag und nicht mehr nach dem Phasennamen.
+ * @param {number} tag
+ */
+export function nachDemFinale(tag) {
+  return tag > SPIELTAG_TAGE[SPIELTAG_TAGE.length - 1];
 }

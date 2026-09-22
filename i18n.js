@@ -49,11 +49,13 @@ export const DE = {
     monatJahr: (j, m) => `${T.datum.monate[m - 1]} ${j}`,
   },
 
+  // Die Sprache des Sports bleibt, wie sie auf dem Feld gesprochen wird: die
+  // vier Phasen heißen auch im deutschen Text so, wie sie überall heißen.
   phase: {
-    vorbereitung: 'Vorbereitung',
-    gruppe: 'Gruppenrunde',
-    playoffs: 'Playoffs',
-    sommerpause: 'Sommerpause',
+    offseason: 'Offseason',
+    preseason: 'Preseason',
+    regularSeason: 'Regular Season',
+    postseason: 'Postseason',
   },
 
   postfach: {
