@@ -4,14 +4,15 @@ import assert from 'node:assert/strict';
 
 import {
   makeRng, KADER_FORM, KADER_GROESSE_EIGEN, KADER_GROESSE_FREMD, ZUSATZ_SPIELER,
-  ZUSATZ_MAX_JE_POSITION, MAX_RATING, LIGA_MAX_STAERKE, MAX_AGE, PEAK_AGE, POSITIONS,
+  ZUSATZ_MAX_JE_POSITION, LIGA_MAX_STAERKE, MAX_AGE, PEAK_AGE, POSITIONS,
+  TALENT_MIN, TALENT_MAX, EIGENE_VEREINSBASIS,
   POSITION_GRUPPEN, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE, ZUSATZ_GEWICHTE, ATTRIBUTE,
   ATTRIBUT_DRIFT_JE_SPIEL, LERNRATE, GROESSE_MIN, GROESSE_MAX, GEWICHT_MIN, GEWICHT_MAX,
 } from '../engine/constants.js';
 import {
   macheKader, macheSpieler, saisonWechsel, alterFaktor, berechneStaerke, verfuegbar,
   ziehAttribute, sollAttribute, spieleEinsatz, verfalleEinsaetze, setzeStaerke,
-  resetSpielerIds, talentSterne,
+  resetSpielerIds, staerkeImAlter,
 } from '../engine/spieler.js';
 import {
   KOERPER_KORRIDOR, generierungsProfil, bewerte, hauptPlatz, einsaetzeAuf,
@@ -99,20 +100,61 @@ test('fremde Kader bekommen fünf Zusatzspieler, gestreut und gedeckelt', () => 
   }
 });
 
-test('Stärke bleibt unter dem Ligadeckel, Talent darf darüber', () => {
+test('Stärke bleibt unter dem Ligadeckel, egal wie hoch die Basis liegt', () => {
   resetSpielerIds();
   for (const basis of [45, 58, 65, 90]) {
     const kader = macheKader(makeRng('s' + basis), basis, ZUSATZ_SPIELER);
     for (const s of kader) {
       assert.ok(s.staerke >= 1 && s.staerke <= LIGA_MAX_STAERKE,
         `Stärke ${s.staerke} bei Basis ${basis}`);
-      assert.ok(s.talent >= 1 && s.talent <= MAX_RATING, `Talent ${s.talent}`);
     }
   }
-  // Der Deckel greift wirklich: eine hohe Basis erzeugt Talent über 79.
+  // Der Höhepunkt darf über den Deckel, die Stärke nie: eine Basis von 90
+  // erzeugt Männer, die ohne die Klammer darüber lägen.
   const stark = macheKader(makeRng('hoch'), 90, ZUSATZ_SPIELER);
-  assert.ok(stark.some((s) => s.talent > LIGA_MAX_STAERKE), 'Talent kann über den Deckel');
   assert.ok(stark.every((s) => s.staerke <= LIGA_MAX_STAERKE), 'Stärke nie über den Deckel');
+  assert.ok(stark.some((s) => s.staerke === LIGA_MAX_STAERKE), 'der Deckel greift nie');
+});
+
+test('Talent steht in halben Sternen, 1 bis 10', () => {
+  resetSpielerIds();
+  for (const basis of [45, 58, 65, 90]) {
+    const kader = macheKader(makeRng('t' + basis), basis, ZUSATZ_SPIELER);
+    for (const s of kader) {
+      assert.ok(Number.isInteger(s.talent), `Talent ${s.talent} ist keine ganze Zahl`);
+      assert.ok(s.talent >= TALENT_MIN && s.talent <= TALENT_MAX,
+        `Talent ${s.talent} bei Basis ${basis}`);
+    }
+  }
+});
+
+test('das Talent eines Kaders streut wirklich', () => {
+  // Der Grund für den ganzen Umbau: solange Talent der Deckel über der Stärke
+  // war, zeigte ein Kader dreißigmal dieselbe Stufe. Vier verschiedene sind
+  // die Untergrenze dessen, was eine Spalte lesbar macht.
+  resetSpielerIds();
+  const kader = macheKader(makeRng('streuung'), EIGENE_VEREINSBASIS, ZUSATZ_SPIELER);
+  const stufen = new Set(kader.map((s) => s.talent));
+  assert.ok(stufen.size >= 4, `nur ${stufen.size} Talentstufen im Kader`);
+});
+
+test('Talent hängt nicht an der Stärke — es gibt schwache Talente und starke Ausgereizte', () => {
+  resetSpielerIds();
+  const kader = macheKader(makeRng('unabhaengig'), EIGENE_VEREINSBASIS, ZUSATZ_SPIELER);
+  const median = [...kader].sort((a, b) => a.staerke - b.staerke)[Math.floor(kader.length / 2)].staerke;
+  assert.ok(kader.some((s) => s.staerke < median && s.talent >= 6),
+    'kein schwacher Mann mit Talent');
+  assert.ok(kader.some((s) => s.staerke > median && s.talent <= 4),
+    'kein starker Mann ohne Talent');
+});
+
+test('ein stärkerer Verein zieht im Schnitt mehr Talent', () => {
+  const schnitt = (/** @type {number} */ basis) => {
+    resetSpielerIds();
+    const kader = macheKader(makeRng('b' + basis), basis, ZUSATZ_SPIELER);
+    return kader.reduce((summe, s) => summe + s.talent, 0) / kader.length;
+  };
+  assert.ok(schnitt(65) > schnitt(45) + 1, 'die Vereinsbasis hebt das Talent nicht');
 });
 
 test('jeder Kader hat ein bis zwei Spieler über 45', () => {
@@ -365,35 +407,28 @@ test('die Attribute wandern mit der Stärke durch den Saisonwechsel', () => {
   assert.ok(nachher, 'er ist noch da');
   assert.ok(nachher.staerke < alt.staerke, 'er hat abgebaut');
   // Alterskurven je Attribut kommen mit dem Entwicklungskonzept; bis dahin
-  // altern alle Werte gleichmäßig.
+  // altern alle Werte gleichmäßig. Geprüft wird die Summe und dass keiner
+  // steigt — je Attribut einzeln zu fordern, dass es fällt, hängt an der
+  // Rundung: ein Punkt weniger Stärke lässt eine 22 auf 21,5 sinken, und die
+  // steht danach wieder auf 22.
+  const summe = (/** @type {Record<string, number>} */ a) =>
+    ATTRIBUTE.reduce((s, attribut) => s + a[attribut], 0);
+  assert.ok(summe(nachher.attribute) < summe(vorher), 'die Attribute stehen still');
   for (const attribut of ATTRIBUTE) {
-    if (vorher[attribut] > 4) {
-      assert.ok(nachher.attribute[attribut] < vorher[attribut],
-        `${attribut} steht still: ${vorher[attribut]} -> ${nachher.attribute[attribut]}`);
-    }
+    assert.ok(nachher.attribute[attribut] <= vorher[attribut],
+      `${attribut} steigt beim Abbau: ${vorher[attribut]} -> ${nachher.attribute[attribut]}`);
   }
 });
 
-test('Talent wird zu halben Sternen, eine Zehnerstufe je halber', () => {
-  // Genau die Leiter, wie sie im Roster stehen soll.
-  const erwartet = [
-    [0, 0.5], [9, 0.5], [10, 1], [19, 1], [20, 1.5], [29, 1.5], [30, 2], [39, 2],
-    [40, 2.5], [49, 2.5], [50, 3], [59, 3], [60, 3.5], [69, 3.5], [70, 4], [79, 4],
-    [80, 4.5], [89, 4.5], [90, 5], [99, 5], [100, 5],
-  ];
-  for (const [talent, sterne] of erwartet) {
-    assert.equal(talentSterne(talent) / 2, sterne, `Talent ${talent}`);
-  }
-});
-
-test('die Sternleiter steigt nie und fällt nie zurück', () => {
-  let vorher = 0;
-  for (let talent = 0; talent <= 100; talent++) {
-    const halbe = talentSterne(talent);
-    assert.ok(halbe >= vorher, `Talent ${talent} fällt zurück`);
-    assert.ok(halbe >= 1 && halbe <= 10, `Talent ${talent}: ${halbe} halbe Sterne`);
-    vorher = halbe;
-  }
+test('dieselbe Stärke in einem anderen Alter folgt der Kurve', () => {
+  // Hin und zurück landet wieder in der Nähe — der Rundungsdrift je Schritt
+  // ist der Preis dafür, dass kein Deckel mehr gespeichert wird.
+  assert.ok(Math.abs(staerkeImAlter(staerkeImAlter(60, 27, 33), 33, 27) - 60) <= 1);
+  // Vor dem Zenit hebt die Kurve, danach senkt sie.
+  assert.ok(staerkeImAlter(40, 18, 27) > 40, 'ein Achtzehnjähriger wächst nicht');
+  assert.ok(staerkeImAlter(70, 27, 40) < 70, 'ein Vierzigjähriger fällt nicht');
+  // Und sie rechnet dasselbe wie die Ziehung, solange niemand den Mann anfasst.
+  assert.equal(staerkeImAlter(berechneStaerke(70, 27), 27, 33), berechneStaerke(70, 33));
 });
 
 // --- Einsätze --------------------------------------------------------------
@@ -502,7 +537,12 @@ test('ein Guard bleibt Guard, so lange man ihn auch Linebacker spielen lässt', 
   // einen Mann acht Saisons auf einen fremden Platz stellt, macht ihn nicht zu
   // einem — im Roster nicht und in Runde eins der Aufstellung erst recht nicht.
   resetSpielerIds();
-  const s = macheSpieler(makeRng('umschulung'), 'G', 60, { alter: 22, seite: 'L' });
+  const s = macheSpieler(makeRng('umschulung2'), 'G', 60, { alter: 22, seite: 'L' });
+  // Erst der Körper, dann die Behauptung: ein Guard am unteren Rand seines
+  // Korridors wiegt so viel wie ein Linebacker, und den **soll** die Eignung
+  // irgendwann umschulen. Ohne diese Zeile prüfte der Test bei einer anderen
+  // Ziehung stumm den Grenzfall statt den Fall.
+  assert.ok(s.gewicht >= 120, `dieser Guard wiegt nur ${s.gewicht} kg`);
   for (let saison = 0; saison < 8; saison++) {
     for (let i = 0; i < 12; i++) spieleEinsatz(s, 'MIKE');
     s.einsaetze = verfalleEinsaetze(s.einsaetze);

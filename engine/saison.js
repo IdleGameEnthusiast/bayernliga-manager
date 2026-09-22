@@ -55,7 +55,7 @@ import { offeneGespraeche, persoenlichesGespraech } from './gespraech.js';
  * der vorigen Nummer auf diese hebt. Ohne diesen Schritt wird ein solcher Stand
  * beim Laden weggeworfen — der Sprung ist billig, der Verlust nicht.
  */
-export const SAVE_VERSION = 13;
+export const SAVE_VERSION = 14;
 
 /**
  * @typedef {object} SpielStand

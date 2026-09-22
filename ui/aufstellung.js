@@ -49,7 +49,7 @@ import { platzKuerzel, positionsKuerzel } from '../engine/positionen.js';
 import {
   specialSpieler, SPECIAL_PLAETZE, SPECIAL_WERT, SPECIAL_TOP,
 } from '../engine/aufstellung.js';
-import { OHNE_NUMMER, talentSterne } from '../engine/spieler.js';
+import { OHNE_NUMMER } from '../engine/spieler.js';
 
 /**
  * @typedef {{ spieler: import('../engine/spieler.js').Spieler, wert: number }} Kandidat
@@ -101,15 +101,15 @@ function name(p) {
  * Die Talentsterne eines Manns, klein genug für eine Zeile des Rosters.
  *
  * Sie standen nur im Personal-Reiter, und wer beim Aufstellen wissen wollte,
- * ob der Mann mit 58 nächstes Jahr 62 hat oder 56, musste den Reiter wechseln.
- * Dabei fällt genau hier die Entscheidung zwischen zwei Gleichstarken — und
- * die fällt fast immer für den, der noch wächst. Das Alter steht aus demselben
- * Grund schon daneben; erst beide zusammen sagen, wohin es geht.
+ * wohin es mit dem Mann mit 58 noch geht, musste den Reiter wechseln. Dabei
+ * fällt genau hier die Entscheidung zwischen zwei Gleichstarken — und die
+ * fällt fast immer für den, der noch wachsen kann. Das Alter steht aus
+ * demselben Grund schon daneben; erst beide zusammen sagen, wohin es geht.
  * @param {import('../engine/spieler.js').Spieler} s
  */
 function talent(s) {
   return el('span', { class: 'talent-klein' },
-    sterne(talentSterne(s.talent), T.kader.talentTitel(s.talent)));
+    sterne(s.talent, T.kader.talentTitel(s.talent)));
 }
 
 /** @param {import('../engine/spieler.js').Spieler} s */

@@ -302,11 +302,13 @@ Setzt auf 2 und 3 auf:
   und Verteidigung" und mit dem Hinweis, dass sie sagen, was die Mannschaft *ist*.
 - ~~**Talent als Sterne** im Roster: eine Zehnerstufe ist ein halber Stern, unter
   10 bleibt es bei einem halben, ab 90 sind es fünf. Die rohe Zahl steht noch im
-  Tooltip, und sortiert wird weiter numerisch.~~ **Erledigt** — `talentSterne()`
-  in [`engine/spieler.js`](../engine/spieler.js), gezeichnet von `sterne()` in
-  [`ui/dom.js`](../ui/dom.js): zwei Reihen übereinander, die gefüllte auf die
-  halbe Breite beschnitten, weil das Halbstern-Zeichen in zu vielen Schriften
-  als Kasten ankommt.
+  Tooltip, und sortiert wird weiter numerisch.~~ **Erledigt**, gezeichnet von
+  `sterne()` in [`ui/dom.js`](../ui/dom.js): zwei Reihen übereinander, die
+  gefüllte auf die halbe Breite beschnitten, weil das Halbstern-Zeichen in zu
+  vielen Schriften als Kasten ankommt. **Seit dem Talentumbau gibt es die rohe
+  Zahl nicht mehr** — `talent` *sind* die halben Sterne, 1 bis 10, und
+  `talentSterne()` ist ersatzlos weg. Der Tooltip nennt sie als ganze Sterne,
+  sortiert wird über die Stufe mit stabilem Gleichstand.
 - Der zweifarbige Vereinstupfer ist schon da (`farbtupfer()` in
   [`ui/dom.js`](../ui/dom.js)); die Wappen holen ihre Textfarbe über
   `kontrastFarbe()`.
@@ -1042,7 +1044,7 @@ eigenen Platz, es steht als „noch zwei Jahre Schule" ohnehin im Satz.
      daneben kommt mit den Gesprächen in Schritt 2 — vorher gäbe es keinen Weg,
      die Wahrheit zu erfahren, und ein Feld ohne Weg ist nur eine Falle.
    - **Playtester-Modus.** Der Code `playtester` im Feld ganz unten im
-     Postfach zeigt die versteckten Zahlen (Commitment, Talent, Rücktritt).
+     Postfach zeigt die versteckten Zahlen (Commitment, Rücktritt, Druck).
      Liegt in `app.js` und im Browser, nicht im Speicherstand.
 2. **Bewegung und Gespräch**, in zwei Hälften:
    - ~~**2a — der Statusübergangs-Motor.**~~ **Erledigt**, siehe „die
@@ -1204,8 +1206,14 @@ eigenen Platz, es steht als „noch zwei Jahre Schule" ohnehin im Satz.
   **Geplant in Block 7**, Schritt 3, zusammen mit den Abgängen — nie vorher,
   wegen der Symmetrie zur KI.
 - **Spielerentwicklung als Gesamtkonzept.** Performance fließt in die
-  Entwicklung ein. Hier gehört auch der Ligadeckel hin: `talent` darf über 79
-  liegen, aber die **Entwicklungskurve** rechnet die Liga ein, sodass die
+  Entwicklung ein. **Der nächste Schritt** — und er hat jetzt eine Vorarbeit:
+  `talent` steht seit dem Talentumbau in halben Sternen (1–10) und sagt nur
+  noch, wie weit einer kommen kann. Was es in Wachstum übersetzt, ist genau
+  diese offene Frage; bis dahin bewegt allein die Alterskurve die Stärke, und
+  niemand wächst über sie hinaus.
+
+  Hier gehört auch der Ligadeckel hin: der **Höhepunkt** eines Manns darf über
+  79 liegen, aber die **Entwicklungskurve** rechnet die Liga ein, sodass die
   Stärke nie darüber steigt. Der Deckel greift bei der Generierung heute
   praktisch nie — er ist für diese Kurve gedacht. **Nachgemessen:** über 4320
   Spieler aus zwölf Ligadurchläufen ist die höchste erzeugte Stärke **76**, und
@@ -1369,8 +1377,8 @@ Nichts davon blockiert Block 2 oder 3, aber irgendwann muss es fallen:
    Stetig, Steigung 1 am Knie, reihenfolgeerhaltend: 85 → 84,2 · 90 → 87,5 ·
    104 → 93,3. Keine neue Konstante, und beide Kommentare bleiben wahr — über
    79 kommt man nur noch mühsam, über 99 nie. Es holt die Attribute in dasselbe
-   Band 79–99, in dem `talent` als einzige Größe des Modells ohnehin schon
-   wohnt.
+   Band 79–99, in dem der gezogene Höhepunkt eines Manns ohnehin schon wohnt —
+   `talent` steht seit dem Talentumbau nicht mehr auf dieser Leiter.
 
    **Zwei Fallen, die vor dem Bauen zu klären sind.** Erstens: die Kurve darf
    **nicht** in `skaliereAufStaerke()`. Die Schleife dort multipliziert und
@@ -1418,9 +1426,10 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Zusatzspieler | 5, gewichtet gezogen, max. 2 je Position, TE möglich |
 | Ersatzbank | gibt es nicht — zu wenige Spieler heißt, jemand springt ein |
 | Imports | komplett gestrichen; wenn, dann später als Gesamtkonzept |
-| Talent | wird ohne Ligadeckel generiert, bis `MAX_RATING` 99 |
-| Stärke | wird **nie** über `LIGA_MAX_STAERKE` 79 berechnet |
-| Streuung | `TALENT_STREUUNG = 6` um die Vereinsbasis; `randNormal` liefert echte sd 1 |
+| Höhepunkt | wird ohne Ligadeckel gezogen, bis `MAX_RATING` 99 — und **nicht gespeichert**: er ist eine lokale Größe der Ziehung, die Stärke führt |
+| Talent | halbe Sterne, 1 bis 10, unabhängig von der Stärke gezogen; keine Zahl auf der Werteleiter mehr |
+| Stärke | wird **nie** über `LIGA_MAX_STAERKE` 79 berechnet; altert mit `staerkeImAlter()` einen Schritt auf der Kurve |
+| Streuung | `STAERKE_STREUUNG = 6` um die Vereinsbasis, `TALENT_STREUUNG = 1,6` in halben Sternen; `randNormal` liefert echte sd 1 |
 | Eigene Basis | der gewählte Verein generiert mit `EIGENE_VEREINSBASIS = 45`; die schwächeren Vereine rücken je eine Stufe nach oben, die Werteleiter bleibt dieselbe |
 | Mindestrating | gibt es nicht (nur die 1 als technische Untergrenze) |
 | Alterskurve | 0,68 (18) → 1,00 (27) → 0,90 (33) → 0,711 (40) → Zerfall ×0,94/Jahr, kein Boden |

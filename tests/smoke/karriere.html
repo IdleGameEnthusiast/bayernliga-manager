@@ -460,7 +460,10 @@ try {
   // das über den Reiterwechsel hinweg. Ein Tipp schlösse sie wieder.
   if (alle('tr.wertezeile').length === 0) q('tr.spielerzeile').click();
   enthaelt('und unter den Werten die versteckten', txt('tr.wertezeile .versteckt'), 'Commitment');
-  enthaelt('samt Talent', txt('tr.wertezeile .versteckt'), 'Talent');
+  enthaelt('samt der Waage aus dem Lebenslauf', txt('tr.wertezeile .versteckt'), 'Druck');
+  // Das Talent steht **nicht** mehr dabei: seit es in halben Sternen am Mann
+  // steht, zeigt die Spalte es vollständig, und es gibt nichts zu enthüllen.
+  pruefe('und nicht mehr das Talent', !txt('tr.wertezeile .versteckt').includes('Talent'));
   reiterKnopf('Posteingang').click();
   q('.codezeile button').click();
   gleich('der Modus lässt sich beenden', alle('.codezeile input').length, 1);

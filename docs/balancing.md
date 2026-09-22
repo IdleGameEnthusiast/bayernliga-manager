@@ -153,10 +153,19 @@ messbar und noch nicht gemessen — offener Punkt 2 in
 | `LERNRATE` (je Attribut) | technik 1,5 … schnelligkeit 0,3 | Handwerk lernt man, Tempo nicht; Schnitt 1,0 |
 
 Die Alterskurve (`engine/spieler.js`: `F_18` 0,68, `F_27` 1,0, `F_33` 0,9,
-`F_40` 0,711, `ZERFALL` 0,94) und die Talentbewegung beim Saisonwechsel (35 %
-Chance auf +1…3 bis `PEAK_AGE`) sind das heutige Entwicklungsmodell — und der
+`F_40` 0,711, `ZERFALL` 0,94) **ist** das heutige Entwicklungsmodell — und der
 Platzhalter, bis das Konzept aus Block 5 kommt. Die Coaches wirken hier noch
 nicht.
+
+Der Saisonwechsel schiebt die Stärke seit dem Talentumbau mit
+`staerkeImAlter()` einen Schritt weiter auf dieser Kurve, statt sie aus einem
+gespeicherten Deckel neu fallen zu lassen. Ersatzlos gestrichen ist dabei die
+alte Talentbewegung (35 % Chance auf +1…3 bis `PEAK_AGE`): sie hob einen
+Deckel, den es nicht mehr gibt. **Vorher** wuchs ein Zwanzigjähriger dadurch
+über die Kurve hinaus, **nachher** wächst niemand mehr über sie hinaus — bis
+der Umbau der Entwicklung sagt, was das Talent in Wachstum übersetzt. Das ist
+bewusst zu wenig statt falsch; wer daran dreht, bevor das Konzept steht, dreht
+an der falschen Stelle.
 
 ## 9 — Der Kader und die Liga
 
@@ -168,7 +177,7 @@ nicht.
 | `EIGENE_VEREINSBASIS` | 45 | die Basis des eigenen Vereins, egal welchen man wählt; die Leiter der anderen bleibt |
 | `ZUSATZ_SPIELER` | 5 | was jeder andere Verein über die 30 hinaus bekommt — der eigene nicht, und ohne Rekrutierung bleibt das eine dauerhafte Strafe (offene Entscheidung 1) |
 | `KADER_FORM` / `ZUSATZ_GEWICHTE` | je Position | woraus ein Kader besteht; `TE: 0` beim Grundkader ist Absicht |
-| `TALENT_STREUUNG` | 6 | Streuung des Talents um die Vereinsbasis |
+| `STAERKE_STREUUNG` | 6 | Streuung des Höhepunkts um die Vereinsbasis — hieß bis zum Talentumbau `TALENT_STREUUNG`, der Wert ist derselbe |
 | `ATTRIBUT_STREUUNG` | 6 | Streuung eines Attributs vor der Skalierung |
 | `LIGA_MAX_STAERKE` | 79 | Deckel auf Stärke **und** jedes Attribut — der Kategorienfehler aus offener Entscheidung 9 |
 | `KOERPER_KOPPLUNG` | 0,35 | wie hart das Gewicht `kraft` hoch- und `schnelligkeit` herunterzieht |
@@ -180,6 +189,32 @@ nicht.
 
 Die Vereinsstärken selbst stehen im Katalog (`engine/content.js`), und
 `scripts/baseline-staerken.js` misst, was daraus wird.
+
+### Talent — halbe Sterne, 1 bis 10
+
+*„Im Roster haben alle zweieinhalb Sterne"* oder *„jeder Achtzehnjährige ist
+ein Versprechen".* `engine/constants.js`, gezogen in `ziehTalent()`.
+
+| Konstante | Wert | Wirkung |
+| --- | --- | --- |
+| `TALENT_MIN` / `TALENT_MAX` | 1 / 10 | die Skala: 1 ist ein halber Stern, 10 sind fünf |
+| `TALENT_JE_STAERKE` | 0,1 | wie stark die Vereinsbasis den Schnitt hebt — ein Zehner Basis ist ein halber Stern |
+| `TALENT_ACHSE` | 0,5 | der Achsenabschnitt; Basis 45 landet auf 5 halben Sternen, Basis 65 auf 7 |
+| `TALENT_STREUUNG` | 1,6 | Streuung in halben Sternen |
+
+**Vorher/Nachher.** Bis zum Talentumbau war `talent` eine Zahl von 0 bis 99 und
+zugleich der Deckel, aus dem die Stärke fiel; die Sterne waren nur eine Ansicht
+darauf, eine Zehnerstufe je halber Stern. Damit lag die Streuung im Roster bei
+`STAERKE_STREUUNG / 10` = 0,6 halbe Sterne — **ein Kader zeigte dreißigmal
+dieselbe Stufe**, und die Spalte sagte nichts. Jetzt streut sie 1,6, ein Kader
+reicht vom halben Stern in die vier, und das Talent hängt nicht mehr an der
+heutigen Stärke: ein Achtzehnjähriger mit 35 darf vier Sterne haben, ein
+Dreißigjähriger mit 70 einen. Der Schnitt je Verein blieb, wo er war — deshalb
+`0,1` und `0,5`, die genau die alte Zehnerleiter treffen.
+
+Wer an `TALENT_STREUUNG` dreht, dreht am Gefühl des Rosters, noch **nicht** an
+der Stärke: was Talent in Entwicklung übersetzt, entscheidet der Umbau der
+Entwicklung. Bis dahin ist es eine Zahl, die nur angesehen wird.
 
 ## 10 — Commitment: wie fest die Leute am Verein hängen
 

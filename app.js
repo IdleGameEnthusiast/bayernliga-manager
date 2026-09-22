@@ -72,7 +72,7 @@ let gespraech = null;
 /**
  * Die Codes, die das Feld ganz unten kennt, und was sie freischalten. Nur
  * einer bisher: `playtester` zeigt, was das Spiel sonst versteckt — das
- * Commitment als Zahl, das Talent, den Rücktritt. Das ist keine Regel des
+ * Commitment als Zahl, den Rücktritt, den Druck. Das ist keine Regel des
  * Spiels, sondern ein Blick hinter die Kulissen, und deshalb liegt er hier
  * und nicht in `engine/`.
  */

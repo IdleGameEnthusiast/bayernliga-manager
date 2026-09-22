@@ -225,7 +225,30 @@ export const GEWICHT_MAX = 185;
 export const MAX_RATING = 99;          // the scale's ceiling, kept for higher leagues
 export const LIGA_MAX_STAERKE = 79;    // no Bayernliga strength is ever computed above this
 export const RATING_UNTERGRENZE = 1;   // not a skill floor — only keeps a rating positive
-export const TALENT_STREUUNG = 6;      // standard deviation of talent around the club baseline
+export const STAERKE_STREUUNG = 6;     // standard deviation of a man's peak around the club baseline
+
+/**
+ * Talent steht in **halben Sternen, 1 bis 10** — ein halber Stern bis fünf.
+ * Es ist keine Zahl auf der Werteleiter mehr und war es zu lange: als Deckel
+ * über der Stärke war es dasselbe wie die Stärke, nur durch die Alterskurve
+ * geteilt, und ein Fünfunddreißigjähriger mit fünf Sternen hieß bloß „war mal
+ * gut". Jetzt sagt es, was es soll — **wie weit er noch kommen kann** —, wird
+ * unabhängig von der heutigen Stärke gezogen, und die Entwicklung liest es.
+ *
+ * Der Schnitt eines Vereins hängt an seiner Basis: `basis * TALENT_JE_STAERKE
+ * + TALENT_ACHSE` legt die 45 des eigenen Vereins auf 5 halbe Sterne und die
+ * 65 des stärksten auf 7 — dieselbe Leiter, auf der die Zehnerstufe früher
+ * einen halben Stern wert war, damit der Reiter nach dem Umbau nicht plötzlich
+ * anders aussieht. Neu ist die Streuung: 1,6 halbe Sterne statt der 0,6, die
+ * aus `STAERKE_STREUUNG / 10` fielen. Vorher zeigte ein Kader dreißigmal
+ * dieselben zweieinhalb Sterne, und eine Spalte, in der alle gleich sind, ist
+ * keine Spalte. Jetzt reicht ein Verein vom halben Stern bis in die vier.
+ */
+export const TALENT_MIN = 1;
+export const TALENT_MAX = 10;
+export const TALENT_JE_STAERKE = 0.1;
+export const TALENT_ACHSE = 0.5;
+export const TALENT_STREUUNG = 1.6;
 
 /**
  * Ein unbesetzter Platz trägt nichts. Früher standen hier zwanzig Punkte

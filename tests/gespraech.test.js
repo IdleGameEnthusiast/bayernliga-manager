@@ -20,7 +20,7 @@ import { offeneAntworten, antwortenZu } from '../engine/postfach.js';
 function mann(id, rest = {}) {
   return /** @type {any} */ ({
     id, vorname: 'V', nachname: id, position: 'WR', seite: null,
-    einsaetze: {}, nummer: 80, alter: 24, staerke: 60, talent: 60,
+    einsaetze: {}, nummer: 80, alter: 24, staerke: 60, talent: 6,
     commitment: 50, ...rest,
   });
 }

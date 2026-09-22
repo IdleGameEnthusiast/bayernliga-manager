@@ -37,6 +37,28 @@ export const STORAGE_KEY = 'bayernliga.save';
  * @type {Record<number, (roh: any) => any>}
  */
 const MIGRATIONEN = {
+  // 13 → 14: Talent ist keine Zahl auf der Werteleiter mehr, sondern stehen
+  // halbe Sterne, 1 bis 10. Umgerechnet wird nach genau der Regel, mit der die
+  // Sterne bis gestern **gezeichnet** wurden — eine Zehnerstufe je halber
+  // Stern —, damit kein Kader nach dem Laden anders aussieht als vor dem
+  // Update. Was der alte Wert außerdem war, nämlich der Deckel, aus dem die
+  // Stärke fiel, geht dabei verloren: sie steht ohnehin schon am Mann und
+  // führt ab hier selbst.
+  //
+  // Die Grenzen stehen hier als Zahlen und nicht als `TALENT_MIN`/`TALENT_MAX`
+  // aus `constants.js`. Ein Schritt kennt nur die beiden Formen an seinen
+  // Enden; zöge er die Konstanten von heute, verschöbe sich diese Umrechnung
+  // stumm mit, sobald jemand die Skala noch einmal anfasst.
+  13: (roh) => {
+    for (const team in roh.kader || {}) {
+      for (const s of roh.kader[team]) {
+        s.talent = Math.max(1, Math.min(10, Math.floor((s.talent || 0) / 10) + 1));
+      }
+    }
+    roh.version = 14;
+    return roh;
+  },
+
   // 12 → 13: die Rolle kam — und mit ihr das Gesprächslog. Am Spieler sind es
   // vier Felder, die alle „fehlt = der natürliche Nullwert" bedeuten: `rolle`
   // (noch keine bekommen, also taucht er in der Kampagne auf), das Einsatz-

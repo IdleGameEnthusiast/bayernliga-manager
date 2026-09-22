@@ -30,7 +30,7 @@ import { beantworteNachricht } from '../engine/saison.js';
 function mann(id, staerke, rest = {}) {
   return /** @type {any} */ ({
     id, vorname: 'V', nachname: id, position: 'WR', seite: null,
-    einsaetze: {}, nummer: 80, alter: 24, staerke, talent: staerke,
+    einsaetze: {}, nummer: 80, alter: 24, staerke, talent: 5,
     commitment: 50, ...rest,
   });
 }

@@ -17,7 +17,7 @@
 
 import { el, leere, tabelle as machTabelle, balken, sterne } from './dom.js';
 import { T } from '../i18n.js';
-import { istFit, talentSterne } from '../engine/spieler.js';
+import { istFit } from '../engine/spieler.js';
 import {
   LIGA_MAX_STAERKE, MAX_RATING, POSITIONS, ATTRIBUTE, GRUPPE_JE_POSITION, EINHEIT_JE_GRUPPE,
 } from '../engine/constants.js';
@@ -66,6 +66,11 @@ const SPALTEN = [
   { id: 'koerper', kopf: T.kader.koerper, wert: (sp) => sp.gewicht },
   { id: 'alter', kopf: T.kader.alter, wert: (sp) => sp.alter },
   { id: 'staerke', kopf: T.kader.staerke, wert: (sp) => sp.staerke },
+  // Zehn Stufen auf dreißig Mann heißt viele Gleichstände. Die bleiben in
+  // Depth-Chart-Reihenfolge stehen, weil `sortiere()` stabil sortiert — unter
+  // gleichem Talent steht also der Stärkere oben, und das ist die Reihenfolge,
+  // in der man eine Talentspalte ohnehin liest. Eine feinere Zahl, nach der
+  // sich heimlich sortieren ließe, gibt es seit dem Talentumbau nicht mehr.
   { id: 'talent', kopf: T.kader.talent, wert: (sp) => sp.talent },
   // Sortiert nach der versteckten Zahl, nicht nach der Stufe: innerhalb einer
   // Stufe ist die Reihenfolge dann nicht willkürlich. Die Zahl steht am Mann,
@@ -453,7 +458,7 @@ function zeile(sp, stand, male, trenner, plaetze, einblick = { playtester: false
     el('td', { class: 'leise', text: T.kader.koerperWert(sp.groesse, sp.gewicht) }),
     el('td', { class: 'leise', text: T.kader.alterWert(sp.alter) }),
     el('td', { style: { fontWeight: '600' }, text: String(sp.staerke) }),
-    el('td', {}, sterne(talentSterne(sp.talent), T.kader.talentTitel(sp.talent))),
+    el('td', {}, sterne(sp.talent, T.kader.talentTitel(sp.talent))),
     bindungZelle(bindung.commitment, einblick),
     rollenZelle(sp),
     el('td', { class: fit ? 'leise' : 'verletzt' },
@@ -570,7 +575,7 @@ function werteZeile(sp, stand, einblick) {
             // Bruchteilen, und die soll der Speicherstand behalten — sonst
             // verschluckt jedes Spiel mit +0,8 die Bewegung, oder es macht +1
             // daraus und ein Stammspieler liefe über eine Saison auf 99.
-            commitment: Math.round(bindung.commitment), talent: sp.talent,
+            commitment: Math.round(bindung.commitment),
             ruecktrittAlter: sp.ruecktrittAlter,
             druck: Math.round(druck(bindung.lebenslage)),
             halt: Math.round(halt(bindung.commitment, bindung.lebenslage, stand.jahr)),

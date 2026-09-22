@@ -142,6 +142,32 @@ test('ein Stand aus Version 12 bekommt die Rolle als „noch keine"', () => {
   assert.equal(mismatch(neu.kader.heg[0]), null);
 });
 
+test('ein Stand aus Version 13 bekommt sein Talent in halben Sternen', () => {
+  // Version 13 trug das Talent als Zahl von 0 bis 99 — Deckel und Anzeige in
+  // einem. Umgerechnet wird nach der Regel, mit der die Sterne gezeichnet
+  // wurden, damit kein Kader nach dem Laden anders aussieht als vorher.
+  const alt = abzug('dreizehn');
+  alt.version = 13;
+  /** @type {Record<string, number>} */
+  const proben = { 0: 1, 9: 1, 10: 2, 45: 5, 58: 6, 79: 8, 90: 10, 99: 10 };
+  const werte = Object.keys(proben).map(Number);
+  alt.kader.heg.forEach((/** @type {any} */ s, /** @type {number} */ i) => {
+    s.talent = werte[i % werte.length];
+  });
+
+  const neu = importiere(JSON.stringify(alt));
+  assert.equal(neu.version, SAVE_VERSION);
+  neu.kader.heg.forEach((s, i) => {
+    assert.equal(s.talent, proben[werte[i % werte.length]], `aus ${werte[i % werte.length]}`);
+  });
+  // Und jeder Verein, nicht nur der eigene: die Sterne stehen auch am Gegner.
+  for (const teamId in neu.kader) {
+    for (const s of neu.kader[teamId]) {
+      assert.ok(s.talent >= 1 && s.talent <= 10, `${teamId}: Talent ${s.talent}`);
+    }
+  }
+});
+
 test('ein Stand aus der Zukunft wird abgelehnt', () => {
   // Rückwärts rechnet hier nichts. Ein iPad, das dem PC eine Version voraus
   // ist, braucht ein Neuladen und keinen Notbehelf.

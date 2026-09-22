@@ -162,7 +162,8 @@ Spielbericht mit Box Score, Halbfinale und Finale als Bracket — das seine vier
 Plätze schon während der Gruppenrunde benennt und sagt, wer sie gerade hält —,
 Saisonwechsel mit Alterung und Rücktritten, Export und Import. Ganz unten im
 Postfach steht ein Feld **Redeem Code**: `playtester` zeigt die Zahlen, die
-das Spiel sonst versteckt — Commitment, Talent, Rücktrittsalter.
+das Spiel sonst versteckt — Commitment, Rücktrittsalter, den Druck der
+Lebenslage.
 
 ## Wie eine Saison aussieht
 

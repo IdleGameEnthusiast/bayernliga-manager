@@ -108,7 +108,7 @@ export const DE = {
     speicherstandHinweis: 'Der Speicherstand liegt im Browser. Exportiere ihn, um ihn zu '
       + 'sichern oder zwischen PC und iPad zu übertragen.',
     // Das Codefeld ganz unten. Der Playtester-Code zeigt, was das Spiel sonst
-    // versteckt — Commitment als Zahl, das Talent, den Rücktritt.
+    // versteckt — Commitment als Zahl, den Rücktritt, den Druck.
     code: 'Redeem Code',
     codeEinloesen: 'Einlösen',
     codeUnbekannt: 'Diesen Code kennt das Spiel nicht.',
@@ -323,7 +323,10 @@ export const DE = {
     alter: 'Alter',
     staerke: 'Stk',
     talent: 'Talent',
-    talentTitel: (wert) => `Talent ${wert} von 100`,
+    // Der Wert sind halbe Sterne, 1 bis 10 — der Titel nennt sie als ganze,
+    // weil im Bild fünf Sterne stehen und nicht zehn. Der Punkt weicht dem
+    // Komma; „2,5 von 5" ist die Zahl, die auch danebensteht.
+    talentTitel: (halbe) => `Talent ${String(halbe / 2).replace('.', ',')} von 5 Sternen`,
     status: 'Status',
     fit: 'fit',
     verletzt: 'verletzt',
@@ -361,7 +364,12 @@ export const DE = {
     // Druck und Halt sind die Waage aus `lebenslauf.js`, der Zähler die
     // Saisons in Folge, in denen der Druck oben lag — bei zwei geht er.
     verstecktes: 'Versteckt',
-    versteckteWerte: (d) => `Commitment ${d.commitment} · Talent ${d.talent} · `
+    // Das Talent stand hier, solange es eine Zahl von 0 bis 99 war und die
+    // Sterne nur eine grobe Ansicht davon. Seit es selbst in halben Sternen
+    // steht, zeigt die Spalte den Wert vollständig — es gibt nichts mehr zu
+    // enthüllen, und eine Zeile, die dasselbe noch einmal sagt, verstellt nur
+    // die Zahlen, die wirklich versteckt sind.
+    versteckteWerte: (d) => `Commitment ${d.commitment} · `
       + `Rücktritt nach ${d.ruecktrittAlter} · Druck ${d.druck} gegen Halt ${d.halt}`
       + (d.druckJahre > 0 ? ` (${d.druckJahre}. Saison drüber)` : '')
       + (d.einsatzFenster ? ` · Einsatzfenster ${d.einsatzFenster}` : '')

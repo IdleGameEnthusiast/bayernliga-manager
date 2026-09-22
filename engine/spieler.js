@@ -5,7 +5,8 @@
  */
 
 import {
-  MAX_RATING, LIGA_MAX_STAERKE, RATING_UNTERGRENZE, TALENT_STREUUNG,
+  MAX_RATING, LIGA_MAX_STAERKE, RATING_UNTERGRENZE, STAERKE_STREUUNG,
+  TALENT_MIN, TALENT_MAX, TALENT_JE_STAERKE, TALENT_ACHSE, TALENT_STREUUNG,
   MIN_AGE, MAX_AGE, PEAK_AGE, RUECKTRITT_ALTER,
   VETERAN_MIN, VETERAN_MAX, VETERAN_ANTEIL_JUNG, VETERAN_JUNG, VETERAN_ALT,
   VETERAN_RUECKTRITT_MAX, VETERAN_POSITIONEN,
@@ -36,8 +37,12 @@ import { VORNAMEN, NACHNAMEN } from './content.js';
  *   Eingespieltheit und der Hauptplatz kommen. Bruchzahlen, siehe `verfalleEinsaetze`
  * @property {number} nummer          Trikotnummer; OHNE_NUMMER until one is handed out
  * @property {number} alter
- * @property {number} staerke         Current overall, never above LIGA_MAX_STAERKE
- * @property {number} talent          Ceiling this player could reach; may sit above the league cap
+ * @property {number} staerke         Current overall, never above LIGA_MAX_STAERKE. Der
+ *   **führende** Wert seit dem Talentumbau: er wird gezogen und altert mit `staerkeImAlter()`,
+ *   statt jedes Jahr aus einem Deckel neu zu fallen
+ * @property {number} talent          Halbe Sterne, 1..10 — wie weit er noch kommen kann.
+ *   Keine Zahl auf der Werteleiter und unabhängig von `staerke`; siehe `TALENT_MIN` in
+ *   `constants.js`. Was die Entwicklung daraus macht, entscheidet der Umbau der Entwicklung
  * @property {number} ruecktrittAlter The season after this age he stops
  * @property {number} verletztBis     Tag der Saison, ab dem er wieder fit ist; 0 = fit
  * @property {number} groesse         cm
@@ -125,12 +130,52 @@ export function alterFaktor(alter) {
 }
 
 /**
- * Talent is the ceiling and may sit above what the league allows; strength is
- * what he is worth on a Saturday, and that never leaves the Bayernliga.
- * @param {number} talent @param {number} alter
+ * Der Höhepunkt ist, was ein Mann mit siebenundzwanzig wert wäre, und darf
+ * über dem liegen, was die Liga erlaubt; die Stärke ist, was er an einem
+ * Samstag wert ist, und die verlässt die Bayernliga nie.
+ *
+ * Nur die **Ziehung** rechnet so. Der Höhepunkt wird nirgends gespeichert —
+ * er war früher das Feld `talent`, und genau daran ging das Talent kaputt.
+ * Wer einen bestehenden Spieler altern lässt, nimmt `staerkeImAlter()`.
+ * @param {number} hoehepunkt @param {number} alter
  */
-export function berechneStaerke(talent, alter) {
-  return clamp(Math.round(talent * alterFaktor(alter)), RATING_UNTERGRENZE, LIGA_MAX_STAERKE);
+export function berechneStaerke(hoehepunkt, alter) {
+  return clamp(Math.round(hoehepunkt * alterFaktor(alter)), RATING_UNTERGRENZE, LIGA_MAX_STAERKE);
+}
+
+/**
+ * Dieselbe Stärke in einem anderen Alter — das Verhältnis zweier Punkte auf
+ * der Alterskurve, auf die vorhandene Stärke angewandt.
+ *
+ * Das ist der Ersatz für „Stärke fällt jedes Jahr neu aus dem Deckel". Es
+ * rechnet dasselbe, solange niemand den Mann anfasst, braucht aber keinen
+ * gespeicherten Deckel — und das ist der Punkt: die Entwicklung soll die
+ * Stärke schieben dürfen, ohne dass ein Höhepunkt von der Ziehung her
+ * dagegenhält und die Bewegung beim nächsten Jahreswechsel wieder einsammelt.
+ *
+ * Der Preis ist das Runden: über zwanzig Jahre summiert sich der halbe Punkt
+ * je Schritt zu ein, zwei Punkten Drift gegenüber der alten Rechnung. Das ist
+ * weniger, als ein einziger Einsatz an den Attributen bewegt.
+ * @param {number} staerke @param {number} vonAlter @param {number} nachAlter
+ */
+export function staerkeImAlter(staerke, vonAlter, nachAlter) {
+  const faktor = alterFaktor(nachAlter) / alterFaktor(vonAlter);
+  return clamp(Math.round(staerke * faktor), RATING_UNTERGRENZE, LIGA_MAX_STAERKE);
+}
+
+/**
+ * Das Talent eines Manns: halbe Sterne, 1 bis 10.
+ *
+ * Gezogen wird um einen Schnitt, den die Vereinsbasis vorgibt, mit echter
+ * Streuung darum — **nicht** aus der Stärke abgeleitet. Ein Achtzehnjähriger
+ * mit 35 und vier Sternen ist der Grund, warum es die Spalte gibt; solange
+ * Talent der Deckel über der Stärke war, konnte es ihn nicht geben.
+ * @param {() => number} rng
+ * @param {number} teamStaerke 0..100 baseline of the club
+ */
+export function ziehTalent(rng, teamStaerke) {
+  const mitte = teamStaerke * TALENT_JE_STAERKE + TALENT_ACHSE;
+  return clamp(Math.round(mitte + randNormal(rng) * TALENT_STREUUNG), TALENT_MIN, TALENT_MAX);
 }
 
 /**
@@ -388,13 +433,17 @@ export function macheSpieler(rng, position, teamStaerke, optionen) {
     ? optionen.alter
     : randInt(rng, MIN_AGE, MAX_AGE);
 
-  // Talent orbits the club's baseline.
-  const talent = clamp(
-    Math.round(teamStaerke + randNormal(rng) * TALENT_STREUUNG),
+  // Der Höhepunkt kreist um die Vereinsbasis und bleibt eine lokale Größe:
+  // was am Mann steht, ist die Stärke von heute. Ohne Ligadeckel gezogen, weil
+  // die Alterskurve ihn ohnehin fast nie erreichen lässt — siehe
+  // docs/naechste-schritte.md, Entscheidungslog.
+  const hoehepunkt = clamp(
+    Math.round(teamStaerke + randNormal(rng) * STAERKE_STREUUNG),
     RATING_UNTERGRENZE, MAX_RATING,
   );
+  const talent = ziehTalent(rng, teamStaerke);
 
-  const staerke = berechneStaerke(talent, alter);
+  const staerke = berechneStaerke(hoehepunkt, alter);
   const koerper = ziehKoerper(rng, position);
 
   // Wo eine Position zwei Seiten hat, ist der Spieler auf einer davon
@@ -460,8 +509,11 @@ function macheVeteranen(rng, kader) {
 
   for (const s of kandidaten.slice(0, anzahl)) {
     const band = rng() < VETERAN_ANTEIL_JUNG ? VETERAN_JUNG : VETERAN_ALT;
-    s.alter = randInt(rng, band[0], band[1]);
-    setzeStaerke(s, berechneStaerke(s.talent, s.alter));
+    // Erst rechnen, dann altern: `staerkeImAlter()` braucht beide Alter, und
+    // das alte steht nur noch bis zur nächsten Zeile am Mann.
+    const alter = randInt(rng, band[0], band[1]);
+    setzeStaerke(s, staerkeImAlter(s.staerke, s.alter, alter));
+    s.alter = alter;
     s.ruecktrittAlter = randInt(rng, s.alter + 1, VETERAN_RUECKTRITT_MAX);
   }
   return kader;
@@ -610,19 +662,6 @@ export function istFit(s, tag) {
 }
 
 /**
- * Talent als halbe Sterne, 1 bis 10 — also ein halber bis fünf.
- *
- * Eine Zehnerstufe ist ein halber Stern: unter 10 ein halber, 10 bis 19 einer,
- * und so weiter bis 90 und darüber, wo die fünf voll sind. Der halbe Stern ganz
- * unten ist Absicht — kein Talent sieht aus wie ein fehlender Wert.
- * @param {number} talent
- * @returns {number} Anzahl halber Sterne, 1..10
- */
-export function talentSterne(talent) {
-  return clamp(Math.floor(talent / 10) + 1, 1, 10);
-}
-
-/**
  * The fit players at a position, best first.
  * @param {Spieler[]} kader
  * @param {import('./constants.js').Position} position
@@ -665,9 +704,9 @@ export function verfalleEinsaetze(einsaetze) {
 }
 
 /**
- * One year on: everyone ages, and strength re-derives from talent. Whoever is
- * past his own `ruecktrittAlter` stops and is replaced by a rookie at the same
- * position. Numbers survive — only the newcomers draw.
+ * One year on: everyone ages, and strength moves one step along the age curve.
+ * Whoever is past his own `ruecktrittAlter` stops and is replaced by a rookie
+ * at the same position. Numbers survive — only the newcomers draw.
  *
  * `abgaenge` sind die, die der Lebenslauf gehen lässt (`lebenslauf.js`) — sie
  * nehmen denselben Weg wie der Rücktritt, für jeden Verein gleich, damit die
@@ -698,18 +737,22 @@ export function saisonWechsel(rng, kader, teamStaerke, abgaenge = new Set()) {
       }));
       continue;
     }
-    // Young players nudge their ceiling upwards; veterans do not.
-    const talent = alter <= PEAK_AGE
-      ? clamp(s.talent + (rng() < 0.35 ? randInt(rng, 1, 3) : 0), RATING_UNTERGRENZE, MAX_RATING)
-      : s.talent;
+    // Ein Jahr auf der Alterskurve, sonst nichts. Bis zum Peak hebt sie von
+    // selbst (0,68 mit achtzehn gegen 1,00 mit siebenundzwanzig), danach senkt
+    // sie — das ist die Entwicklung, die es heute gibt.
+    //
+    // Weg ist der Stups aufs Talent (35 % auf +1…3 bis `PEAK_AGE`): Talent ist
+    // kein Deckel über der Stärke mehr, und wie es sich in Entwicklung
+    // übersetzt, entscheidet der Umbau der Entwicklung. Bis dahin wächst
+    // niemand über die Kurve hinaus — bewusst zu wenig statt falsch, denn ein
+    // Zufallsstups auf eine Zahl, die nichts mehr deckelt, wäre gar nichts.
     neu.push(setzeStaerke({
       ...s,
       alter,
-      talent,
       attribute: { ...s.attribute },
       einsaetze: verfalleEinsaetze(s.einsaetze),
       verletztBis: 0,
-    }, berechneStaerke(talent, alter)));
+    }, staerkeImAlter(s.staerke, s.alter, alter)));
   }
 
   return { kader: vergebeNummern(rng, sortiereKader(neu)), ruecktritte };
