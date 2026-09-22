@@ -14,10 +14,14 @@
  * sich merkt, welcher Schritt gerade offen ist, überlebt sonst das Schließen
  * und geht beim nächsten Spieler an der falschen Stelle wieder auf.
  *
- * **Vier der fünf Kategorien sind gesperrt.** Sie stehen trotzdem da, mit dem
- * Hinweis, dass sie kommen — eine Liste, in der später ohne Ankündigung vier
- * Zeilen erscheinen, liest sich wie ein anderes Spiel. Wer den Rahmen hier
- * einmal hat, hängt sie nur noch ein.
+ * **Die noch nicht gebauten Kategorien stehen trotzdem da**, mit dem Hinweis,
+ * dass sie kommen — eine Liste, in der später ohne Ankündigung Zeilen
+ * erscheinen, liest sich wie ein anderes Spiel. Wer den Rahmen hier einmal
+ * hat, hängt sie nur noch ein.
+ *
+ * Jede Kategorie bekommt ihren eigenen zweiten Schritt: die Rolle die Auswahl
+ * der fünf Stufen, das persönliche Gespräch eine Nachfrage. Was einen Termin
+ * kostet, wird nicht mit einem Tipp in einer Liste ausgelöst.
  *
  * Docs: docs/naechste-schritte.md, Block 7, Abschnitt „Gespräche"
  */
@@ -25,21 +29,27 @@
 import { el } from './dom.js';
 import { T } from '../i18n.js';
 import { ROLLEN, rolleVon, erwarteteRolle, wiederAb } from '../engine/rolle.js';
+import { zuletztGeredet, persoenlichAnteil } from '../engine/gespraech.js';
 import { positionsKuerzel } from '../engine/positionen.js';
 
 /**
  * Was gerade offen ist. `kategorie` null heißt: die Auswahl steht an.
  * `reaktion` gesetzt heißt: gesprochen ist, es steht nur noch da, wie es ankam.
+ *
+ * Die Reaktion trägt nur den `ton` — welche Sätze dazu gehören, entscheidet
+ * die `kategorie` daneben. Ein gemeinsamer Typ über alle Kategorien müsste
+ * sonst jedes Feld jeder einzelnen kennen.
  * @typedef {object} Zustand
  * @property {string} spielerId
  * @property {string | null} kategorie
- * @property {import('../engine/rolle.js').Reaktion | null} reaktion
+ * @property {{ ton: number } | null} reaktion
  */
 
 /**
  * @typedef {object} Aktionen
  * @property {(kategorie: string) => void} waehleKategorie
  * @property {(rolle: import('../engine/rolle.js').Rolle) => void} setzeRolle
+ * @property {() => void} redePersoenlich
  * @property {() => void} schliesse
  */
 
@@ -47,7 +57,7 @@ import { positionsKuerzel } from '../engine/positionen.js';
 const KATEGORIEN = /** @type {[string, boolean][]} */ ([
   ['rolle', true],
   ['lebenslage', false],
-  ['persoenlich', false],
+  ['persoenlich', true],
   ['wunsch', false],
   ['ueberzeugen', false],
 ]);
@@ -72,9 +82,13 @@ export function zeigeGespraech(stand, zustand, frei, aktionen) {
   ];
 
   if (zustand.reaktion) {
+    const persoenlich = zustand.kategorie === 'persoenlich';
     return blattMit(kopf, [
-      el('p', { class: 'gespraech-reaktion', text: T.gespraech.reaktionen[zustand.reaktion.ton](name) }),
-      el('p', { class: 'klein leise', text: T.gespraech.bisher(T.rolle.namen[/** @type {string} */ (sp.rolle)]) }),
+      el('p', { class: 'gespraech-reaktion', text: persoenlich
+        ? T.gespraech.persoenlichReaktionen[zustand.reaktion.ton](name)
+        : T.gespraech.reaktionen[zustand.reaktion.ton](name) }),
+      persoenlich ? null : el('p', { class: 'klein leise',
+        text: T.gespraech.bisher(T.rolle.namen[/** @type {string} */ (sp.rolle)]) }),
     ], [
       { label: T.gespraech.schliessen, klasse: 'haupt', wirkung: aktionen.schliesse },
     ]);
@@ -82,6 +96,10 @@ export function zeigeGespraech(stand, zustand, frei, aktionen) {
 
   if (zustand.kategorie === 'rolle') {
     return rollenSchritt(kader, sp, kopf, frei, stand.tag, aktionen);
+  }
+
+  if (zustand.kategorie === 'persoenlich') {
+    return persoenlichSchritt(stand, sp, kopf, frei, aktionen);
   }
 
   return blattMit(kopf, [
@@ -156,6 +174,45 @@ function rollenSchritt(kader, sp, kopf, frei, tag, aktionen) {
 
   return blattMit(kopf, hinweise, [
     { label: T.gespraech.abbrechen, klasse: 'neben', wirkung: aktionen.schliesse },
+  ]);
+}
+
+/**
+ * Der zweite Schritt beim persönlichen Gespräch: eine Nachfrage, kein
+ * Sofortvollzug.
+ *
+ * Der Knopf in der Kategorienliste verbraucht sonst einen Termin, bevor der
+ * Manager erfährt, dass sie gestern schon geredet haben — und der Abstand ist
+ * genau das, woran der Ertrag hängt. Er steht deshalb hier, vor dem Reden.
+ * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {import('../engine/spieler.js').Spieler} sp
+ * @param {(HTMLElement)[]} kopf
+ * @param {number} frei
+ * @param {Aktionen} aktionen
+ */
+function persoenlichSchritt(stand, sp, kopf, frei, aktionen) {
+  const zuletzt = zuletztGeredet(stand.gespraeche, sp.id);
+  const anteil = persoenlichAnteil(stand.gespraeche, sp.id, stand.tag);
+
+  const inhalt = [
+    el('h3', { class: 'klein', text: T.gespraech.persoenlichTitel }),
+    el('p', { class: 'klein leise', text: T.gespraech.persoenlichHinweis }),
+    el('p', { class: 'klein leise', text: zuletzt === null
+      ? T.gespraech.persoenlichNie
+      : T.gespraech.persoenlichZuletzt(stand.tag - zuletzt) }),
+  ];
+  if (anteil < 1) {
+    inhalt.push(el('p', { class: 'klein warnung', text: T.gespraech.persoenlichFrisch }));
+  }
+  if (frei === 0) {
+    inhalt.push(el('p', { class: 'klein warnung', text: T.gespraech.keinKontingent }));
+  }
+
+  return blattMit(kopf, inhalt, [
+    { label: T.gespraech.abbrechen, klasse: 'neben', wirkung: aktionen.schliesse },
+    ...(frei > 0
+      ? [{ label: T.gespraech.persoenlichKnopf, klasse: 'haupt', wirkung: aktionen.redePersoenlich }]
+      : []),
   ]);
 }
 

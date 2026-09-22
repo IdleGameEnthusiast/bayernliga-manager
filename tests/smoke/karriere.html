@@ -160,6 +160,30 @@ try {
     alle('.spielerzeile td').filter((z) => z.textContent === 'Starter').length);
   pruefe('jede Zeile bietet das Gespräch an',
     alle('.spielerzeile button').length === alle('.spielerzeile').length);
+
+  // 5c — Über persönliche Themen sprechen: der zweite Weg ins Gespräch, und
+  // die einzige Kategorie, die nichts verlangt außer dem Termin.
+  q('.spielerzeile button').click();
+  const katKnopf = (name) =>
+    alle('.gespraech-kategorie').find((b) => b.textContent.startsWith(name));
+  gleich('fünf Kategorien stehen da', alle('.gespraech-kategorie').length, 5);
+  pruefe('die ungebauten sind gesperrt', katKnopf('Wunsch anhören').disabled,
+    alle('.gespraech-kategorie').filter((b) => b.disabled).length);
+
+  katKnopf('Über persönliche Themen').click();
+  enthaelt('erst wird gefragt, bevor der Termin draufgeht',
+    txt('.gespraech'), 'Einfach mal reden');
+  const redeKnopf = alle('.fragenknoepfe button').find((b) => b.textContent === 'Reden');
+  pruefe('und es gibt einen Knopf dafür', !!redeKnopf,
+    alle('.fragenknoepfe button').map((b) => b.textContent).join(' | '));
+
+  redeKnopf.click();
+  gleich('danach steht seine Reaktion da', alle('.gespraech-reaktion').length, 1);
+  pruefe('ohne ein Wort über die Rolle — darum ging es nicht',
+    !txt('.gespraech').includes('Bisher:'), txt('.gespraech'));
+  q('.fragenknoepfe button').click();
+  gleich('das Blatt ist zu', alle('.frageschirm').length, 0);
+
   alle('.reiter button').find((b) => b.textContent === 'Posteingang').click();
 
   // Die zweite Anfrage lässt sich vertagen: sie ist damit beantwortet, aber er

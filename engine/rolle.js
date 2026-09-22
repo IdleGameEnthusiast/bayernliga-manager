@@ -41,10 +41,10 @@ import {
   ROLLE_ALTER_PERSPEKTIVE_MAX, ROLLE_ALTER_ERGAENZUNG_MIN, ROLLE_ALTER_JE_JAHR,
   ROLLE_ALTER_MAX_ABZUG, ROLLE_ALTER_BONUS, ROLLE_COOLDOWN_TAGE,
   ROLLE_PERZENTIL_GRENZEN, ROLLE_PERZENTIL_POSITION_ANTEIL,
-  ROLLEN_FRIST_WOCHEN, ROLLE_ANFRAGEN_MAX, GESPRAECHE_JE_WOCHE,
+  ROLLEN_FRIST_WOCHEN, ROLLE_ANFRAGEN_MAX,
   clamp,
 } from './constants.js';
-import { SPIELTAG_TAGE, woche } from './kalender.js';
+import { SPIELTAG_TAGE } from './kalender.js';
 import { COACHING_GRUPPE_JE_POSITION } from './coach.js';
 import { hauptPosition } from './positionen.js';
 
@@ -148,28 +148,6 @@ export function faellige(kader, tag) {
     .slice()
     .sort((a, b) => b.staerke - a.staerke || a.id.localeCompare(b.id))
     .slice(0, anzahl);
-}
-
-// --- Das Gesprächskontingent ----------------------------------------------
-
-/** @typedef {{ tag: number, spielerId: string }} Gespraech */
-
-/**
- * Wie viele Gespräche in der Woche dieses Tages schon geführt wurden.
- *
- * Gezählt statt heruntergezählt: das Log ist die Wahrheit, und das Fenster
- * verschiebt sich von selbst, sobald der Tag in die nächste Woche rutscht.
- * Ein Feld, das jemand jede Woche zurücksetzen müsste, wäre eine zweite
- * Wahrheit über dieselbe Zahl — und der Tick müsste einen Sonderfall kennen.
- * @param {Gespraech[]} log @param {number} tag
- */
-export function gefuehrteDieseWoche(log, tag) {
-  return log.filter((g) => woche(g.tag) === woche(tag)).length;
-}
-
-/** Wie viele diese Woche noch gehen. @param {Gespraech[]} log @param {number} tag */
-export function offeneGespraeche(log, tag) {
-  return Math.max(0, GESPRAECHE_JE_WOCHE - gefuehrteDieseWoche(log, tag));
 }
 
 // --- Die Reaktion beim Setzen ---------------------------------------------

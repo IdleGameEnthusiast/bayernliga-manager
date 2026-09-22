@@ -483,6 +483,33 @@ export const KIPPEN_JE_STUFE = /** @type {const} */ ([0.6, 0.3, 0, 0.3, 0.6]);
 export const GESPRAECHE_JE_WOCHE = 3;
 
 /**
+ * Was ein persönliches Gespräch bringt, wenn es lange genug her ist — der
+ * volle Satz, bevor `PERSOENLICH_SAETTIGUNG_TAGE` ihn kürzt.
+ *
+ * Klein gehalten, weil die Kategorie nichts kostet außer dem Termin und kein
+ * Risiko trägt: sie ist die Grundpflege, nicht der Hebel. Wer eine ganze
+ * Offseason nur redet, soll spürbar vorankommen, aber nicht so weit, dass die
+ * Rolle daneben egal wird.
+ */
+export const PERSOENLICH_GEWINN = 1.6;
+
+/**
+ * Nach wie vielen Tagen ein weiteres persönliches Gespräch wieder den vollen
+ * Satz bringt. Darunter zählt der Anteil der verstrichenen Zeit.
+ *
+ * Der Grund für die Dämpfung überhaupt: das Wochenkontingent begrenzt nur die
+ * **Rate**, nicht das **Ziel**. Ohne sie wäre es rechnerisch immer richtig,
+ * jede Woche dreimal mit demselben Schlüsselspieler zu reden, bis er auf 99
+ * steht — ein Knopf mit Wartezeit statt eines Gesprächs. Mit ihr ist die
+ * Kategorie das, was sie sein soll: Pflege, über den Kader verteilt.
+ *
+ * Gezählt wird ab dem **letzten Gespräch überhaupt**, nicht ab dem letzten
+ * persönlichen. Wer vorgestern über seine Rolle geredet hat, hat vorgestern
+ * geredet; der Spieler führt darüber keine zwei Listen.
+ */
+export const PERSOENLICH_SAETTIGUNG_TAGE = 28;
+
+/**
  * Wie viele Wochen vor dem ersten Spieltag die Rollen-Kampagne fertig sein
  * muss. Zwei: die letzten beiden Preseason-Wochen gehören der Aufstellung,
  * nicht mehr den Personalgesprächen.

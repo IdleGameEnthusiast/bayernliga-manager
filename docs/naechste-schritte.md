@@ -11,8 +11,13 @@ Hand vorgezogen und umgesetzt, weil die beiden offenen Balancefragen daran
 hängen — siehe [`umbau-aufstellung.md`](umbau-aufstellung.md). Aus Block 7
 sind Schritt 1 (Commitment und Lebenslage als Felder) und Schritt 2a (der
 Statusübergangs-Motor: Horizonte, Statuswechsel, Druck gegen Halt) umgesetzt.
-**Als Nächstes steht Block 7, Schritt 2b**: die Drift des Werts, die
-Gespräche, die Nachrichten vom Positionscoach, die Wünsche.
+Von Schritt 2b stehen die Kalenderphasen, die Rollen-Kampagne samt
+Gesprächs-Dialog und Wochenkontingent und die Kategorie „Über persönliche
+Themen sprechen". **Als Nächstes stehen die drei restlichen
+Gesprächskategorien** — Wunsch anhören, Überzeugen, Nach Lebenslage fragen —,
+einzeln, in der Baureihenfolge unten. Danach bleibt die Drift durch Coach,
+Verletzung, Erfolg und Vereinsjahre offen, und mit ihr die Trend-Nachricht
+vom Positionscoach.
 
 ---
 
@@ -1118,11 +1123,46 @@ eigenen Platz, es steht als „noch zwei Jahre Schule" ohnehin im Satz.
           verlegt ihn vor. Das stand so schon in seiner Doku und hätte sonst
           einen fünften `grund` und eine zweite Tageskarte verlangt.
      3. ~~Der Gesprächs-Dialog und das Wochenkontingent~~ **mit Schritt 2
-        erledigt**, siehe dort. Der Dialog führt die vier fehlenden Kategorien
-        schon gesperrt auf; sie einzuhängen ist Schritt 4.
-     4. Nach Lebenslage fragen + `wissbarAb`, Über persönliche Themen
-        sprechen, Wunsch anhören (Position, Nummer), Überzeugen
-        (`abgelehntePositionen`).
+        erledigt**, siehe dort. Der Dialog führt die noch nicht gebauten
+        Kategorien gesperrt auf; sie einzuhängen ist Schritt 4.
+     4. Die vier restlichen Kategorien, einzeln und in dieser Reihenfolge —
+        jede mit eigenem Commit und eigener Messung, damit sich ein Ausschlag
+        im Playtester-Modus noch zuordnen lässt:
+        1. ~~**Über persönliche Themen sprechen.**~~ **Erledigt.** Kein neues
+           Feld im Stand und **keine Migration**: der Abstand zum letzten
+           Gespräch steht schon im Log `stand.gespraeche`, das beim
+           Saisonwechsel ohnehin geleert wird. Gebaut:
+           [`engine/gespraech.js`](../engine/gespraech.js), ein zweiter
+           Schritt im Dialog, die Zahlen in [`balancing.md`](balancing.md)
+           Abschnitt 13. Abweichungen vom Plan, die beim Bau gefallen sind:
+           - **Das Kontingent ist aus `rolle.js` ausgezogen.** Es zählt
+             Termine, nicht Rollen — die Rolle war nur die erste Kategorie,
+             die welche verbraucht hat. Mit der zweiten wurde das zur
+             Falschablage. Das neue Modul ist zugleich der Ort für alles,
+             was nur den Termin verbraucht und kein eigenes Modell braucht.
+           - **Eine Sättigung statt „zuverlässiger Gewinn".** Der Plan sagte
+             nur „zuverlässiger kleiner Commitment-Gewinn"; so gebaut wäre es
+             rechnerisch immer richtig gewesen, dreimal die Woche mit
+             demselben Schlüsselspieler zu reden, bis er auf 99 steht. Das
+             Wochenkontingent begrenzt die Rate, nicht das Ziel.
+             `PERSOENLICH_SAETTIGUNG_TAGE` (28) lässt den vollen Satz erst
+             nach vier Wochen wieder anfallen, linear davor — **kein** harter
+             Cooldown wie bei der Rolle: reden kann man immer, es bringt nur
+             wenig kurz danach.
+           - **Gezählt wird ab dem letzten Gespräch überhaupt**, nicht ab dem
+             letzten persönlichen. Der Spieler führt darüber keine zwei
+             Listen.
+           - **Ein Bestätigungsschritt vor dem Reden.** Der Ertrag hängt am
+             Abstand; ein Tipp in der Kategorienliste hätte den Termin
+             verbraucht, bevor der Manager erfährt, dass sie gestern schon
+             geredet haben. Jede Kategorie bekommt damit ihren eigenen
+             zweiten Schritt.
+        2. Wunsch anhören (Position, Nummer) — führt `wunschPosition` und
+           `abgelehntePositionen` ein.
+        3. Überzeugen (`abgelehntePositionen`) — baut auf den Feldern aus 2.
+        4. Nach Lebenslage fragen + `horizontWahrheit` und `wissbarAb`.
+           Zuletzt, weil hier als Einzigem eine zweite, versteckte Wahrheit
+           neben den Plan tritt — das ist kein Verdrahten mehr.
      Drift durch Coach, Verletzung, Erfolg, Vereinsjahre bleibt **offen** und
      ist nicht Teil dieses Zuschnitts — Rolle deckt nur die Bank ab. Die
      generische Trend-Nachricht mit dem Empathie-Gate des Positionscoaches ist

@@ -15,7 +15,7 @@ import {
   neuesSpiel, weiter, beantworteNachricht, gruppenTabellen, meineTabelle,
   setzeTaktik, automatischAufstellen, eigenePartieAmTag, offenePlaetze,
   aufstellungSetze, aufstellungRaeume, aufstellungLeeren,
-  gespraecheFrei, fuehreRollenGespraech,
+  gespraecheFrei, fuehreRollenGespraech, fuehrePersoenlichesGespraech,
 } from './engine/saison.js';
 import { WERTUNG_PUNKTE } from './engine/constants.js';
 import { partienDerRunde } from './engine/spielplan.js';
@@ -163,6 +163,13 @@ const gespraechsAktionen = {
     // worden.
     const reaktion = fuehreRollenGespraech(stand, gespraech.spielerId, rolle);
     if (reaktion) gespraech = { ...gespraech, reaktion };
+    speichere(stand);
+    zeichne();
+  },
+  redePersoenlich: () => {
+    if (!stand || !gespraech) return;
+    const zuwendung = fuehrePersoenlichesGespraech(stand, gespraech.spielerId);
+    if (zuwendung) gespraech = { ...gespraech, reaktion: zuwendung };
     speichere(stand);
     zeichne();
   },

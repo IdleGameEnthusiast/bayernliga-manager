@@ -430,6 +430,25 @@ export const DE = {
       ueberzeugen: 'Überzeugen',
     },
     baustelle: 'Kommt mit dem nächsten Schritt.',
+    // Über persönliche Themen sprechen. Der Hinweis vorab nennt den Abstand
+    // zum letzten Gespräch, weil der Ertrag daran hängt — ein Termin, der
+    // nichts bringt, soll vorher erkennbar sein und nicht hinterher.
+    persoenlichTitel: 'Einfach mal reden',
+    persoenlichHinweis: 'Kein Anlass, keine Ansage — eine Viertelstunde über alles außer '
+      + 'Football. Kostet einen Termin.',
+    persoenlichNie: 'Diese Saison habt ihr noch kein Wort gewechselt.',
+    persoenlichZuletzt: (tage) => (tage === 0
+      ? 'Ihr habt heute schon miteinander geredet.'
+      : `Zuletzt geredet: vor ${tage} ${tage === 1 ? 'Tag' : 'Tagen'}.`),
+    persoenlichFrisch: 'So kurz danach kommt nicht viel dabei heraus.',
+    persoenlichKnopf: 'Reden',
+    // Index ist der Ton aus `persoenlichesGespraech()`.
+    persoenlichReaktionen: [
+      (name) => `${name} war schon beim Reden. Viel Neues kommt nicht mehr.`,
+      (name) => `Ihr redet ein paar Minuten. ${name} geht etwas aufgeräumter aus der Kabine.`,
+      (name) => `${name} redet sich warm — Arbeit, Freundin, das kaputte Auto. `
+        + 'Am Ende bleibt er länger stehen als nötig.',
+    ],
     // Die Rollen-Auswahl. Die Einschätzung sagt, was der Kader hergibt — sie
     // ist eine Auskunft des Trainerstabs, keine Vorgabe: wer sie übergeht,
     // bekommt die Reaktion, nicht eine Fehlermeldung.

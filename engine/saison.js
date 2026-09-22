@@ -42,9 +42,10 @@ import { ziehStab, ocVon, lerneTag, lerneSpiel } from './coach.js';
 import { ziehBindung } from './commitment.js';
 import { lebensjahr } from './lebenslauf.js';
 import {
-  faellige, rolleVon, setzeRolle, verbucheSpiel, drift, offeneGespraeche,
+  faellige, rolleVon, setzeRolle, verbucheSpiel, drift,
   neueSaison as rolleNeueSaison, rollenlose, darfAendern, ROLLEN,
 } from './rolle.js';
+import { offeneGespraeche, persoenlichesGespraech } from './gespraech.js';
 
 /**
  * Der Stempel auf einem Speicherstand.
@@ -71,7 +72,7 @@ export const SAVE_VERSION = 13;
  * @property {import('./aufstellung.js').Vorgabe | null} aufstellung  Von Hand, nur der eigene Verein
  * @property {import('./postfach.js').Nachricht[]} post  Der Posteingang, ältestes zuerst
  * @property {{ jahr: number, meister: string, meinPlatz: number }[]} historie
- * @property {import('./rolle.js').Gespraech[]} gespraeche  Das Log der geführten
+ * @property {import('./gespraech.js').Gespraech[]} gespraeche  Das Log der geführten
  *   Gespräche dieser Saison — `{ tag, spielerId }`, wie `post` Nachrichten sammelt.
  *   Es **ist** das Wochenkontingent: was diese Woche noch geht, wird gezählt und nicht
  *   heruntergezählt, und das Fenster verschiebt sich mit dem Tag von selbst. Der
@@ -1152,6 +1153,28 @@ export function fuehreRollenGespraech(stand, spielerId, rolle) {
     }
   }
   return reaktion;
+}
+
+/**
+ * Über persönliche Themen sprechen: ein Termin, ein bisschen Nähe, sonst
+ * nichts.
+ *
+ * Anders als beim Rollengespräch gibt es keinen Grund, das zu verbieten —
+ * reden kann man immer. Was zu kurz nacheinander geredet wird, bringt nur
+ * wenig; das rechnet `persoenlichAnteil()` aus demselben Log, in dem der
+ * Termin gleich landet. Der Termin wird trotzdem verbucht, auch wenn nichts
+ * dabei herauskommt: die Viertelstunde ist vergangen.
+ * @param {SpielStand} stand @param {string} spielerId
+ * @returns {import('./gespraech.js').Zuwendung | null} null, wenn es heute nicht geht
+ */
+export function fuehrePersoenlichesGespraech(stand, spielerId) {
+  const sp = (stand.kader[stand.meinTeam] || []).find((x) => x.id === spielerId);
+  if (!sp || gespraecheFrei(stand) === 0) return null;
+
+  bindungVon(stand, sp);
+  const zuwendung = persoenlichesGespraech(sp, stand.gespraeche, stand.tag);
+  stand.gespraeche.push({ tag: stand.tag, spielerId });
+  return zuwendung;
 }
 
 /**

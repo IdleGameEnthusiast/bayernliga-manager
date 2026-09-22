@@ -357,6 +357,65 @@ am letzten Tag vor der Frist. Mit Deckel sind es 71, verteilt über die Wochen.
 
 ---
 
+## 13 — Über persönliche Themen sprechen
+
+*„Reden bringt nichts"* oder *„ich rede mir den Kader auf 99".*
+`engine/constants.js`, Modell in `engine/gespraech.js`, Docs
+[`naechste-schritte.md`](naechste-schritte.md) Block 7, Abschnitt „Gespräche".
+Die Kategorie ohne Informationsertrag und ohne Risiko: ein Termin, eine
+Viertelstunde, ein bisschen Nähe.
+
+`GESPRAECHE_JE_WOCHE` steht in Abschnitt 12 und gilt seit dieser Kategorie für
+**alle** gemeinsam — das Kontingent zählt Termine, nicht Rollen.
+
+| Konstante | Wert | Wirkung | Richtung |
+| --- | --- | --- | --- |
+| `PERSOENLICH_GEWINN` | 1,6 | was ein Gespräch hebt, wenn es lange genug her ist | höher = die Grundpflege schlägt die Rolle; siehe die Messung unten |
+| `PERSOENLICH_SAETTIGUNG_TAGE` | 28 | nach wie vielen Tagen wieder der volle Satz anfällt, linear davor | ohne die Dämpfung wäre es rechnerisch immer richtig, dreimal die Woche mit demselben Mann zu reden |
+
+**Warum überhaupt gedämpft wird.** Das Wochenkontingent begrenzt die **Rate**,
+nicht das **Ziel**. Ohne Sättigung ist die beste Strategie, den
+Schlüsselspieler dreimal pro Woche anzusprechen, bis er auf 99 steht — ein
+Knopf mit Wartezeit statt eines Gesprächs. Mit ihr verteilt sich die Kategorie
+über den Kader, und das ist auch das, was sie darstellen soll. Gezählt wird ab
+dem **letzten Gespräch überhaupt**, nicht ab dem letzten persönlichen: wer
+vorgestern über seine Rolle geredet hat, hat vorgestern geredet.
+
+Kein harter Cooldown wie bei der Rolle. Die Rolle ist eine Zusage, die eine
+Weile stehen muss, damit sie eine ist; reden kann man dagegen immer, es bringt
+nur wenig kurz danach. Ein gesperrter Knopf hätte das Gegenteil erzählt.
+
+**Gemessen beim Einbau** (acht Seeds `a`–`h`, drei Saisons, eigener Kader,
+mittlere Commitment-Änderung gegen den Startwert / Spieler auf Stufe 0 —
+dieselbe Harness wie in Abschnitt 12, die deren Zahlen reproduziert):
+
+| Strategie | Saison 1 | Saison 2 | Saison 3 |
+| --- | --- | --- | --- |
+| nichts tun | −2,5 / 0,5 | −5,8 / 1,5 | −8,3 / 2,6 |
+| nur Rolle (passend) | +6,1 / 0,8 | +12,8 / 0,9 | +19,8 / 0,9 |
+| nur reden (keine Rolle gesetzt) | +3,1 / 0,3 | +5,1 / 0,5 | +7,5 / 0,9 |
+| **Rolle + reden** | **+7,8 / 0,5** | **+15,9 / 0,8** | **+23,4 / 0,9** |
+
+Die Reihenfolge ist die Aussage: **beides (+23,4) vor nur Rolle (+19,8) vor
+nur reden (+7,5) vor nichts (−8,3)**. Reden allein rettet einen Kader, dem
+niemand seine Rolle gesagt hat, aus dem Minus — aber es ersetzt die Rolle
+nicht, es kostet nur die Termine, die sonst dafür da wären.
+
+**Am Rand gerechnet, wo die Entscheidung wirklich fällt:** ein einzelnes
+Rollengespräch mit einem Reservisten ist eine Saison lang rund **14 Punkte**
+wert (+4,6 passend gegen −9,6 ohne Rolle, Abschnitt 12) und läuft danach in
+den Cooldown. Ein persönliches Gespräch bringt 1,6. Es braucht also neun
+davon, um eine einzige gesetzte Rolle aufzuwiegen — der Manager, der einen
+freien Termin hat, redet; der, der die Wahl hat, setzt die Rolle. Genau diese
+Reihenfolge war das Ziel.
+
+Der Hebel für **einen** Mann ist trotzdem da: wer einen Wackelkandidaten
+halten will, kann ihn alle vier Wochen ansprechen und kommt so auf rund +21
+über eine Saison — für dreizehn Termine. Das ist teuer und deshalb eine echte
+Entscheidung.
+
+---
+
 ## Was nicht hier steht
 
 Formeln (`FORMELN`, `PROFIL_BEITRAG`, `KOERPER_KORRIDOR`), die Blockgewichte

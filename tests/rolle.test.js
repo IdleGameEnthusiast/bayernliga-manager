@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 import {
   ROLLEN, ROLLEN_FRIST, rollenStufe, rolleVon, rollenlose, verbleibendeWochen,
-  tempo, faellige, gefuehrteDieseWoche, offeneGespraeche,
+  tempo, faellige,
   perzentil, erwarteteRolle, altersPassung, reaktion, darfAendern, wiederAb,
   setzeRolle, verbucheSpiel, einsatzAnteil, toleranzVon, mismatch, vernachlaessigung,
   drift, neueSaison,
@@ -100,19 +100,6 @@ test('gefragt wird von oben nach unten — und deterministisch', () => {
 test('wer schon eine Rolle hat, steht nicht in der Warteschlange', () => {
   const kader = [mann('a', 60, { rolle: 'starter' }), mann('b', 50)];
   assert.deepEqual(rollenlose(kader).map((s) => s.id), ['b']);
-});
-
-// --- Das Kontingent --------------------------------------------------------
-
-test('das Kontingent zählt die Woche, nicht den Tag', () => {
-  const log = [{ tag: 8, spielerId: 'a' }, { tag: 12, spielerId: 'b' }];
-  assert.equal(woche(8), woche(12));
-  assert.equal(gefuehrteDieseWoche(log, 14), 2);
-  assert.equal(offeneGespraeche(log, 14), GESPRAECHE_JE_WOCHE - 2);
-  // Ein Tag weiter ist eine Woche weiter: das Fenster verschiebt sich von
-  // selbst, ohne dass irgendwer etwas zurücksetzt.
-  assert.equal(gefuehrteDieseWoche(log, 15), 0);
-  assert.equal(offeneGespraeche(log, 15), GESPRAECHE_JE_WOCHE);
 });
 
 // --- Perzentil, Alter, Reaktion --------------------------------------------
