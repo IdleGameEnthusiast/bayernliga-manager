@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 
 import { neuesSpiel, SAVE_VERSION, coachesVon, bindungVon } from '../engine/saison.js';
 import { ausgesprochenerWunsch } from '../engine/wunsch.js';
+import { offeneAblehnungen } from '../engine/ueberzeugen.js';
 import { rolleVon, rollenlose, mismatch } from '../engine/rolle.js';
 import { migriere, exportiere, importiere } from '../engine/save.js';
 
@@ -184,6 +185,24 @@ test('ein Stand aus Version 14 hat einfach noch keinen Wunsch geäußert', () =>
   assert.equal(neu.version, SAVE_VERSION);
   for (const s of neu.kader.heg) {
     assert.equal(ausgesprochenerWunsch(s), null, `${s.nachname} wünscht sich aus dem Nichts`);
+  }
+});
+
+test('ein Stand aus Version 15 hat sich noch gegen nichts gesperrt', () => {
+  // Dieselbe Regel wie eine Nummer tiefer: das fehlende Feld ist die Wahrheit.
+  // Die Ablehnung entsteht **nach** einem Spiel auf einer fremden Position,
+  // und diese Prüfung gab es in Version 15 nicht — ein Schritt, der sie
+  // nachtrüge, erfände eine Vergangenheit.
+  const alt = abzug('fuenfzehn');
+  alt.version = 15;
+  for (const teamId in alt.kader) {
+    for (const s of alt.kader[teamId]) delete s.abgelehntePositionen;
+  }
+
+  const neu = importiere(JSON.stringify(alt));
+  assert.equal(neu.version, SAVE_VERSION);
+  for (const s of neu.kader.heg) {
+    assert.deepEqual(offeneAblehnungen(s), [], `${s.nachname} sperrt sich aus dem Nichts`);
   }
 });
 

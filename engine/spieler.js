@@ -70,6 +70,10 @@ import { VORNAMEN, NACHNAMEN } from './content.js';
  *   ungefragt; hier steht, dass der Manager davon weiß, und erst ab da zieht er
  * @property {number | null} [wunschNummer]  Die einstellige Nummer, die er gern hätte —
  *   ebenso erst, nachdem er es gesagt hat
+ * @property {Record<string, number>} [abgelehntePositionen]  Position → Fortschritt des
+ *   Überzeugens, 0 bis 1. Kein Eintrag: war nie ein Thema. Unter 1: er sperrt sich. Genau
+ *   1: überzeugt, und der Eintrag bleibt stehen, damit die Ablehnung nicht neu entsteht.
+ *   Siehe `ueberzeugen.js`
  */
 
 /** A player who has not been handed a number yet. 0 is a real jersey. */

@@ -611,6 +611,76 @@ export const WUNSCH_ERFUELLT_JE_SPIEL = 0.8;
 export const WUNSCH_NUMMER_BONUS = 4;
 
 /**
+ * Ab wie vielen Einsätzen auf seinem Hauptplatz ein Spieler sich überhaupt
+ * gegen eine Umschulung sperrt.
+ *
+ * Fünfundzwanzig sind knapp unter `EINGESPIELT_VOLL` und damit rund zweieinhalb
+ * Saisons als Stammspieler — ein Mann, der auf seinem Platz jemand ist. Das ist
+ * die tragende Bedingung dafür, dass die Ablehnung der seltene Ausnahmefall
+ * bleibt, den der Fahrplan verlangt, und nicht eine Mechanik, die bei jeder
+ * Umstellung zieht: ein Rookie tut, was man ihm sagt, und das Umschulen von
+ * Spielern bleibt ein Kern des Spiels.
+ */
+export const UEBERZEUGEN_HEIMAT_MIN = 25;
+
+/**
+ * Unter welchem Halt er sich sperrt. Vierzig ist die Grenze zwischen der
+ * zweiten und der dritten Commitment-Stufe: die untere Hälfte, sichtbar im
+ * Personalreiter, bevor es passiert.
+ *
+ * Damit ist die Ablehnung **keine Eigenschaft des Spielers, sondern eine Folge
+ * der Führung**. Ein Zufallswurf hätte dasselbe Feld gefüllt und dem Manager
+ * nichts erzählt; so ist die Verweigerung die Quittung für einen Mann, den man
+ * erst hat schlecht werden lassen und dann quer über den Platz geschickt hat.
+ * Der Ausweg steht deshalb auch schon im Spiel: erst reden, dann drängen.
+ */
+export const UEBERZEUGEN_HALT_GRENZE = 40;
+
+/**
+ * Was ein Spiel auf einer abgelehnten Position kostet.
+ *
+ * Etwas mehr als das Übergehen eines Wunsches (`WUNSCH_UEBERGANGEN_JE_SPIEL`,
+ * 1,2): einen Wunsch zu überhören ist Nachlässigkeit, jemanden gegen sein
+ * ausgesprochenes Nein dorthin zu stellen ist eine Ansage.
+ */
+export const UEBERZEUGEN_ABGELEHNT_JE_SPIEL = 1.5;
+
+/**
+ * Wie weit ein einzelnes Gespräch ihn im besten Fall bringt — auf einer
+ * Strecke von 0 bis 1. Multipliziert mit der Nähe der Positionen und dem Halt.
+ *
+ * Ein halber Schritt heißt: zwei Gespräche reichen nie, weil beide Faktoren
+ * unter eins liegen, sobald es überhaupt eine Ablehnung gibt. Gerechnet für
+ * eine Ablehnung frisch nach ihrer Entstehung (Halt knapp unter 40) sind es
+ * rund fünf Gespräche innerhalb einer Einheit und rund neun über die Einheiten
+ * hinweg — „Investment von Gesprächen" wörtlich genommen, und die absurde
+ * Umschulung teurer als die naheliegende.
+ */
+export const UEBERZEUGEN_SCHRITT = 0.5;
+
+/**
+ * Was jedes Drängen kostet, ob es zieht oder nicht.
+ *
+ * Klein gegen den laufenden Abzug — fünf Gespräche zu 0,8 sind billiger als
+ * drei Spiele auf der abgelehnten Position —, aber nicht nichts: sonst wäre der
+ * Knopf gratis und die Entscheidung keine. Kein Gegenstück nach oben; der Lohn
+ * fürs Überzeugen ist, wie beim Wunsch, dass der Abzug aufhört.
+ */
+export const UEBERZEUGEN_KOSTEN = 0.8;
+
+/**
+ * Wie weit der Halt das Tempo streckt: der Faktor bei Commitment 0 und bei 99.
+ *
+ * Wer ohnehin dabei ist, lässt eher mit sich reden — das ist die Verzahnung,
+ * die den beiden anderen Kategorien einen Zweck über ihren eigenen Ertrag
+ * hinaus gibt. Der Fortschritt selbst bleibt **versteckt**: der Manager sieht
+ * nur, wie es ankommt, nie eine Zahl. Eine Leiste daneben machte aus dem
+ * Zureden das Abarbeiten eines Balkens.
+ */
+export const UEBERZEUGEN_HALT_MIN = 0.5;
+export const UEBERZEUGEN_HALT_MAX = 1.5;
+
+/**
  * Wie viele Wochen vor dem ersten Spieltag die Rollen-Kampagne fertig sein
  * muss. Zwei: die letzten beiden Preseason-Wochen gehören der Aufstellung,
  * nicht mehr den Personalgesprächen.

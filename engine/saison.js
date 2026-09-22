@@ -27,7 +27,7 @@ import {
   sende, baueNachrichten, offeneAntworten, beantworte, stutzePost,
 } from './postfach.js';
 import { macheKader, saisonWechsel, resetSpielerIds, spieleEinsatz, istFit } from './spieler.js';
-import { platzKuerzel } from './positionen.js';
+import { platzKuerzel, positionsKuerzel } from './positionen.js';
 import {
   macheGruppenplan, macheHalbfinale, macheFinale, sieger,
   anzahlSpieltage, partienAmTag, partienDerRunde,
@@ -50,6 +50,7 @@ import { offeneGespraeche, persoenlichesGespraech } from './gespraech.js';
 import {
   frageNachWunsch, gibNummer, wunschDrift, ausgesprochenerWunsch,
 } from './wunsch.js';
+import { ueberzeugungsDrift, ueberzeuge, offeneAblehnungen } from './ueberzeugen.js';
 
 /**
  * Der Stempel auf einem Speicherstand.
@@ -59,7 +60,7 @@ import {
  * der vorigen Nummer auf diese hebt. Ohne diesen Schritt wird ein solcher Stand
  * beim Laden weggeworfen — der Sprung ist billig, der Verlust nicht.
  */
-export const SAVE_VERSION = 15;
+export const SAVE_VERSION = 16;
 
 /**
  * @typedef {object} SpielStand
@@ -742,13 +743,14 @@ function verbucheEinsaetze(a) {
 }
 
 /**
- * Was das eigene Spiel an der Bindung bewegt: der Bank-Drift, und daneben der
- * ausgesprochene Positionswunsch.
+ * Was das eigene Spiel an der Bindung bewegt: der Bank-Drift, daneben der
+ * ausgesprochene Positionswunsch, und daneben die Ablehnung.
  *
- * Zwei Fragen an denselben Nachmittag, die einander nicht ins Gehege kommen —
- * **ob** er gespielt hat, und **wo**. Der Bank-Drift rechnet nur, wenn er
- * zugesehen hat, der Wunsch nur, wenn er aufgelaufen ist; für dasselbe Spiel
- * zieht immer höchstens einer von beiden.
+ * Drei Fragen an denselben Nachmittag, und **höchstens eine kostet**. Der
+ * Bank-Drift rechnet nur, wenn er zugesehen hat; die anderen beiden nur, wenn
+ * er aufgelaufen ist, und von ihnen hat die Ablehnung Vorrang — sie ist die
+ * schärfere Aussage über denselben Einsatz, und `wunschDrift()` bekommt
+ * deshalb gesagt, dass schon abgerechnet wurde.
  *
  * Verletzte bleiben außen vor — eine Verletzung ist keine Entscheidung des
  * Managers und soll die Bilanz nicht verwässern. Wer von sich aus nachfragt,
@@ -756,7 +758,9 @@ function verbucheEinsaetze(a) {
  * eigene Bank selbst, ganz gleich, wie aufmerksam sein Positionscoach ist.
  * Der Wunsch bekommt **keine** Nachricht: er hat ihn einmal ausgesprochen, er
  * steht im Personalreiter, und ein Spieler, der ihn nach jedem Spiel
- * wiederholt, nörgelt.
+ * wiederholt, nörgelt. Eine **neue** Ablehnung bekommt dagegen eine — sie ist
+ * das einzige der drei Dinge, das der Manager nicht hat kommen sehen können,
+ * und ohne die Zeile fiele ihm erst Wochen später auf, dass da etwas zieht.
  * @param {SpielStand} stand
  * @param {import('./aufstellung.js').Aufstellung} meine
  * @param {number} tag
@@ -780,7 +784,22 @@ function spielDrift(stand, meine, tag) {
     // Die Bindung muss stehen, bevor daran gezogen wird — in einem Stand von
     // vor Block 7 hängt sie sonst noch im Saatgut.
     bindungVon(stand, sp);
-    wunschDrift(sp, gelaufen.get(sp.id) || []);
+
+    const plaetze = gelaufen.get(sp.id) || [];
+    const widerstand = ueberzeugungsDrift(sp, plaetze);
+    wunschDrift(sp, plaetze, widerstand !== null && widerstand.delta < 0);
+    if (widerstand && widerstand.neu) {
+      eintraege.push({
+        art: 'ablehnung',
+        daten: {
+          spielerId: sp.id,
+          name: `${sp.vorname} ${sp.nachname}`,
+          position: widerstand.position,
+          daheim: positionsKuerzel(sp),
+        },
+      });
+    }
+
     const bewegt = drift(sp, tag);
     if (!bewegt || !bewegt.beschwerde) continue;
     eintraege.push({
@@ -1249,6 +1268,42 @@ export function erfuelleNummernwunsch(stand, spielerId) {
 
   bindungVon(stand, sp);
   return gibNummer(kader, sp);
+}
+
+/**
+ * Gegen welche Positionen er sich noch sperrt.
+ *
+ * Kostet keinen Termin und ist auch kein Wissen, das erst erfragt werden
+ * müsste — anders als beim Wunsch hat er es von sich aus gesagt, und die
+ * Nachricht dazu liegt im Postfach. Verborgen bleibt allein, **wie weit** der
+ * Manager ihn schon hat.
+ * @param {SpielStand} stand @param {string} spielerId
+ * @returns {string[]}
+ */
+export function bekannteAblehnungen(stand, spielerId) {
+  const sp = (stand.kader[stand.meinTeam] || []).find((x) => x.id === spielerId);
+  return sp ? offeneAblehnungen(sp) : [];
+}
+
+/**
+ * Auf ihn einreden, damit er die Position doch spielt.
+ *
+ * Der Termin wird nur verbucht, wenn es überhaupt etwas zu überzeugen gab —
+ * hier anders als beim persönlichen Gespräch und beim Wunsch. Dort ist der
+ * leere Ausgang ein Ergebnis („er hat nichts"), hier wäre er ein Aufruf, den
+ * es nicht geben dürfte: die Kategorie ist im Dialog unsichtbar, solange keine
+ * Ablehnung offen ist.
+ * @param {SpielStand} stand @param {string} spielerId @param {string} position
+ * @returns {import('./ueberzeugen.js').Zureden | null} null, wenn es heute nicht geht
+ */
+export function fuehreUeberzeugenGespraech(stand, spielerId, position) {
+  const sp = (stand.kader[stand.meinTeam] || []).find((x) => x.id === spielerId);
+  if (!sp || gespraecheFrei(stand) === 0) return null;
+
+  bindungVon(stand, sp);
+  const zureden = ueberzeuge(sp, position);
+  if (zureden) stand.gespraeche.push({ tag: stand.tag, spielerId });
+  return zureden;
 }
 
 /**

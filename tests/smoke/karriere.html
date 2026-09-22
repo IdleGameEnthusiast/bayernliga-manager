@@ -177,8 +177,12 @@ try {
   q('.spielerzeile button').click();
   const katKnopf = (name) =>
     alle('.gespraech-kategorie').find((b) => b.textContent.startsWith(name));
-  gleich('fünf Kategorien stehen da', alle('.gespraech-kategorie').length, 5);
-  pruefe('die ungebauten sind gesperrt', katKnopf('Überzeugen').disabled,
+  // Vier, nicht fünf: „Überzeugen" steht nur da, wo sich einer sperrt, und in
+  // Woche eins hat noch niemand einen Grund dazu.
+  gleich('vier Kategorien stehen da', alle('.gespraech-kategorie').length, 4);
+  pruefe('ohne die, für die es keinen Anlass gibt', !katKnopf('Überzeugen'),
+    alle('.gespraech-kategorie').map((b) => b.textContent).join(' | '));
+  pruefe('die ungebaute ist gesperrt', katKnopf('Nach der Lebenslage').disabled,
     alle('.gespraech-kategorie').filter((b) => b.disabled).length);
 
   katKnopf('Über persönliche Themen').click();

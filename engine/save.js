@@ -37,6 +37,23 @@ export const STORAGE_KEY = 'bayernliga.save';
  * @type {Record<number, (roh: any) => any>}
  */
 const MIGRATIONEN = {
+  // 15 → 16: „Überzeugen" kam und mit ihm `abgelehntePositionen` am Spieler —
+  // das Feld, das „Wunsch anhören" bewusst ausgelassen hatte, weil es dort
+  // niemand gefüllt hätte. Fehlt es, hat sich nie jemand gegen etwas gesperrt,
+  // und für einen alten Stand ist das die Wahrheit: die Ablehnung entsteht nur
+  // nach einem Spiel auf einer fremden Position, und diese Prüfung gab es
+  // damals nicht.
+  //
+  // Sie nachzutragen wäre auch hier falsch und nicht nur überflüssig. Die drei
+  // Bedingungen ließen sich aus einem alten Stand zwar rechnen — aber sie
+  // beschreiben einen Moment, in dem ein Spieler nach dem Spiel etwas gesagt
+  // hat. Diesen Moment hat es nicht gegeben, und ein Migrationsschritt darf
+  // keine Vergangenheit erfinden.
+  15: (roh) => {
+    roh.version = 16;
+    return roh;
+  },
+
   // 14 → 15: „Wunsch anhören" kam, und mit ihm zwei Felder am Spieler —
   // `wunschPlatz` und `wunschNummer`. Beide bedeuten „fehlt = kein Wunsch
   // ausgesprochen", und genau das ist für einen alten Stand auch die Wahrheit:

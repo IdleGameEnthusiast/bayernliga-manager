@@ -532,6 +532,84 @@ jeder Umstellung zieht.
 
 ---
 
+## 15 — Überzeugen
+
+*„Das passiert doch nie"* oder *„jede Umschulung geht schief".*
+`engine/constants.js`, Modell in `engine/ueberzeugen.js`, Docs
+[`naechste-schritte.md`](naechste-schritte.md) Block 7, Abschnitt
+„Überzeugen". Die Gegenseite von Abschnitt 14: nicht der Spieler will etwas
+vom Manager, sondern der Manager etwas vom Spieler.
+
+Eine Ablehnung entsteht, wenn **drei** Dinge zusammenkommen — und genau daran
+hängt, dass sie der Ausnahmefall bleibt, den die Grundregel verlangt: ein
+Spieler, der sich weigert, raubt den Spaß am Umschulen, und Umschulen ist ein
+Kern dieses Spiels.
+
+| Konstante | Wert | Wirkung | Richtung |
+| --- | --- | --- | --- |
+| `UEBERZEUGEN_HEIMAT_MIN` | 25 | ab wie vielen Einsätzen auf seinem Hauptplatz er überhaupt jemand ist | niedriger = auch Ergänzungsspieler sperren sich, und die werden am häufigsten verschoben |
+| `UEBERZEUGEN_HALT_GRENZE` | 40 | unter welchem Commitment er sich sperrt — die untere Hälfte, sichtbar im Personalreiter | höher = aus der Quittung für Vernachlässigung wird eine Eigenschaft |
+| `UEBERZEUGEN_ABGELEHNT_JE_SPIEL` | 1,5 | was ein Spiel auf der abgelehnten Position kostet | etwas über `WUNSCH_UEBERGANGEN_JE_SPIEL`: einen Wunsch zu überhören ist Nachlässigkeit, ein Nein zu übergehen eine Ansage |
+| `UEBERZEUGEN_SCHRITT` | 0,5 | wie weit ein Gespräch ihn auf der Strecke 0…1 bringt, mal Halt mal Nähe | höher = „Investment von Gesprächen" wird ein Klick |
+| `UEBERZEUGEN_KOSTEN` | 0,8 | was jedes Drängen kostet, ob es zieht oder nicht | höher = es lohnt nie, niedriger = der Knopf ist gratis |
+| `UEBERZEUGEN_HALT_MIN` / `_MAX` | 0,5 / 1,5 | wie stark der Halt das Tempo streckt | enger = Reden und Rolle zahlen nicht mehr aufs Überzeugen ein |
+
+Die **Nähe** der Positionen ist keine eigene Tabelle, sondern dieselbe
+Stufenleiter, mit der die Engine den Technikverlust rechnet
+(`positionsNaehe()` in `positionen.js`, herausgezogen aus `leiterTransfer()`).
+Die Frage ist beide Male dieselbe: wie weit ist der Weg von hier nach dort?
+Zwei Landkarten desselben Geländes hätten sich irgendwann widersprochen.
+
+**Gemessen, erstens: der normale Kader merkt nichts davon.** Acht Seeds, drei
+Saisons, dieselbe Harness wie Abschnitt 14 — **null** Ablehnungen, und die
+Strategietabelle aus Abschnitt 14 kommt Zahl für Zahl unverändert heraus. Das
+ist kein totes Feature, sondern die Zielgröße: die automatische Aufstellung
+verschiebt in 19 008 Platzbesetzungen 334-mal jemanden weit genug weg, aber
+nie einen mit 25 Einsätzen auf dem eigenen Platz. Wer Stammspieler ist, bleibt
+stehen; verschoben wird, wer übrig ist.
+
+**Zweitens: den unzufriedenen Stammspieler gibt es, und er ist gemacht.** Acht
+Seeds, fünf Saisons, Spieler am Saisonende nach Einsätzen daheim × Commitment:
+
+| Führung | zufriedener Veteran | **unzufriedener Veteran** | zufrieden, wenig Einsätze | unzufrieden, wenig Einsätze |
+| --- | --- | --- | --- | --- |
+| nichts tun | 117 | **19** | 45 | 59 |
+| Rolle + reden | 140 | **0** | 90 | 10 |
+
+Unter guter Führung existiert die Voraussetzung **kein einziges Mal**. Damit
+ist die Ablehnung keine Eigenschaft, die ein Spieler gezogen bekommt, sondern
+die Rechnung für einen Mann, den man erst hat schlecht werden lassen und dann
+quer über das Feld geschickt hat.
+
+**Drittens: was sie kostet, wenn sie da ist.** Acht Seeds, fünf Saisons,
+vernachlässigter Kader, ab Saison 3 je ein unzufriedener Stammspieler von Hand
+quer über die Einheiten aufgestellt:
+
+| Manager | Ausgang |
+| --- | --- |
+| stellt ihn dort auf und redet nicht | 8 Fälle, nach 460 Tagen alle noch offen, −24,6 Commitment |
+| redet | 7 von 8 erledigt nach **6,7 Gesprächen** in 63 Tagen, −8,9 Commitment |
+
+Sechseinhalb Gespräche sind gut zwei Wochen des ganzen Kontingents für einen
+einzigen Mann — „Investment von Gesprächen" wörtlich, und teuer genug, dass
+die Frage „brauche ich ihn dort wirklich?" eine echte bleibt. Der Weg über die
+Einheiten hinweg kostet dabei rund doppelt so viele Gespräche wie der
+innerhalb einer, weil die Nähe direkt im Schritt steht.
+
+**Der zweite Weg ist Durchziehen.** Kippt sein Hauptplatz irgendwann auf die
+abgelehnte Position — drei Saisons Einsätze **und** dort mindestens so stark
+wie daheim —, erledigt sich der Eintrag von selbst: wer dort zu Hause
+angekommen ist, sperrt sich nicht mehr. Das ist der teure Weg, weil er jedes
+Spiel bis dahin 1,5 kostet, und bei einer wirklich absurden Umschulung endet
+er nie, weil die Eignung nicht nachkommt. Dann bleibt nur das Reden.
+
+**Ein erledigter Eintrag bleibt stehen** (Fortschritt genau 1). Ohne ihn
+entstünde die Ablehnung im nächsten Spiel aus denselben drei Bedingungen
+sofort neu — derselbe Fehler, der in Abschnitt 14 den einmaligen Bonus
+zerlegt hat, nur mit umgekehrtem Vorzeichen.
+
+---
+
 ## Was nicht hier steht
 
 Formeln (`FORMELN`, `PROFIL_BEITRAG`, `KOERPER_KORRIDOR`), die Blockgewichte

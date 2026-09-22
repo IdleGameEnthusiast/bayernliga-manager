@@ -197,6 +197,22 @@ export const DE = {
       ],
     },
 
+    // Die einzige Nachricht des Blocks, die von einer neuen Tatsache
+    // berichtet statt von einer Folge: der Manager konnte nicht wissen, dass
+    // dieser Mann bei dieser Umstellung dichtmacht. Ohne die Zeile fiele ihm
+    // erst Wochen später auf, dass da etwas zieht.
+    ablehnung: {
+      von: 'Trainerstab',
+      betreff: (d) => `${d.name} will nicht auf ${d.position}`,
+      text: (d) => [
+        `${d.name} ist nach dem Spiel noch dageblieben. Er hat ${d.daheim} gespielt, `
+          + `seit er hier ist, und er sieht nicht ein, warum er jetzt ${d.position} sein soll.`,
+        'Gesagt hat er es ruhig, aber er hat es gesagt. Solange er dort aufläuft, kostet '
+          + 'ihn das jedes Spiel. Entweder du stellst ihn wieder hin, wo er hingehört, '
+          + 'oder ihr redet — mehr als einmal.',
+      ],
+    },
+
     spielvorschau: {
       von: 'Trainerstab',
       betreff: (d) => `Morgen: ${d.gegner}`,
@@ -355,6 +371,7 @@ export const DE = {
     commitment: 'Commitment',
     lebenslage: 'Lebenslage',
     wunsch: 'Wunsch',
+    ablehnung: 'Sperrt sich',
     rolle: 'Rolle',
     ohneRolle: '—',
     ohneRolleTitel: 'Noch keine Rolle besprochen',
@@ -477,6 +494,24 @@ export const DE = {
       (name) => `${name} überlegt einen Moment. „Passt alles." Er meint es auch so.`,
       (name) => `${name} druckst kurz herum und rückt dann damit heraus.`,
       (name) => `${name} dreht das Trikot in den Händen und sagt nichts. Muss er auch nicht.`,
+    ],
+    // Überzeugen. Kein Wort über den Fortschritt: der ist versteckt, und eine
+    // Zeile wie „noch zwei Gespräche" machte aus dem Zureden eine Rechnung.
+    // Was der Manager bekommt, ist der Ton — und der reicht, um zu merken, ob
+    // sich etwas bewegt.
+    ueberzeugenTitel: 'Das musst du für mich machen',
+    ueberzeugenHinweis: 'Er hat gesagt, dass er da nicht spielen will. Einmal reicht selten, '
+      + 'und jedes Drängen kostet ihn etwas — auch das, das nichts bringt.',
+    ueberzeugenSatz: (position, daheim) => `Er sperrt sich gegen ${position}. `
+      + `Für ihn ist er ${daheim}.`,
+    ueberzeugenKnopf: (position) => `Auf ${position} drängen`,
+    // Index ist der Ton aus `ueberzeuge()`: abgeblockt, in Bewegung, überzeugt.
+    ueberzeugenReaktionen: [
+      (name) => `${name} hört sich das an und schüttelt den Kopf. „Ich bin kein anderer, `
+        + 'nur weil im Kader einer fehlt."',
+      (name) => `${name} widerspricht nicht mehr sofort. Er fragt nach, wie das gehen soll.`,
+      (name) => `${name} zuckt mit den Schultern. „Von mir aus. Aber zeig mir, wie es geht." `
+        + 'Damit ist die Sache erledigt.',
     ],
     // Die Rollen-Auswahl. Die Einschätzung sagt, was der Kader hergibt — sie
     // ist eine Auskunft des Trainerstabs, keine Vorgabe: wer sie übergeht,

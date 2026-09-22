@@ -13,9 +13,9 @@ sind Schritt 1 (Commitment und Lebenslage als Felder) und Schritt 2a (der
 Statusübergangs-Motor: Horizonte, Statuswechsel, Druck gegen Halt) umgesetzt.
 Von Schritt 2b stehen die Kalenderphasen, die Rollen-Kampagne samt
 Gesprächs-Dialog und Wochenkontingent und die Kategorien „Über persönliche
-Themen sprechen" und „Wunsch anhören". **Als Nächstes stehen die zwei
-restlichen Gesprächskategorien** — Überzeugen, Nach Lebenslage fragen —,
-einzeln, in der Baureihenfolge unten. Danach bleibt die Drift durch Coach,
+Themen sprechen", „Wunsch anhören" und „Überzeugen". **Als Nächstes steht die
+letzte Gesprächskategorie** — Nach Lebenslage fragen —, siehe die
+Baureihenfolge unten. Danach bleibt die Drift durch Coach,
 Verletzung, Erfolg und Vereinsjahre offen, und mit ihr die Trend-Nachricht
 vom Positionscoach.
 
@@ -705,7 +705,10 @@ Umstellung zieht. Stattdessen zwei schlanke, unabhängige Felder:
   Regel leer; „ich will WR spielen" und „ich will nicht QB spielen" sind
   bewusst getrennte Zustände, keiner impliziert den anderen).
 
-### Überzeugen
+### Überzeugen ✅ gebaut
+
+*Umgesetzt mit drei Abweichungen — siehe die Baureihenfolge weiter unten,
+Punkt 3. Der Entwurf bleibt stehen, weil er die Gründe trägt.*
 
 Die Gegenseite von „Wunsch anhören": nicht der Spieler will etwas vom
 Manager, sondern der Manager will etwas vom Spieler — eine Umschulung
@@ -1192,8 +1195,37 @@ eigenen Platz, es steht als „noch zwei Jahre Schule" ohnehin im Satz.
            automatische Anfrage zum Jahreswechsel bleibt davon unberührt und
            weiter ungebaut — „Wunsch anhören" ist der vorzeitige Weg dorthin,
            wie unten beschrieben.
-        3. Überzeugen (`abgelehntePositionen`) — führt das Feld ein, das 2
-           bewusst ausgelassen hat.
+        3. ~~Überzeugen (`abgelehntePositionen`) — führt das Feld ein, das 2
+           bewusst ausgelassen hat.~~ **Gebaut** in `engine/ueberzeugen.js`,
+           `SAVE_VERSION` 16. Drei Abweichungen vom Entwurf:
+           - **Der Schreiber der Ablehnung ist die Vernachlässigung.** Der
+             Entwurf sagt, wogegen sich jemand sperrt, aber nicht, wodurch das
+             entsteht — und ohne Schreiber wäre es dasselbe leere Feld
+             geblieben, das Schritt 2 deshalb ausgelassen hat. Gebaut als drei
+             Bedingungen nach einem Spiel: fünfundzwanzig Einsätze auf dem
+             eigenen Platz, mindestens eine Coaching-Gruppe Abstand, und
+             Commitment unter vierzig. Damit ist die Verweigerung **keine
+             Eigenschaft**, die ein Spieler gezogen bekommt, sondern die
+             Rechnung für den eigenen Umgang mit ihm — gemessen: unter guter
+             Führung gibt es die Voraussetzung in fünf Saisons kein einziges
+             Mal, siehe [`balancing.md`](balancing.md) Abschnitt 15.
+           - **Ein Feld statt zweier.** `abgelehntePositionen` ist die
+             Abbildung Position → Fortschritt, nicht eine Menge mit einem
+             Zähler daneben. Ein erledigter Eintrag bleibt mit dem Wert 1
+             stehen: ohne ihn entstünde die Ablehnung im nächsten Spiel aus
+             denselben drei Bedingungen sofort neu, und die sechs Gespräche
+             wären weg.
+           - **Ein zweiter Ausgang neben dem Reden.** Kippt sein Hauptplatz
+             auf die abgelehnte Position, ist die Umschulung eine Tatsache und
+             der Eintrag erledigt sich still. Das war nicht geplant, ergibt
+             sich aber zwingend: sonst liefe der Abzug weiter, während der
+             Roster ihn längst als das führt, wogegen er sich angeblich wehrt.
+
+           Die Kategorie ist im Dialog **unsichtbar**, solange nichts offen
+           ist, wie im Entwurf vorgesehen. Die Nachricht zur neuen Ablehnung
+           läuft ohne Empathie-Gate, wie die Rollen-Mismatch-Nachricht: der
+           Spieler sagt es selbst, und es ist das einzige der drei
+           Spieltags-Dinge, das der Manager nicht hat kommen sehen können.
         4. Nach Lebenslage fragen + `horizontWahrheit` und `wissbarAb`.
            Zuletzt, weil hier als Einzigem eine zweite, versteckte Wahrheit
            neben den Plan tritt — das ist kein Verdrahten mehr.

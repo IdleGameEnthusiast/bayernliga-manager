@@ -18,7 +18,7 @@ import {
   setzeTaktik, automatischAufstellen, eigenePartieAmTag, offenePlaetze,
   aufstellungSetze, aufstellungRaeume, aufstellungLeeren,
   gespraecheFrei, fuehreRollenGespraech, fuehrePersoenlichesGespraech,
-  fuehreWunschGespraech, erfuelleNummernwunsch,
+  fuehreWunschGespraech, erfuelleNummernwunsch, fuehreUeberzeugenGespraech,
 } from './engine/saison.js';
 import { WERTUNG_PUNKTE } from './engine/constants.js';
 import { partienDerRunde } from './engine/spielplan.js';
@@ -194,6 +194,13 @@ const gespraechsAktionen = {
     if (erfuelleNummernwunsch(stand, gespraech.spielerId) > 0) {
       gespraech = { ...gespraech, reaktion: { ton: 2 } };
     }
+    speichere(stand);
+    zeichne();
+  },
+  ueberzeuge: (position) => {
+    if (!stand || !gespraech) return;
+    const zureden = fuehreUeberzeugenGespraech(stand, gespraech.spielerId, position);
+    if (zureden) gespraech = { ...gespraech, reaktion: zureden };
     speichere(stand);
     zeichne();
   },

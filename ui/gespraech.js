@@ -31,6 +31,7 @@ import { T } from '../i18n.js';
 import { ROLLEN, rolleVon, erwarteteRolle, wiederAb } from '../engine/rolle.js';
 import { zuletztGeredet, naeheAnteil } from '../engine/gespraech.js';
 import { ausgesprochenerWunsch } from '../engine/wunsch.js';
+import { offeneAblehnungen } from '../engine/ueberzeugen.js';
 import { positionsKuerzel } from '../engine/positionen.js';
 
 /**
@@ -53,6 +54,7 @@ import { positionsKuerzel } from '../engine/positionen.js';
  * @property {() => void} redePersoenlich
  * @property {() => void} frageNachWunsch
  * @property {() => void} gibNummer
+ * @property {(position: string) => void} ueberzeuge
  * @property {() => void} schliesse
  */
 
@@ -62,7 +64,7 @@ const KATEGORIEN = /** @type {[string, boolean][]} */ ([
   ['lebenslage', false],
   ['persoenlich', true],
   ['wunsch', true],
-  ['ueberzeugen', false],
+  ['ueberzeugen', true],
 ]);
 
 /**
@@ -88,6 +90,14 @@ export function zeigeGespraech(stand, zustand, frei, aktionen) {
     if (zustand.kategorie === 'wunsch') {
       return wunschReaktion(sp, name, kopf, zustand.reaktion.ton, aktionen);
     }
+    if (zustand.kategorie === 'ueberzeugen') {
+      return blattMit(kopf, [
+        el('p', { class: 'gespraech-reaktion',
+          text: T.gespraech.ueberzeugenReaktionen[zustand.reaktion.ton](name) }),
+      ], [
+        { label: T.gespraech.schliessen, klasse: 'haupt', wirkung: aktionen.schliesse },
+      ]);
+    }
     const persoenlich = zustand.kategorie === 'persoenlich';
     return blattMit(kopf, [
       el('p', { class: 'gespraech-reaktion', text: persoenlich
@@ -112,13 +122,25 @@ export function zeigeGespraech(stand, zustand, frei, aktionen) {
     return wunschSchritt(sp, kopf, frei, aktionen);
   }
 
+  if (zustand.kategorie === 'ueberzeugen') {
+    return ueberzeugenSchritt(sp, kopf, frei, aktionen);
+  }
+
+  // „Überzeugen" steht nur da, wenn es etwas zu überzeugen gibt. Eine
+  // Kategorie, die bei fünfundvierzig Spielern vierundvierzigmal ins Leere
+  // führte, wäre eine Einladung, einen Termin auf ein Nein zu verbrauchen —
+  // und die Antwort auf „hat er etwas?" gibt es schon: das Wunschgespräch.
+  const sichtbar = KATEGORIEN.filter(
+    ([id]) => id !== 'ueberzeugen' || offeneAblehnungen(sp).length > 0,
+  );
+
   return blattMit(kopf, [
     el('p', {
       class: 'klein' + (frei > 0 ? ' leise' : ' warnung'),
       text: frei > 0 ? T.gespraech.kontingent(frei) : T.gespraech.keinKontingent,
     }),
     el('div', { class: 'gespraech-liste' },
-      KATEGORIEN.map(([id, offen]) => el('button', {
+      sichtbar.map(([id, offen]) => el('button', {
         class: 'neben gespraech-kategorie',
         disabled: (!offen || frei === 0) || undefined,
         title: offen ? undefined : T.gespraech.baustelle,
@@ -304,6 +326,46 @@ function wunschSchritt(sp, kopf, frei, aktionen) {
     ...(frei > 0
       ? [{ label: T.gespraech.wunschFragen, klasse: 'haupt', wirkung: aktionen.frageNachWunsch }]
       : []),
+  ]);
+}
+
+/**
+ * Der zweite Schritt beim Überzeugen: je offener Ablehnung ein Knopf.
+ *
+ * Meist ist es genau einer — mehrere Ablehnungen gleichzeitig setzen voraus,
+ * dass der Manager denselben unzufriedenen Mann über zwei verschiedene weite
+ * Wege geschickt hat. Eine Liste statt eines Knopfes, weil dieser Fall dann
+ * eben vorkommt und ein Dialog, der die zweite Position verschweigt, sie
+ * unerreichbar machte.
+ *
+ * Kein Wort darüber, wie weit er schon ist: der Fortschritt ist versteckt, und
+ * das ist die Entscheidung, aus der die Kategorie ihre Spannung bezieht.
+ * @param {import('../engine/spieler.js').Spieler} sp
+ * @param {(HTMLElement)[]} kopf
+ * @param {number} frei
+ * @param {Aktionen} aktionen
+ */
+function ueberzeugenSchritt(sp, kopf, frei, aktionen) {
+  const offen = offeneAblehnungen(sp);
+  const daheim = positionsKuerzel(sp);
+
+  const inhalt = [
+    el('h3', { class: 'klein', text: T.gespraech.ueberzeugenTitel }),
+    el('p', { class: 'klein leise', text: T.gespraech.ueberzeugenHinweis }),
+    ...offen.map((position) => el('p', { class: 'gespraech-wunsch',
+      text: T.gespraech.ueberzeugenSatz(position, daheim) })),
+  ];
+  if (frei === 0) {
+    inhalt.push(el('p', { class: 'klein warnung', text: T.gespraech.keinKontingent }));
+  }
+
+  return blattMit(kopf, inhalt, [
+    { label: T.gespraech.abbrechen, klasse: 'neben', wirkung: aktionen.schliesse },
+    ...(frei > 0 ? offen.map((position) => ({
+      label: T.gespraech.ueberzeugenKnopf(position),
+      klasse: 'haupt',
+      wirkung: () => aktionen.ueberzeuge(position),
+    })) : []),
   ]);
 }
 

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<title>Überzeugen: die Kategorie, die nur auftaucht, wenn einer sich sperrt</title>
+<link rel="stylesheet" href="../../app.css">
+<link rel="stylesheet" href="melder.css">
+<script src="./melder.js"></script>
+</head>
+<body><div id="app" class="app"></div><div id="bericht"></div>
+
+<!-- Erst den Stand hinlegen, dann erst die App laden — sie liest ihn beim
+     Start. Beides statisch importiert; ein `await import()` ginge am
+     load-Ereignis vorbei.
+
+     Der Fall lässt sich nicht erspielen: eine Ablehnung entsteht erst, wenn
+     ein unzufriedener Stammspieler quer über die Einheiten aufgestellt wird,
+     und das sind zwei Saisons Vorlauf plus eine Aufstellung von Hand. Gemessen
+     ist der Weg dorthin in docs/balancing.md, Abschnitt 15; hier geht es um
+     die Verdrahtung des Dialogs, und die prüft sich am gelegten Stand. -->
+<script type="module">
+import { neuesSpiel, ergaenzeBindung } from '../../engine/saison.js';
+import { speichere } from '../../engine/save.js';
+
+localStorage.clear();
+
+const s = neuesSpiel('heg', 'ueberzeugen-smoke');
+ergaenzeBindung(s);
+
+// Genau einer sperrt sich, und zwar gegen eine Position, die es im Spiel
+// wirklich gibt. Der Fortschritt steht auf 0: noch kein Wort gewechselt.
+const mann = s.kader[s.meinTeam][0];
+mann.commitment = 30;
+mann.abgelehntePositionen = { G: 0 };
+window.gesperrterName = `${mann.vorname} ${mann.nachname}`;
+
+speichere(s);
+</script>
+
+<script type="module">
+import '../../app.js';
+
+try {
+  // 1 — Der gelegte Stand kommt an: die App startet in ihm, nicht auf dem
+  // Startbildschirm.
+  gleich('die App läuft im gelegten Stand', alle('.start-team').length, 0);
+
+  // 2 — Im Personalreiter steht, wogegen er sich sperrt: außerhalb des
+  // Dialogs, weil eine Ablehnung über Wochen zieht und niemand
+  // fünfundvierzig Blätter aufschlagen soll, um sie zu finden.
+  alle('.reiter button').find((b) => b.textContent === 'Personal').click();
+  const zeile = alle('.spielerzeile').find((z) => z.textContent.includes(gesperrterName));
+  pruefe('der Gesperrte steht im Roster', !!zeile, gesperrterName);
+  zeile.click();
+  enthaelt('aufgeklappt steht da, wogegen er sich sperrt', txt('.tabelle-scroll'), 'Sperrt sich');
+
+  // 3 — Der Dialog führt die Kategorie, und zwar nur bei ihm
+  zeile.querySelector('button').click();
+  const katKnopf = (name) =>
+    alle('.gespraech-kategorie').find((b) => b.textContent.startsWith(name));
+  pruefe('bei ihm steht „Überzeugen" in der Liste', !!katKnopf('Überzeugen'),
+    alle('.gespraech-kategorie').map((b) => b.textContent).join(' | '));
+
+  katKnopf('Überzeugen').click();
+  enthaelt('erst wird gefragt, bevor der Termin draufgeht',
+    txt('.gespraech'), 'Das musst du für mich machen');
+  enthaelt('und gesagt, um welche Position es geht', txt('.gespraech'), 'sperrt sich gegen G');
+  const drueckKnopf = alle('.fragenknoepfe button')
+    .find((b) => b.textContent === 'Auf G drängen');
+  pruefe('mit einem Knopf je abgelehnter Position', !!drueckKnopf,
+    alle('.fragenknoepfe button').map((b) => b.textContent).join(' | '));
+
+  drueckKnopf.click();
+  gleich('danach steht seine Reaktion da', alle('.gespraech-reaktion').length, 1);
+  pruefe('und kein Wort über den Fortschritt — der ist versteckt',
+    !/\d/.test(txt('.gespraech-reaktion')), txt('.gespraech-reaktion'));
+  q('.fragenknoepfe button').click();
+  gleich('das Blatt ist zu', alle('.frageschirm').length, 0);
+
+  // 4 — Bei jedem anderen bleibt die Kategorie unsichtbar
+  const andere = alle('.spielerzeile').find((z) => !z.textContent.includes(gesperrterName));
+  andere.querySelector('button').click();
+  pruefe('wer sich gegen nichts sperrt, bekommt die Kategorie nicht zu sehen',
+    !katKnopf('Überzeugen'),
+    alle('.gespraech-kategorie').map((b) => b.textContent).join(' | '));
+  q('.fragenknoepfe button').click();
+} catch (e) { merkeFehler(e); }
+melde();
+</script>
+</body></html>

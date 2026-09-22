@@ -238,15 +238,25 @@ export function gibNummer(kader, sp) {
  * Stattdessen **endet der Wunsch, wo sein Anlass endet**: wenn er auf seinem
  * Platz genug Einsätze gesammelt hat, um den fremden zu überholen. Der Lohn
  * fürs Erfüllen ist nicht die Prämie, sondern dass der Abzug aufhört.
+ *
+ * `schonBelastet` kommt von der Ablehnung: hat derselbe Nachmittag schon über
+ * `ueberzeugungsDrift()` gekostet, entfällt der Abzug hier. Ein Mann, der
+ * zurück auf MIKE will und stattdessen auf einer Position steht, gegen die er
+ * sich obendrein sperrt, hat **einen** schlechten Samstag, keine zwei. Der
+ * Bonus bleibt: dass er daneben auch noch auf seinem Wunschplatz stand, kommt
+ * in einer Aufstellung über beide Einheiten vor und ist dann verdient.
  * @param {Spieler} sp @param {string[]} plaetze Platz-Kürzel, auf denen er stand
+ * @param {boolean} [schonBelastet] Ob die Ablehnung diesen Nachmittag schon abgerechnet hat
  * @returns {{ delta: number, erfuellt: boolean } | null}
  */
-export function wunschDrift(sp, plaetze) {
+export function wunschDrift(sp, plaetze, schonBelastet = false) {
   const ziel = sp.wunschPlatz;
   if (!ziel || plaetze.length === 0) return null;
 
   const richtig = plaetze.includes(ziel);
-  const delta = richtig ? WUNSCH_ERFUELLT_JE_SPIEL : -WUNSCH_UEBERGANGEN_JE_SPIEL;
+  const delta = richtig
+    ? WUNSCH_ERFUELLT_JE_SPIEL
+    : (schonBelastet ? 0 : -WUNSCH_UEBERGANGEN_JE_SPIEL);
   if (typeof sp.commitment === 'number') {
     sp.commitment = clamp(sp.commitment + delta, 0, 99);
   }

@@ -571,8 +571,24 @@ export function leiterTransfer(spieler, platz) {
     const gleicheSeite = !spieler.seite || !ziel.seite || spieler.seite === ziel.seite;
     return gleicheSeite ? 1 : (SEITENWECHSEL[ziel.position] ?? 1);
   }
-  const gruppeA = GRUPPE_JE_POSITION[spieler.position];
-  const gruppeB = GRUPPE_JE_POSITION[ziel.position];
+  return positionsNaehe(spieler.position, ziel.position);
+}
+
+/**
+ * Wie weit zwei Positionen auseinanderliegen, auf derselben Stufenleiter: 1
+ * dieselbe, dann Gruppe, Einheit, fremd.
+ *
+ * Ohne die Seite — die ist eine Sache der Plätze und gehört zu
+ * `leiterTransfer()`. Herausgezogen, weil das Überzeugen dieselbe Frage stellt
+ * wie der Technik-Transfer: wie weit ist der Weg von hier nach dort? Eine
+ * zweite Leiter daneben wäre ein zweites Modell derselben Landkarte, und zwei
+ * Landkarten laufen auseinander.
+ * @param {string} vonPosition @param {string} nachPosition
+ */
+export function positionsNaehe(vonPosition, nachPosition) {
+  if (vonPosition === nachPosition) return 1;
+  const gruppeA = GRUPPE_JE_POSITION[vonPosition];
+  const gruppeB = GRUPPE_JE_POSITION[nachPosition];
   if (gruppeA === gruppeB) return TRANSFER_GRUPPE;
   if (EINHEIT_JE_GRUPPE[gruppeA] === EINHEIT_JE_GRUPPE[gruppeB]) return TRANSFER_EINHEIT;
   return TRANSFER_FREMD;

@@ -59,6 +59,7 @@ in Millisekunden durchspielen können.
 | `engine/rolle.js` | Die Rolle: die fünf Stufen, die Offseason-Kampagne mit ihrem Tempo, die Reaktion beim Setzen aus Perzentil, Vorgeschichte und Alter, der Bank-Drift aus dem rollierenden Einsatzfenster |
 | `engine/gespraech.js` | Was allen Gesprächskategorien gemeinsam ist: das Wochenkontingent aus dem Gesprächslog, die Nähe aus dem Abstand zum letzten Termin — und das persönliche Gespräch, das nichts weiter braucht |
 | `engine/wunsch.js` | Was ein Spieler von sich aus möchte: der Anlass zum Positions- und zum Nummernwunsch, das Aussprechen im Gespräch, und was ein Spiel auf dem falschen Platz danach kostet |
+| `engine/ueberzeugen.js` | Die Gegenseite: wogegen ein Spieler sich sperrt, wann das überhaupt entsteht, was ein Spiel auf einer abgelehnten Position kostet, und wie viele Gespräche es braucht, ihn umzustimmen |
 | `engine/aufstellung.js` | Personnel, die zweiundzwanzig Plätze, der Doppeleinsatz, die drei Special-Teams-Plätze, die Vorgabe des Managers |
 | `engine/team.js` | Aus einer Aufstellung werden Lauf- und Passwerte je Einheit |
 | `engine/spielplan.js` | Gruppenrunde nach dem Kreisverfahren, dazu das Bracket |

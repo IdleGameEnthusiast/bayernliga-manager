@@ -33,6 +33,7 @@ import { stufe } from '../engine/commitment.js';
 import { ROLLEN, rolleVon, mismatch, vernachlaessigung } from '../engine/rolle.js';
 import { druck, halt } from '../engine/lebenslauf.js';
 import { ausgesprochenerWunsch } from '../engine/wunsch.js';
+import { offeneAblehnungen } from '../engine/ueberzeugen.js';
 
 /**
  * Was die Ansicht zeigt, das der Manager sonst nicht sieht. Kommt aus
@@ -298,6 +299,23 @@ function wunschZeile(sp) {
     el('span', { class: 'klein', text: wunsch.art === 'platz'
       ? T.gespraech.wunschPlatzSatz(wunsch.platz)
       : T.gespraech.wunschNummerSatz(wunsch.nummer) }));
+}
+
+/**
+ * Wogegen er sich sperrt — oder nichts.
+ *
+ * Aus demselben Grund draußen wie der Wunsch: eine Ablehnung zieht über
+ * Wochen, und wer sie nur im Dialog sähe, müsste raten, welchen der
+ * fünfundvierzig er aufschlagen soll. Wie weit der Manager ihn schon hat,
+ * steht hier bewusst **nicht** — der Fortschritt ist versteckt.
+ * @param {import('../engine/spieler.js').Spieler} sp
+ */
+function ablehnungZeile(sp) {
+  const offen = offeneAblehnungen(sp);
+  if (offen.length === 0) return null;
+  return el('div', { class: 'plaetze' },
+    el('span', { class: 'klein leise', text: T.kader.ablehnung }),
+    el('span', { class: 'klein', text: offen.join(', ') }));
 }
 
 /**
@@ -587,6 +605,7 @@ function werteZeile(sp, stand, einblick) {
         })),
       lebenslageZeile(bindung.lebenslage, stand.jahr),
       wunschZeile(sp),
+      ablehnungZeile(sp),
       // Die Zahlen, die das Spiel versteckt, in einer Zeile — nur für den, der
       // den Code eingelöst hat.
       einblick.playtester
