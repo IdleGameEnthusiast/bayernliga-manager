@@ -37,6 +37,22 @@ export const STORAGE_KEY = 'bayernliga.save';
  * @type {Record<number, (roh: any) => any>}
  */
 const MIGRATIONEN = {
+  // 14 → 15: „Wunsch anhören" kam, und mit ihm zwei Felder am Spieler —
+  // `wunschPlatz` und `wunschNummer`. Beide bedeuten „fehlt = kein Wunsch
+  // ausgesprochen", und genau das ist für einen alten Stand auch die Wahrheit:
+  // in ihm hat nie jemand nachgefragt. Der Schritt fasst deshalb keinen
+  // Menschen an, wie schon 10 → 11 bei der Bindung.
+  //
+  // Anlegen wäre hier sogar falsch, nicht nur überflüssig. Der **Anlass** zu
+  // einem Wunsch rechnet sich aus den Einsätzen und der Eignung und gilt auch
+  // ungefragt; was in diesen Feldern steht, ist das Wissen des Managers davon.
+  // Ein Schritt, der sie füllte, legte einem alten Stand Gespräche in den
+  // Mund, die nie stattgefunden haben.
+  14: (roh) => {
+    roh.version = 15;
+    return roh;
+  },
+
   // 13 → 14: Talent ist keine Zahl auf der Werteleiter mehr, sondern stehen
   // halbe Sterne, 1 bis 10. Umgerechnet wird nach genau der Regel, mit der die
   // Sterne bis gestern **gezeichnet** wurden — eine Zehnerstufe je halber

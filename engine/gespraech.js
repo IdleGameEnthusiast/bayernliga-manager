@@ -3,11 +3,11 @@
  * Das Gespräch: der Termin, den der Manager mit einem Menschen im Verein
  * verbringt, und was dabei herauskommt.
  *
- * Hier steht, was **allen** Kategorien gemeinsam ist — das Kontingent und das
- * Log, aus dem es sich rechnet — und die eine Kategorie, die nichts weiter
- * braucht als beides: das persönliche Gespräch. Was eine Kategorie ein eigenes
- * Modell verlangt, bekommt ein eigenes (`rolle.js`); was nur den Termin
- * verbraucht, wohnt hier.
+ * Hier steht, was **allen** Kategorien gemeinsam ist — das Kontingent, das
+ * Log, aus dem es sich rechnet, und die Nähe, die aus dem Abstand zum letzten
+ * Gespräch folgt — und die eine Kategorie, die nichts weiter braucht als das:
+ * das persönliche Gespräch. Was ein eigenes Modell verlangt, bekommt ein
+ * eigenes (`rolle.js`, `wunsch.js`); was nur den Termin verbraucht, wohnt hier.
  *
  * Das Kontingent lag bis zu dieser Kategorie in `rolle.js`. Es ist dort nie
  * hingehörig gewesen: es zählt Termine, nicht Rollen, und die Rolle war nur
@@ -21,7 +21,7 @@
  */
 
 import {
-  GESPRAECHE_JE_WOCHE, PERSOENLICH_GEWINN, PERSOENLICH_SAETTIGUNG_TAGE, clamp,
+  GESPRAECHE_JE_WOCHE, PERSOENLICH_GEWINN, NAEHE_SAETTIGUNG_TAGE, clamp,
 } from './constants.js';
 import { woche } from './kalender.js';
 
@@ -49,7 +49,7 @@ export function offeneGespraeche(log, tag) {
   return Math.max(0, GESPRAECHE_JE_WOCHE - gefuehrteDieseWoche(log, tag));
 }
 
-// --- Über persönliche Themen sprechen --------------------------------------
+// --- Die Nähe: was der Abstand zum letzten Gespräch wert ist ---------------
 
 /**
  * Wann zuletzt mit ihm geredet wurde — über was auch immer. `null` heißt: in
@@ -71,22 +71,28 @@ export function zuletztGeredet(log, spielerId) {
 }
 
 /**
- * Welchen Anteil seines vollen Satzes ein persönliches Gespräch heute noch
- * bringt: 1, wenn lange genug nichts war, sonst der Anteil der verstrichenen
- * Zeit.
+ * Welchen Anteil seines vollen Satzes ein Gespräch heute noch bringt: 1, wenn
+ * lange genug nichts war, sonst der Anteil der verstrichenen Zeit.
  *
  * Kein harter Cooldown wie bei der Rolle, sondern ein weicher Abfall. Die
  * Rolle ist eine Zusage, die eine Weile stehen muss, damit sie eine ist —
  * reden kann man dagegen immer, es bringt nur wenig, wenn man es gerade erst
  * getan hat. Ein gesperrter Knopf hätte dem Manager das Gegenteil erzählt.
+ *
+ * Gilt für **jede** Kategorie, die nichts weiter tut, als sich zu kümmern:
+ * das persönliche Gespräch und das Nachfragen nach einem Wunsch, der nicht da
+ * ist. Zwei getrennte Abstände wären zwei Knöpfe für dasselbe, abwechselnd
+ * gedrückt.
  * @param {Gespraech[]} log @param {string} spielerId @param {number} tag
  */
-export function persoenlichAnteil(log, spielerId, tag) {
+export function naeheAnteil(log, spielerId, tag) {
   const zuletzt = zuletztGeredet(log, spielerId);
   if (zuletzt === null) return 1;
   const her = Math.max(0, tag - zuletzt);
-  return clamp(her / PERSOENLICH_SAETTIGUNG_TAGE, 0, 1);
+  return clamp(her / NAEHE_SAETTIGUNG_TAGE, 0, 1);
 }
+
+// --- Über persönliche Themen sprechen --------------------------------------
 
 /** Die Schwellen, ab denen ein Anteil anders klingt. Von unten gelesen. */
 const PERSOENLICH_TON_GRENZEN = [0.35, 1];
@@ -107,7 +113,7 @@ const PERSOENLICH_TON_GRENZEN = [0.35, 1];
  * @returns {Zuwendung}
  */
 export function persoenlichesGespraech(sp, log, tag) {
-  const anteil = persoenlichAnteil(log, sp.id, tag);
+  const anteil = naeheAnteil(log, sp.id, tag);
   const delta = PERSOENLICH_GEWINN * anteil;
   if (delta > 0 && typeof sp.commitment === 'number') {
     sp.commitment = clamp(sp.commitment + delta, 0, 99);

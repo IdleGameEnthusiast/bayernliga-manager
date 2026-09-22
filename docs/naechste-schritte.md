@@ -12,9 +12,9 @@ hängen — siehe [`umbau-aufstellung.md`](umbau-aufstellung.md). Aus Block 7
 sind Schritt 1 (Commitment und Lebenslage als Felder) und Schritt 2a (der
 Statusübergangs-Motor: Horizonte, Statuswechsel, Druck gegen Halt) umgesetzt.
 Von Schritt 2b stehen die Kalenderphasen, die Rollen-Kampagne samt
-Gesprächs-Dialog und Wochenkontingent und die Kategorie „Über persönliche
-Themen sprechen". **Als Nächstes stehen die drei restlichen
-Gesprächskategorien** — Wunsch anhören, Überzeugen, Nach Lebenslage fragen —,
+Gesprächs-Dialog und Wochenkontingent und die Kategorien „Über persönliche
+Themen sprechen" und „Wunsch anhören". **Als Nächstes stehen die zwei
+restlichen Gesprächskategorien** — Überzeugen, Nach Lebenslage fragen —,
 einzeln, in der Baureihenfolge unten. Danach bleibt die Drift durch Coach,
 Verletzung, Erfolg und Vereinsjahre offen, und mit ihr die Trend-Nachricht
 vom Positionscoach.
@@ -669,7 +669,10 @@ rekonstruieren lässt.
 bekommt nur der Spieler eine echte Drift-Quelle — Coach-Commitment bewegt sich
 weiterhin nirgends und braucht einen eigenen, noch offenen Hebel.
 
-### Wunsch anhören
+### Wunsch anhören ✅ gebaut
+
+*Umgesetzt mit vier Abweichungen — siehe die Baureihenfolge weiter unten,
+Punkt 2. Der Entwurf bleibt stehen, weil er die Gründe trägt.*
 
 Drei Typen für den Start, alle mit einem **echten Anlass**, nie aus einem
 Würfelwurf allein — Wünsche ohne erkennbaren Grund lesen sich als Zufall,
@@ -1159,9 +1162,38 @@ eigenen Platz, es steht als „noch zwei Jahre Schule" ohnehin im Satz.
              verbraucht, bevor der Manager erfährt, dass sie gestern schon
              geredet haben. Jede Kategorie bekommt damit ihren eigenen
              zweiten Schritt.
-        2. Wunsch anhören (Position, Nummer) — führt `wunschPosition` und
-           `abgelehntePositionen` ein.
-        3. Überzeugen (`abgelehntePositionen`) — baut auf den Feldern aus 2.
+        2. ~~Wunsch anhören (Position, Nummer) — führt `wunschPosition` und
+           `abgelehntePositionen` ein.~~ **Gebaut** in `engine/wunsch.js`,
+           `SAVE_VERSION` 15. Vier Abweichungen vom Entwurf, alle beim Bauen
+           entschieden:
+           - **`wunschPlatz` statt `wunschPosition`**, dazu `wunschNummer`.
+             Gespeichert wird das Platz-Kürzel: überall sonst — `einsaetze`,
+             `hauptPlatz()`, die Marke im Roster — ist es die Einheit, in der
+             „wo er steht" gemessen wird, und nur es trägt die Seite. Mit einer
+             Position allein wäre der Wunsch eines Left Tackle erfüllt, sobald
+             er rechts aufläuft.
+           - **`abgelehntePositionen` kommt erst mit „Überzeugen".** Hier hätte
+             es niemand gefüllt, und ein Feld ohne Schreiber verbreitert nur
+             die Speicherform. Kostet einen zweiten Versionssprung; Nummern
+             sind billig.
+           - **Der Anlass verlangt, dass der fremde Platz mehr Einsätze trägt
+             als der eigene.** Ohne diese Bedingung entstand der Wunsch nach
+             jeder Erfüllung sofort neu — der Anlass steckt in den Einsätzen,
+             und die drehen sich durch ein einzelnes richtig besetztes Spiel
+             nicht um. So endet der Wunsch dort, wo sein Grund endet.
+           - **Kein einmaliger Bonus fürs Erfüllen**, sondern ein kleiner
+             laufender. Mit der einmaligen Prämie war „fragen, richtig
+             aufstellen, kassieren, von vorn" der beste Zug im ganzen Spiel.
+             Gemessen und verworfen, siehe [`balancing.md`](balancing.md)
+             Abschnitt 14.
+
+           Der **Nummernwunsch** wird im Gespräch selbst erfüllt statt über
+           eine Postfach-Anfrage: der Manager sitzt ihm ohnehin gegenüber. Die
+           automatische Anfrage zum Jahreswechsel bleibt davon unberührt und
+           weiter ungebaut — „Wunsch anhören" ist der vorzeitige Weg dorthin,
+           wie unten beschrieben.
+        3. Überzeugen (`abgelehntePositionen`) — führt das Feld ein, das 2
+           bewusst ausgelassen hat.
         4. Nach Lebenslage fragen + `horizontWahrheit` und `wissbarAb`.
            Zuletzt, weil hier als Einzigem eine zweite, versteckte Wahrheit
            neben den Plan tritt — das ist kein Verdrahten mehr.

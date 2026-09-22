@@ -29,7 +29,8 @@
 import { el } from './dom.js';
 import { T } from '../i18n.js';
 import { ROLLEN, rolleVon, erwarteteRolle, wiederAb } from '../engine/rolle.js';
-import { zuletztGeredet, persoenlichAnteil } from '../engine/gespraech.js';
+import { zuletztGeredet, naeheAnteil } from '../engine/gespraech.js';
+import { ausgesprochenerWunsch } from '../engine/wunsch.js';
 import { positionsKuerzel } from '../engine/positionen.js';
 
 /**
@@ -50,6 +51,8 @@ import { positionsKuerzel } from '../engine/positionen.js';
  * @property {(kategorie: string) => void} waehleKategorie
  * @property {(rolle: import('../engine/rolle.js').Rolle) => void} setzeRolle
  * @property {() => void} redePersoenlich
+ * @property {() => void} frageNachWunsch
+ * @property {() => void} gibNummer
  * @property {() => void} schliesse
  */
 
@@ -58,7 +61,7 @@ const KATEGORIEN = /** @type {[string, boolean][]} */ ([
   ['rolle', true],
   ['lebenslage', false],
   ['persoenlich', true],
-  ['wunsch', false],
+  ['wunsch', true],
   ['ueberzeugen', false],
 ]);
 
@@ -82,6 +85,9 @@ export function zeigeGespraech(stand, zustand, frei, aktionen) {
   ];
 
   if (zustand.reaktion) {
+    if (zustand.kategorie === 'wunsch') {
+      return wunschReaktion(sp, name, kopf, zustand.reaktion.ton, aktionen);
+    }
     const persoenlich = zustand.kategorie === 'persoenlich';
     return blattMit(kopf, [
       el('p', { class: 'gespraech-reaktion', text: persoenlich
@@ -100,6 +106,10 @@ export function zeigeGespraech(stand, zustand, frei, aktionen) {
 
   if (zustand.kategorie === 'persoenlich') {
     return persoenlichSchritt(stand, sp, kopf, frei, aktionen);
+  }
+
+  if (zustand.kategorie === 'wunsch') {
+    return wunschSchritt(sp, kopf, frei, aktionen);
   }
 
   return blattMit(kopf, [
@@ -192,7 +202,7 @@ function rollenSchritt(kader, sp, kopf, frei, tag, aktionen) {
  */
 function persoenlichSchritt(stand, sp, kopf, frei, aktionen) {
   const zuletzt = zuletztGeredet(stand.gespraeche, sp.id);
-  const anteil = persoenlichAnteil(stand.gespraeche, sp.id, stand.tag);
+  const anteil = naeheAnteil(stand.gespraeche, sp.id, stand.tag);
 
   const inhalt = [
     el('h3', { class: 'klein', text: T.gespraech.persoenlichTitel }),
@@ -213,6 +223,112 @@ function persoenlichSchritt(stand, sp, kopf, frei, aktionen) {
     ...(frei > 0
       ? [{ label: T.gespraech.persoenlichKnopf, klasse: 'haupt', wirkung: aktionen.redePersoenlich }]
       : []),
+  ]);
+}
+
+/**
+ * Ein ausgesprochener Wunsch in Worten — und, bei einer Nummer, der Knopf, der
+ * ihn erfüllt.
+ *
+ * Steht an zwei Stellen: vor dem Fragen, wenn er den Wunsch schon einmal
+ * geäußert hat, und danach, wenn er ihn gerade geäußert hat. Ein Wunsch soll
+ * an beiden Orten gleich aussehen — es ist derselbe Satz, nur einmal erinnert
+ * und einmal frisch.
+ * @param {import('../engine/wunsch.js').Wunsch} wunsch
+ * @param {Aktionen} aktionen
+ */
+function wunschZeilen(wunsch, aktionen) {
+  if (wunsch.art === 'nummer') {
+    return {
+      inhalt: [
+        el('p', { class: 'gespraech-wunsch', text: T.gespraech.wunschNummerSatz(wunsch.nummer) }),
+        el('p', { class: 'klein leise', text: T.gespraech.wunschNummerHinweis }),
+      ],
+      knoepfe: [{
+        label: T.gespraech.wunschNummerKnopf(wunsch.nummer),
+        klasse: 'haupt',
+        wirkung: aktionen.gibNummer,
+      }],
+    };
+  }
+  return {
+    inhalt: [
+      el('p', { class: 'gespraech-wunsch', text: T.gespraech.wunschPlatzSatz(wunsch.platz) }),
+      el('p', { class: 'klein leise', text: T.gespraech.wunschPlatzHinweis }),
+    ],
+    // Kein Knopf: einen Positionswunsch erfüllt man in der Aufstellung, nicht
+    // im Gespräch. Ein „Zusagen"-Knopf hier wäre ein Versprechen, und
+    // Versprechen sind verworfen — siehe Fahrplan, Block 7.
+    knoepfe: [],
+  };
+}
+
+/**
+ * Der zweite Schritt beim Wunschgespräch.
+ *
+ * Zwei Fassungen, und der Unterschied ist der Termin: was er schon gesagt hat,
+ * steht einfach da — nachschlagen kostet nichts. Erst das **Fragen** kostet.
+ * Sonst zahlte der Manager jedes Mal aufs Neue dafür, sich an etwas zu
+ * erinnern, das er längst weiß.
+ * @param {import('../engine/spieler.js').Spieler} sp
+ * @param {(HTMLElement)[]} kopf
+ * @param {number} frei
+ * @param {Aktionen} aktionen
+ */
+function wunschSchritt(sp, kopf, frei, aktionen) {
+  const bekannt = ausgesprochenerWunsch(sp);
+
+  if (bekannt) {
+    const { inhalt, knoepfe } = wunschZeilen(bekannt, aktionen);
+    return blattMit(kopf, [
+      el('h3', { class: 'klein', text: T.gespraech.wunschTitel }),
+      el('p', { class: 'klein leise', text: T.gespraech.wunschBekannt }),
+      ...inhalt,
+    ], [
+      { label: T.gespraech.schliessen, klasse: knoepfe.length ? 'neben' : 'haupt',
+        wirkung: aktionen.schliesse },
+      ...knoepfe,
+    ]);
+  }
+
+  const inhalt = [
+    el('h3', { class: 'klein', text: T.gespraech.wunschTitel }),
+    el('p', { class: 'klein leise', text: T.gespraech.wunschHinweis }),
+  ];
+  if (frei === 0) {
+    inhalt.push(el('p', { class: 'klein warnung', text: T.gespraech.keinKontingent }));
+  }
+
+  return blattMit(kopf, inhalt, [
+    { label: T.gespraech.abbrechen, klasse: 'neben', wirkung: aktionen.schliesse },
+    ...(frei > 0
+      ? [{ label: T.gespraech.wunschFragen, klasse: 'haupt', wirkung: aktionen.frageNachWunsch }]
+      : []),
+  ]);
+}
+
+/**
+ * Wie das Nachfragen ausging. Der Ton kommt aus `app.js`: nichts gesagt,
+ * etwas gesagt, oder die Nummer ist gerade übergeben worden.
+ * @param {import('../engine/spieler.js').Spieler} sp
+ * @param {string} name
+ * @param {(HTMLElement)[]} kopf
+ * @param {number} ton
+ * @param {Aktionen} aktionen
+ */
+function wunschReaktion(sp, name, kopf, ton, aktionen) {
+  const bekannt = ton === 1 ? ausgesprochenerWunsch(sp) : null;
+  const { inhalt, knoepfe } = bekannt
+    ? wunschZeilen(bekannt, aktionen)
+    : { inhalt: [], knoepfe: [] };
+
+  return blattMit(kopf, [
+    el('p', { class: 'gespraech-reaktion', text: T.gespraech.wunschReaktionen[ton](name) }),
+    ...inhalt,
+  ], [
+    { label: T.gespraech.schliessen, klasse: knoepfe.length ? 'neben' : 'haupt',
+      wirkung: aktionen.schliesse },
+    ...knoepfe,
   ]);
 }
 

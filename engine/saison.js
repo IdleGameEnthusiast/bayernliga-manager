@@ -27,6 +27,7 @@ import {
   sende, baueNachrichten, offeneAntworten, beantworte, stutzePost,
 } from './postfach.js';
 import { macheKader, saisonWechsel, resetSpielerIds, spieleEinsatz, istFit } from './spieler.js';
+import { platzKuerzel } from './positionen.js';
 import {
   macheGruppenplan, macheHalbfinale, macheFinale, sieger,
   anzahlSpieltage, partienAmTag, partienDerRunde,
@@ -46,6 +47,9 @@ import {
   neueSaison as rolleNeueSaison, rollenlose, darfAendern, ROLLEN,
 } from './rolle.js';
 import { offeneGespraeche, persoenlichesGespraech } from './gespraech.js';
+import {
+  frageNachWunsch, gibNummer, wunschDrift, ausgesprochenerWunsch,
+} from './wunsch.js';
 
 /**
  * Der Stempel auf einem Speicherstand.
@@ -55,7 +59,7 @@ import { offeneGespraeche, persoenlichesGespraech } from './gespraech.js';
  * der vorigen Nummer auf diese hebt. Ohne diesen Schritt wird ein solcher Stand
  * beim Laden weggeworfen — der Sprung ist billig, der Verlust nicht.
  */
-export const SAVE_VERSION = 14;
+export const SAVE_VERSION = 15;
 
 /**
  * @typedef {object} SpielStand
@@ -738,21 +742,35 @@ function verbucheEinsaetze(a) {
 }
 
 /**
- * Der Bank-Drift nach dem eigenen Spiel: wer fit war, kommt ins Fenster, und
- * wer eine Rolle hat, spürt die Differenz.
+ * Was das eigene Spiel an der Bindung bewegt: der Bank-Drift, und daneben der
+ * ausgesprochene Positionswunsch.
+ *
+ * Zwei Fragen an denselben Nachmittag, die einander nicht ins Gehege kommen —
+ * **ob** er gespielt hat, und **wo**. Der Bank-Drift rechnet nur, wenn er
+ * zugesehen hat, der Wunsch nur, wenn er aufgelaufen ist; für dasselbe Spiel
+ * zieht immer höchstens einer von beiden.
  *
  * Verletzte bleiben außen vor — eine Verletzung ist keine Entscheidung des
  * Managers und soll die Bilanz nicht verwässern. Wer von sich aus nachfragt,
  * bekommt eine Nachricht **ohne** Empathie-Gate: ein Spieler bemerkt seine
  * eigene Bank selbst, ganz gleich, wie aufmerksam sein Positionscoach ist.
+ * Der Wunsch bekommt **keine** Nachricht: er hat ihn einmal ausgesprochen, er
+ * steht im Personalreiter, und ein Spieler, der ihn nach jedem Spiel
+ * wiederholt, nörgelt.
  * @param {SpielStand} stand
  * @param {import('./aufstellung.js').Aufstellung} meine
  * @param {number} tag
  * @returns {{ art: string, daten?: Record<string, any> }[]}
  */
-function rollenDrift(stand, meine, tag) {
-  const gelaufen = new Set(
-    [...meine.offense, ...meine.defense].filter((pl) => pl.spieler).map((pl) => pl.spieler.id));
+function spielDrift(stand, meine, tag) {
+  /** @type {Map<string, string[]>} Wer auf welchen Plätzen stand */
+  const gelaufen = new Map();
+  for (const pl of [...meine.offense, ...meine.defense]) {
+    if (!pl.spieler) continue;
+    const bisher = gelaufen.get(pl.spieler.id);
+    if (bisher) bisher.push(platzKuerzel(pl.platz));
+    else gelaufen.set(pl.spieler.id, [platzKuerzel(pl.platz)]);
+  }
   /** @type {{ art: string, daten?: Record<string, any> }[]} */
   const eintraege = [];
 
@@ -762,6 +780,7 @@ function rollenDrift(stand, meine, tag) {
     // Die Bindung muss stehen, bevor daran gezogen wird — in einem Stand von
     // vor Block 7 hängt sie sonst noch im Saatgut.
     bindungVon(stand, sp);
+    wunschDrift(sp, gelaufen.get(sp.id) || []);
     const bewegt = drift(sp, tag);
     if (!bewegt || !bewegt.beschwerde) continue;
     eintraege.push({
@@ -817,7 +836,7 @@ function spieleTag(stand, tag) {
     // eigene Verein — anderswo setzt niemand Rollen, und ein Fenster ohne
     // Erwartung wäre Ballast in jedem Speicherstand.
     if (p.heim === stand.meinTeam || p.gast === stand.meinTeam) {
-      eintraege.push(...rollenDrift(stand, aufstellungen[p.heim === stand.meinTeam ? 'heim' : 'gast'], tag));
+      eintraege.push(...spielDrift(stand, aufstellungen[p.heim === stand.meinTeam ? 'heim' : 'gast'], tag));
     }
 
     // Und die Koordinatoren haben es gecoacht: die Spielhälfte der
@@ -1175,6 +1194,61 @@ export function fuehrePersoenlichesGespraech(stand, spielerId) {
   const zuwendung = persoenlichesGespraech(sp, stand.gespraeche, stand.tag);
   stand.gespraeche.push({ tag: stand.tag, spielerId });
   return zuwendung;
+}
+
+/**
+ * Was er von sich aus möchte — ohne zu fragen.
+ *
+ * Kostet keinen Termin, weil sie nichts miteinander reden: das ist der Blick
+ * in die Notiz, die das Gespräch hinterlassen hat. Deshalb kommt hier auch nur
+ * ein **ausgesprochener** Wunsch zurück und nie ein bloßer Anlass — den kennt
+ * der Manager nicht, solange er nicht gefragt hat.
+ * @param {SpielStand} stand @param {string} spielerId
+ * @returns {import('./wunsch.js').Wunsch | null}
+ */
+export function bekannterWunsch(stand, spielerId) {
+  const sp = (stand.kader[stand.meinTeam] || []).find((x) => x.id === spielerId);
+  return sp ? ausgesprochenerWunsch(sp) : null;
+}
+
+/**
+ * Nachfragen, ob er einen Wunsch hat: ein Termin, und danach weiß der Manager,
+ * woran er ist.
+ *
+ * Wie beim persönlichen Gespräch gibt es keinen Grund, das zu verbieten — und
+ * wie dort wird der Termin auch dann verbucht, wenn nichts dabei herauskommt.
+ * Die Frage wurde gestellt.
+ * @param {SpielStand} stand @param {string} spielerId
+ * @returns {import('./wunsch.js').Auskunft | null} null, wenn es heute nicht geht
+ */
+export function fuehreWunschGespraech(stand, spielerId) {
+  const kader = stand.kader[stand.meinTeam] || [];
+  const sp = kader.find((x) => x.id === spielerId);
+  if (!sp || gespraecheFrei(stand) === 0) return null;
+
+  bindungVon(stand, sp);
+  const auskunft = frageNachWunsch(kader, sp, stand.gespraeche, stand.tag);
+  stand.gespraeche.push({ tag: stand.tag, spielerId });
+  return auskunft;
+}
+
+/**
+ * Die gewünschte Nummer hergeben.
+ *
+ * Kein Termin: der Manager hat den Wunsch schon gehört, und die Nummer zu
+ * genehmigen ist ein Verwaltungsakt, kein Gespräch. Dass es überhaupt eine
+ * Entscheidung ist, liegt an der Knappheit — es gibt zehn einstellige, und
+ * eine vergebene ist weg.
+ * @param {SpielStand} stand @param {string} spielerId
+ * @returns {number} Was sich am Commitment bewegt hat; 0, wenn nichts ging
+ */
+export function erfuelleNummernwunsch(stand, spielerId) {
+  const kader = stand.kader[stand.meinTeam] || [];
+  const sp = kader.find((x) => x.id === spielerId);
+  if (!sp) return 0;
+
+  bindungVon(stand, sp);
+  return gibNummer(kader, sp);
 }
 
 /**

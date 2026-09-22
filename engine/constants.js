@@ -517,8 +517,8 @@ export const GESPRAECHE_JE_WOCHE = 3;
 export const PERSOENLICH_GEWINN = 1.6;
 
 /**
- * Nach wie vielen Tagen ein weiteres persönliches Gespräch wieder den vollen
- * Satz bringt. Darunter zählt der Anteil der verstrichenen Zeit.
+ * Nach wie vielen Tagen ein Gespräch wieder den vollen Satz Nähe bringt.
+ * Darunter zählt der Anteil der verstrichenen Zeit.
  *
  * Der Grund für die Dämpfung überhaupt: das Wochenkontingent begrenzt nur die
  * **Rate**, nicht das **Ziel**. Ohne sie wäre es rechnerisch immer richtig,
@@ -527,10 +527,88 @@ export const PERSOENLICH_GEWINN = 1.6;
  * Kategorie das, was sie sein soll: Pflege, über den Kader verteilt.
  *
  * Gezählt wird ab dem **letzten Gespräch überhaupt**, nicht ab dem letzten
- * persönlichen. Wer vorgestern über seine Rolle geredet hat, hat vorgestern
- * geredet; der Spieler führt darüber keine zwei Listen.
+ * einer Kategorie. Wer vorgestern über seine Rolle geredet hat, hat vorgestern
+ * geredet; der Spieler führt darüber keine zwei Listen. Aus demselben Grund
+ * heißt die Konstante nach der Nähe und nicht nach der Kategorie: seit „Wunsch
+ * anhören" dazugekommen ist, teilen sich zwei den Abfall.
  */
-export const PERSOENLICH_SAETTIGUNG_TAGE = 28;
+export const NAEHE_SAETTIGUNG_TAGE = 28;
+
+/**
+ * Was allein das Nachfragen bringt, wenn der Spieler gar keinen Wunsch hat —
+ * gedämpft durch dieselbe Nähe wie das persönliche Gespräch.
+ *
+ * Kleiner als `PERSOENLICH_GEWINN`, und das ist der Unterschied zwischen
+ * Anteilnahme und Formsache: eine Viertelstunde über sein kaputtes Auto ist
+ * mehr wert als die Frage, ob er noch einen Wunsch offen hat. Ohne die
+ * gemeinsame Dämpfung wäre die Kategorie schlicht ein zweiter Knopf für
+ * dasselbe, nur mit anderer Beschriftung.
+ */
+export const WUNSCH_LEER_GEWINN = 0.8;
+
+/**
+ * Wie viele Einsätze auf einem fremden Platz nötig sind, damit daraus ein
+ * Positionswunsch wird — „über längere Zeit" in Zahlen.
+ *
+ * Eine Aushilfe ist kein Anlass. Sechs Spiele sind mehr als die halbe
+ * Hauptrunde: dann ist es keine Aushilfe mehr, sondern seine Saison. Die
+ * Einsätze verfallen mit `EINSATZ_VERFALL`, also verschwindet der Anlass auch
+ * wieder, wenn er ein Jahr lang zu Hause gestanden hat.
+ */
+export const WUNSCH_EINSAETZE_MIN = 6;
+
+/**
+ * Um wie viele Punkte Eignung er auf dem fremden Platz schlechter sein muss,
+ * bevor er sich beschwert — „deutlich schwächer" in Zahlen.
+ *
+ * Ohne diesen Abstand wünschte sich jeder Umgestellte zurück, und Umschulen,
+ * einer der Kerne des Spiels, wäre überall teuer. Die Grundregel aus dem
+ * Fahrplan lautet andersherum: Positionsverweigerung ist der seltene
+ * Ausnahmefall. Wer woanders gleich gut ist, hat keinen Grund — und wer dort
+ * besser ist, ist laut `hauptPlatz()` ohnehin längst dort zu Hause.
+ */
+export const WUNSCH_EIGNUNG_ABSTAND = 4;
+
+/**
+ * Was ein Spiel kostet, das er wieder auf dem fremden Platz bestreitet,
+ * nachdem er seinen Wunsch ausgesprochen hat.
+ *
+ * Erst **nach** dem Aussprechen: vorher weiß der Manager nichts davon, und
+ * etwas zu bestrafen, das niemand wissen konnte, ist keine Entscheidung,
+ * sondern eine Falle. Genau das ist der Preis der Kategorie — wer nie fragt,
+ * zahlt nie, erfährt aber auch nie, warum sein bester Mann leiser wird.
+ *
+ * Nur wenn er **spielt**: auf der Bank wird er nicht auf der falschen Position
+ * verheizt, er sitzt. Dafür rechnet der Rollen-Mismatch, und zweimal für
+ * denselben Nachmittag abzuziehen wäre doppelt.
+ */
+export const WUNSCH_UEBERGANGEN_JE_SPIEL = 1.2;
+
+/**
+ * Was ein Spiel bringt, das er nach ausgesprochenem Wunsch auf seinem Platz
+ * bestreitet. Dieselbe Größenordnung wie `ROLLE_ERFUELLT_BONUS`, aus dem
+ * gleichen Grund: die Waage soll nach oben zeigen können, ohne dass ein
+ * Stammspieler über eine Saison auf 99 läuft.
+ *
+ * **Ein einmaliger großer Bonus stand hier zuerst und ist gemessen
+ * gescheitert.** Der Anlass zum Wunsch steckt in den Einsätzen und ist nach
+ * einem einzigen richtig besetzten Spiel noch da — der Wunsch entstand also
+ * beim nächsten Nachfragen sofort neu. Fragen, richtig aufstellen, kassieren,
+ * von vorn: mit sechs Punkten je Runde der mit Abstand beste Zug im Spiel.
+ * Kleiner und laufend statt groß und einmalig macht die Schleife wertlos, ohne
+ * dass ein Zähler am Spieler sie verbieten müsste.
+ */
+export const WUNSCH_ERFUELLT_JE_SPIEL = 0.8;
+
+/**
+ * Was die einstellige Nummer bringt, wenn der Manager sie hergibt.
+ *
+ * Kostet ihn nichts als die Nummer selbst — es gibt zehn davon, und die
+ * nächste Ansage des Trainerstabs kann sie brauchen. Bewusst ohne Gegenstück:
+ * eine Nummer **nicht** zu geben ist kein gebrochenes Wort, sondern eine
+ * Entscheidung, und der Spieler trug gestern schon die 42.
+ */
+export const WUNSCH_NUMMER_BONUS = 4;
 
 /**
  * Wie viele Wochen vor dem ersten Spieltag die Rollen-Kampagne fertig sein

@@ -743,6 +743,11 @@ td.werteknopf { width: 1%; padding-left: 0; padding-right: 8px; text-align: righ
 .gespraech-kategorie.aktuell { border-color: var(--akzent); }
 .gespraech-reaktion { margin-bottom: 10px; }
 
+/* Der ausgesprochene Wunsch: derselbe Abstand wie die Reaktion, aber
+   hervorgehoben — er ist der Satz, wegen dem der Termin draufging, und er
+   steht zwischen zwei Absätzen in Grau. */
+.gespraech-wunsch { margin-bottom: 4px; font-weight: 600; }
+
 /* --- Sterne ---------------------------------------------------------------
    Zwei Reihen übereinander: die gefüllte wird beschnitten. So sitzt der halbe
    Stern exakt in der Mitte, ohne ein Halbstern-Zeichen, das viele Schriften

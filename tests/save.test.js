@@ -15,6 +15,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { neuesSpiel, SAVE_VERSION, coachesVon, bindungVon } from '../engine/saison.js';
+import { ausgesprochenerWunsch } from '../engine/wunsch.js';
 import { rolleVon, rollenlose, mismatch } from '../engine/rolle.js';
 import { migriere, exportiere, importiere } from '../engine/save.js';
 
@@ -165,6 +166,24 @@ test('ein Stand aus Version 13 bekommt sein Talent in halben Sternen', () => {
     for (const s of neu.kader[teamId]) {
       assert.ok(s.talent >= 1 && s.talent <= 10, `${teamId}: Talent ${s.talent}`);
     }
+  }
+});
+
+test('ein Stand aus Version 14 hat einfach noch keinen Wunsch geäußert', () => {
+  // Version 14 kannte `wunschPlatz` und `wunschNummer` nicht. Das Fehlen heißt
+  // genau das, was es heißen soll: in diesem Stand hat nie jemand nachgefragt.
+  // Der Schritt füllt die Felder deshalb **nicht** — er legte dem alten Stand
+  // sonst Gespräche in den Mund, die nie stattgefunden haben.
+  const alt = abzug('vierzehn');
+  alt.version = 14;
+  for (const teamId in alt.kader) {
+    for (const s of alt.kader[teamId]) { delete s.wunschPlatz; delete s.wunschNummer; }
+  }
+
+  const neu = importiere(JSON.stringify(alt));
+  assert.equal(neu.version, SAVE_VERSION);
+  for (const s of neu.kader.heg) {
+    assert.equal(ausgesprochenerWunsch(s), null, `${s.nachname} wünscht sich aus dem Nichts`);
   }
 });
 

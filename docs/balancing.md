@@ -406,7 +406,7 @@ Viertelstunde, ein bisschen Nähe.
 | Konstante | Wert | Wirkung | Richtung |
 | --- | --- | --- | --- |
 | `PERSOENLICH_GEWINN` | 1,6 | was ein Gespräch hebt, wenn es lange genug her ist | höher = die Grundpflege schlägt die Rolle; siehe die Messung unten |
-| `PERSOENLICH_SAETTIGUNG_TAGE` | 28 | nach wie vielen Tagen wieder der volle Satz anfällt, linear davor | ohne die Dämpfung wäre es rechnerisch immer richtig, dreimal die Woche mit demselben Mann zu reden |
+| `NAEHE_SAETTIGUNG_TAGE` | 28 | nach wie vielen Tagen wieder der volle Satz anfällt, linear davor | ohne die Dämpfung wäre es rechnerisch immer richtig, dreimal die Woche mit demselben Mann zu reden |
 
 **Warum überhaupt gedämpft wird.** Das Wochenkontingent begrenzt die **Rate**,
 nicht das **Ziel**. Ohne Sättigung ist die beste Strategie, den
@@ -448,6 +448,87 @@ Der Hebel für **einen** Mann ist trotzdem da: wer einen Wackelkandidaten
 halten will, kann ihn alle vier Wochen ansprechen und kommt so auf rund +21
 über eine Saison — für dreizehn Termine. Das ist teuer und deshalb eine echte
 Entscheidung.
+
+---
+
+## 14 — Wunsch anhören
+
+*„Der fragt doch nie jemand"* oder *„fragen ist der beste Zug im Spiel".*
+`engine/constants.js`, Modell in `engine/wunsch.js`, Docs
+[`naechste-schritte.md`](naechste-schritte.md) Block 7, Abschnitt „Wunsch
+anhören". Die Kategorie, die **informiert** statt zu wirken: das Commitment
+bewegt sich erst danach, auf dem Feld.
+
+Zwei Wunscharten, beide mit einem **gerechneten Anlass** und nie aus einem
+Würfelwurf: zurück auf den Ausbildungsplatz, und eine freie einstellige
+Nummer. Ein Wunsch besteht auch ungefragt; was das Gespräch bringt, ist das
+**Wissen** davon — und erst ab da zieht er. Wer nie fragt, zahlt nie, erfährt
+aber auch nie, warum sein bester Mann leiser wird.
+
+| Konstante | Wert | Wirkung | Richtung |
+| --- | --- | --- | --- |
+| `WUNSCH_LEER_GEWINN` | 0,8 | was das Fragen bringt, wenn nichts anliegt — gedämpft mit `NAEHE_SAETTIGUNG_TAGE` wie das Reden | höher = ein zweiter Knopf fürs persönliche Gespräch, nur anders beschriftet |
+| `WUNSCH_EINSAETZE_MIN` | 6 | ab wie vielen Einsätzen auf einem fremden Platz „über längere Zeit" gilt | niedriger = jede Aushilfe wird zum Anlass |
+| `WUNSCH_EIGNUNG_ABSTAND` | 4 | wie viel schlechter er dort sein muss, damit „deutlich schwächer" gilt | niedriger = Umschulen wird überall teuer, gegen die Grundregel |
+| `WUNSCH_UEBERGANGEN_JE_SPIEL` | 1,2 | was ein Spiel kostet, das er nach dem Gespräch wieder woanders bestreitet | höher = Fragen wird zur Falle statt zur Auskunft |
+| `WUNSCH_ERFUELLT_JE_SPIEL` | 0,8 | was ein Spiel auf dem gewünschten Platz bringt | siehe unten — hier stand zuerst eine einmalige 6 |
+| `WUNSCH_NUMMER_BONUS` | 4 | was die einstellige Nummer bringt, wenn der Manager sie hergibt | höher = Nummern jagen schlägt alles andere |
+
+**Der einmalige Bonus ist gemessen gescheitert.** Erst stand hier
+`WUNSCH_ERFUELLT_BONUS = 6`, einmalig, und der Wunsch war danach erledigt. In
+der Messung wurde **kein einziger** Wunsch dauerhaft erledigt: der Anlass
+steckt in den Einsätzen, und die drehen sich durch ein einzelnes richtig
+besetztes Spiel nicht um — beim nächsten Nachfragen stand derselbe Wunsch
+wieder da. Fragen, richtig aufstellen, kassieren, von vorn: mit sechs Punkten
+je Runde der mit Abstand beste Zug im ganzen Spiel, und niemand hätte es
+gemerkt, weil er sich wie richtiges Spielen anfühlt.
+
+Repariert an **zwei** Stellen statt mit einem Zähler am Spieler:
+
+1. Der Anlass verlangt jetzt, dass der fremde Platz **mehr** Einsätze trägt als
+   der eigene. Damit endet der Wunsch dort, wo sein Grund endet — wer
+   zurückgestellt wird, holt Spiel für Spiel auf.
+2. Der Lohn ist laufend und klein statt einmalig und groß, dieselbe
+   Größenordnung wie `ROLLE_ERFUELLT_BONUS`. Der eigentliche Lohn fürs
+   Erfüllen ist ohnehin, dass der Abzug aufhört.
+
+**Gemessen** (sechzehn Seeds, drei Saisons, jeder Anlass sofort erfragt —
+Positionswünsche sind zu selten für das Kader-Aggregat und werden einzeln
+gezählt):
+
+| Manager | Wünsche | erledigt | bis Saisonende offen |
+| --- | --- | --- | --- |
+| passiv, stellt nicht um | 23 | — | 23 Fälle, −3,6 Commitment, 43 Tage |
+| stellt den Mann zurück | 77 | 48 Fälle, +0,8 nach 7 Tagen | 29 Fälle, −1,8, 40 Tage |
+
+Dass der handelnde Manager **mehr** Wünsche auslöst, ist kein Fehler: wer
+einen Mann auf seinen Platz stellt, verdrängt dort einen anderen. Der Kader
+hat zweiundzwanzig Plätze, und die Kategorie macht sichtbar, dass jede
+Korrektur woanders eine Ecke aufreißt.
+
+**Und im Kader-Aggregat** (acht Seeds, dieselbe Harness wie Abschnitt 12 und
+13, mittlere Commitment-Änderung / Spieler auf Stufe 0):
+
+| Strategie | Saison 1 | Saison 2 | Saison 3 |
+| --- | --- | --- | --- |
+| nichts tun | −2,5 / 0,3 | −5,7 / 1,3 | −8,0 / 2,6 |
+| nur Wünsche | −1,4 / 0,3 | −4,2 / 1,1 | −6,0 / 2,0 |
+| nur reden | +3,0 / 0,3 | +5,2 / 0,6 | +7,6 / 1,1 |
+| nur Rolle (passend) | +6,2 / 0,4 | +13,0 / 0,9 | +20,2 / 0,8 |
+| Rolle + Wünsche | +7,3 / 0,4 | +14,4 / 0,8 | +21,9 / 0,8 |
+| **Rolle + reden** | **+8,0 / 0,3** | **+16,2 / 0,9** | **+24,1 / 0,8** |
+
+Die Aussage ist, dass **„nur Wünsche" mit −6,0 fast so schlecht dasteht wie
+nichts zu tun** — und das ist richtig so. Die Kategorie ist ein Rundgang, kein
+Hebel: wer einmal jeden gefragt hat, hat nichts mehr zu fragen, und die Termine
+liegen brach. Wer dagegen reden könnte und stattdessen fragt, verliert (+5,8
+gegen +7,6). Bezahlt wird das mit Information, nicht mit Bindung.
+
+Rund **fünf Nummernwünsche je Kader und Saison** entstehen ungefragt; wer
+regelmäßig fragt, hält den Vorrat bei etwa zwei. Positionswünsche sind mit
+**einem halben je Kader und Saison** der seltene Ausnahmefall, den der
+Fahrplan verlangt — Positionsverweigerung soll nie eine Mechanik sein, die bei
+jeder Umstellung zieht.
 
 ---
 

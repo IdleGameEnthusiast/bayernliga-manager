@@ -354,6 +354,7 @@ export const DE = {
     sortAuf: '▴',
     commitment: 'Commitment',
     lebenslage: 'Lebenslage',
+    wunsch: 'Wunsch',
     rolle: 'Rolle',
     ohneRolle: '—',
     ohneRolleTitel: 'Noch keine Rolle besprochen',
@@ -456,6 +457,26 @@ export const DE = {
       (name) => `Ihr redet ein paar Minuten. ${name} geht etwas aufgeräumter aus der Kabine.`,
       (name) => `${name} redet sich warm — Arbeit, Freundin, das kaputte Auto. `
         + 'Am Ende bleibt er länger stehen als nötig.',
+    ],
+    // Wunsch anhören. Der Hinweis sagt ausdrücklich, dass die Kategorie nur
+    // informiert: wer hier einen Knopf mit sofortiger Wirkung erwartet, ist
+    // hinterher enttäuscht, obwohl alles richtig lief.
+    wunschTitel: 'Hast du etwas auf dem Herzen?',
+    wunschHinweis: 'Einmal nachfragen, was ihn beschäftigt. Kostet einen Termin — und was '
+      + 'daraus wird, entscheidet sich danach auf dem Feld, nicht hier.',
+    wunschFragen: 'Nachfragen',
+    wunschBekannt: 'Das hat er dir schon gesagt.',
+    wunschPlatzSatz: (kuerzel) => `Er möchte zurück auf ${kuerzel}.`,
+    wunschPlatzHinweis: 'Solange er woanders aufläuft, kostet ihn das jedes Spiel etwas. '
+      + 'Stell ihn dort auf, wo er hingehört, dann ist die Sache erledigt.',
+    wunschNummerSatz: (nummer) => `Er hätte gern die ${nummer}.`,
+    wunschNummerHinweis: 'Einstellige Nummern gibt es zehnmal. Eine vergebene ist weg.',
+    wunschNummerKnopf: (nummer) => `Die ${nummer} geben`,
+    // Index ist der Ton aus dem Wunschgespräch: nichts, etwas, erledigt.
+    wunschReaktionen: [
+      (name) => `${name} überlegt einen Moment. „Passt alles." Er meint es auch so.`,
+      (name) => `${name} druckst kurz herum und rückt dann damit heraus.`,
+      (name) => `${name} dreht das Trikot in den Händen und sagt nichts. Muss er auch nicht.`,
     ],
     // Die Rollen-Auswahl. Die Einschätzung sagt, was der Kader hergibt — sie
     // ist eine Auskunft des Trainerstabs, keine Vorgabe: wer sie übergeht,

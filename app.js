@@ -18,6 +18,7 @@ import {
   setzeTaktik, automatischAufstellen, eigenePartieAmTag, offenePlaetze,
   aufstellungSetze, aufstellungRaeume, aufstellungLeeren,
   gespraecheFrei, fuehreRollenGespraech, fuehrePersoenlichesGespraech,
+  fuehreWunschGespraech, erfuelleNummernwunsch,
 } from './engine/saison.js';
 import { WERTUNG_PUNKTE } from './engine/constants.js';
 import { partienDerRunde } from './engine/spielplan.js';
@@ -172,6 +173,27 @@ const gespraechsAktionen = {
     if (!stand || !gespraech) return;
     const zuwendung = fuehrePersoenlichesGespraech(stand, gespraech.spielerId);
     if (zuwendung) gespraech = { ...gespraech, reaktion: zuwendung };
+    speichere(stand);
+    zeichne();
+  },
+  frageNachWunsch: () => {
+    if (!stand || !gespraech) return;
+    // Der Ton sagt nur, ob etwas kam — **was** kam, steht danach am Spieler,
+    // und das Blatt liest es von dort. Den Wunsch zusätzlich durch den Zustand
+    // des Dialogs zu reichen, hieße ihn zweimal zu führen.
+    const auskunft = fuehreWunschGespraech(stand, gespraech.spielerId);
+    if (auskunft) gespraech = { ...gespraech, reaktion: { ton: auskunft.wunsch ? 1 : 0 } };
+    speichere(stand);
+    zeichne();
+  },
+  gibNummer: () => {
+    if (!stand || !gespraech) return;
+    // Ton 2 heißt „erledigt". Ohne den eigenen Ton stünde nach dem Übergeben
+    // wieder der Satz da, mit dem er sie sich gewünscht hat — und der Knopf
+    // daneben, der nichts mehr täte.
+    if (erfuelleNummernwunsch(stand, gespraech.spielerId) > 0) {
+      gespraech = { ...gespraech, reaktion: { ton: 2 } };
+    }
     speichere(stand);
     zeichne();
   },

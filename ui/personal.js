@@ -32,6 +32,7 @@ import {
 import { stufe } from '../engine/commitment.js';
 import { ROLLEN, rolleVon, mismatch, vernachlaessigung } from '../engine/rolle.js';
 import { druck, halt } from '../engine/lebenslauf.js';
+import { ausgesprochenerWunsch } from '../engine/wunsch.js';
 
 /**
  * Was die Ansicht zeigt, das der Manager sonst nicht sieht. Kommt aus
@@ -277,6 +278,26 @@ function lebenslageZeile(lebenslage, jahr) {
   return el('div', { class: 'plaetze' },
     el('span', { class: 'klein leise', text: T.kader.lebenslage }),
     el('span', { class: 'klein', text: T.lebenslage.satz(lebenslage, jahr) }));
+}
+
+/**
+ * Ein ausgesprochener Wunsch, eine Zeile unter der Lebenslage — oder nichts.
+ *
+ * Er muss außerhalb des Dialogs stehen, sonst wäre er nach dem Gespräch weg:
+ * ein Positionswunsch zieht über Wochen, und den Dialog für jeden Spieler neu
+ * aufzuschlagen, um nachzusehen, wäre kein Gedächtnis, sondern eine Suche.
+ * Gezeigt wird nur, was er **gesagt** hat — der Anlass dahinter bleibt
+ * verborgen, sonst wäre das Nachfragen umsonst.
+ * @param {import('../engine/spieler.js').Spieler} sp
+ */
+function wunschZeile(sp) {
+  const wunsch = ausgesprochenerWunsch(sp);
+  if (!wunsch) return null;
+  return el('div', { class: 'plaetze' },
+    el('span', { class: 'klein leise', text: T.kader.wunsch }),
+    el('span', { class: 'klein', text: wunsch.art === 'platz'
+      ? T.gespraech.wunschPlatzSatz(wunsch.platz)
+      : T.gespraech.wunschNummerSatz(wunsch.nummer) }));
 }
 
 /**
@@ -565,6 +586,7 @@ function werteZeile(sp, stand, einblick) {
             el('span', { text: String(wert) }));
         })),
       lebenslageZeile(bindung.lebenslage, stand.jahr),
+      wunschZeile(sp),
       // Die Zahlen, die das Spiel versteckt, in einer Zeile — nur für den, der
       // den Code eingelöst hat.
       einblick.playtester

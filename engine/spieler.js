@@ -65,6 +65,11 @@ import { VORNAMEN, NACHNAMEN } from './content.js';
  *   keine Rolle, gegen die es zu halten wäre
  * @property {number | null} [rolleBeschwerde]  Tag dieser Saison, an dem er zuletzt
  *   nachgefragt hat, warum er nicht spielt
+ * @property {string | null} [wunschPlatz]  Das Platz-Kürzel, auf das er zurück möchte —
+ *   **ausgesprochen**, nicht bloß begründet. Der Anlass steht in `wunsch.js` und gilt auch
+ *   ungefragt; hier steht, dass der Manager davon weiß, und erst ab da zieht er
+ * @property {number | null} [wunschNummer]  Die einstellige Nummer, die er gern hätte —
+ *   ebenso erst, nachdem er es gesagt hat
  */
 
 /** A player who has not been handed a number yet. 0 is a real jersey. */
@@ -577,6 +582,31 @@ function zahlenIn(band, belegt) {
 }
 
 /**
+ * Wer im Verein überhaupt für eine einstellige Nummer in Frage kommt: die
+ * zwölf stärksten Nicht-Linemen.
+ *
+ * Steht hier und nicht bei dem, der danach fragt, weil `vergebeNummern()`
+ * dieselbe Liste zieht. Zwei Stellen, die „gut genug für eine einstellige"
+ * verschieden beantworten, wären zwei Regeln — und der Spieler, der eine
+ * bekommt, wäre ein anderer als der, der sich eine wünscht.
+ * @param {Spieler[]} kader
+ */
+export function einstelligKandidaten(kader) {
+  return kader
+    .filter((s) => !POSITION_GRUPPEN.lineOffense.includes(s.position))
+    .sort((a, b) => b.staerke - a.staerke)
+    .slice(0, EINSTELLIG_KANDIDATEN);
+}
+
+/**
+ * Die einstelligen Nummern, die im Kader gerade niemand trägt — aufsteigend.
+ * @param {Spieler[]} kader
+ */
+export function freieEinstellige(kader) {
+  return zahlenIn(EINSTELLIGE, new Set(kader.filter((s) => s.nummer >= 0).map((s) => s.nummer)));
+}
+
+/**
  * Hand out jersey numbers, uniquely inside the Kader.
  *
  * With `neuVerteilen` the whole squad is redrawn and the single digits go out
@@ -594,10 +624,7 @@ export function vergebeNummern(rng, kader, neuVerteilen = false) {
   const belegt = new Set(kader.filter((s) => s.nummer >= 0).map((s) => s.nummer));
 
   if (neuVerteilen) {
-    const kandidaten = kader
-      .filter((s) => !POSITION_GRUPPEN.lineOffense.includes(s.position))
-      .sort((a, b) => b.staerke - a.staerke)
-      .slice(0, EINSTELLIG_KANDIDATEN);
+    const kandidaten = einstelligKandidaten(kader);
     const anzahl = Math.min(randInt(rng, EINSTELLIG_MIN, EINSTELLIG_MAX), kandidaten.length);
 
     for (const s of shuffle(rng, kandidaten).slice(0, anzahl)) {

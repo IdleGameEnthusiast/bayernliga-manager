@@ -3,11 +3,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  gefuehrteDieseWoche, offeneGespraeche, zuletztGeredet, persoenlichAnteil,
+  gefuehrteDieseWoche, offeneGespraeche, zuletztGeredet, naeheAnteil,
   persoenlichesGespraech,
 } from '../engine/gespraech.js';
 import {
-  GESPRAECHE_JE_WOCHE, PERSOENLICH_GEWINN, PERSOENLICH_SAETTIGUNG_TAGE,
+  GESPRAECHE_JE_WOCHE, PERSOENLICH_GEWINN, NAEHE_SAETTIGUNG_TAGE,
 } from '../engine/constants.js';
 import { woche } from '../engine/kalender.js';
 import {
@@ -50,15 +50,15 @@ test('gezählt wird das letzte Gespräch, egal worüber es ging', () => {
 });
 
 test('wer noch nie geredet hat, bekommt den vollen Satz', () => {
-  assert.equal(persoenlichAnteil([], 'a', 1), 1);
+  assert.equal(naeheAnteil([], 'a', 1), 1);
 });
 
 test('der Anteil wächst linear bis zur Sättigung und dann nicht weiter', () => {
   const log = [{ tag: 10, spielerId: 'a' }];
-  assert.equal(persoenlichAnteil(log, 'a', 10), 0, 'am selben Tag bringt es nichts');
-  assert.equal(persoenlichAnteil(log, 'a', 10 + PERSOENLICH_SAETTIGUNG_TAGE / 2), 0.5);
-  assert.equal(persoenlichAnteil(log, 'a', 10 + PERSOENLICH_SAETTIGUNG_TAGE), 1);
-  assert.equal(persoenlichAnteil(log, 'a', 10 + PERSOENLICH_SAETTIGUNG_TAGE * 3), 1,
+  assert.equal(naeheAnteil(log, 'a', 10), 0, 'am selben Tag bringt es nichts');
+  assert.equal(naeheAnteil(log, 'a', 10 + NAEHE_SAETTIGUNG_TAGE / 2), 0.5);
+  assert.equal(naeheAnteil(log, 'a', 10 + NAEHE_SAETTIGUNG_TAGE), 1);
+  assert.equal(naeheAnteil(log, 'a', 10 + NAEHE_SAETTIGUNG_TAGE * 3), 1,
     'länger warten bringt keinen Zuschlag');
 });
 
@@ -142,5 +142,5 @@ test('der Saisonwechsel leert das Log, und der Abstand fängt von vorn an', () =
   naechsteSaison(s);
 
   assert.deepEqual(s.gespraeche, [], 'das Log trägt sonst Tage aus dem Vorjahr');
-  assert.equal(persoenlichAnteil(s.gespraeche, sp.id, s.tag), 1);
+  assert.equal(naeheAnteil(s.gespraeche, sp.id, s.tag), 1);
 });

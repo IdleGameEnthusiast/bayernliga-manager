@@ -178,7 +178,7 @@ try {
   const katKnopf = (name) =>
     alle('.gespraech-kategorie').find((b) => b.textContent.startsWith(name));
   gleich('fünf Kategorien stehen da', alle('.gespraech-kategorie').length, 5);
-  pruefe('die ungebauten sind gesperrt', katKnopf('Wunsch anhören').disabled,
+  pruefe('die ungebauten sind gesperrt', katKnopf('Überzeugen').disabled,
     alle('.gespraech-kategorie').filter((b) => b.disabled).length);
 
   katKnopf('Über persönliche Themen').click();
@@ -194,6 +194,31 @@ try {
     !txt('.gespraech').includes('Bisher:'), txt('.gespraech'));
   q('.fragenknoepfe button').click();
   gleich('das Blatt ist zu', alle('.frageschirm').length, 0);
+
+  // 5d — Wunsch anhören: die Kategorie, die nur informiert. Was sie zutage
+  // fördert, hängt am Kader und ist hier nicht festzunageln; festnageln lässt
+  // sich, dass sie fragt, bevor sie einen Termin verbraucht, und dass danach
+  // eine Antwort dasteht.
+  q('.spielerzeile button').click();
+  katKnopf('Wunsch anhören').click();
+  enthaelt('auch hier wird erst gefragt', txt('.gespraech'), 'Hast du etwas auf dem Herzen');
+  enthaelt('und gesagt, dass es einen Termin kostet', txt('.gespraech'), 'Kostet einen Termin');
+  const fragKnopf = alle('.fragenknoepfe button').find((b) => b.textContent === 'Nachfragen');
+  pruefe('mit einem Knopf dafür', !!fragKnopf,
+    alle('.fragenknoepfe button').map((b) => b.textContent).join(' | '));
+
+  fragKnopf.click();
+  gleich('danach steht seine Antwort da', alle('.gespraech-reaktion').length, 1);
+  q('.fragenknoepfe button').click();
+  gleich('das Blatt ist wieder zu', alle('.frageschirm').length, 0);
+
+  // Der dritte Termin ist damit weg: das Kontingent gilt über alle Kategorien.
+  q('.spielerzeile button').click();
+  enthaelt('die Woche ist aufgebraucht', txt('.gespraech'), 'kein Gespräch mehr drin');
+  pruefe('und keine Kategorie ist mehr anzutippen',
+    alle('.gespraech-kategorie').every((b) => b.disabled),
+    alle('.gespraech-kategorie').filter((b) => !b.disabled).length);
+  q('.fragenknoepfe button').click();
 
   alle('.reiter button').find((b) => b.textContent === 'Posteingang').click();
 
