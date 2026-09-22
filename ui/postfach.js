@@ -547,6 +547,12 @@ function angereichert(daten) {
   for (const feld of ['verein', 'gegner', 'meister']) {
     if (typeof d[feld] === 'string') d[feld] = teamById(d[feld]).name;
   }
+  // Dasselbe eine Zeile tiefer für die Rolle: die Engine legt den Schlüssel
+  // ab, weil ein Satz im Speicherstand die Texte einfriert — und die Ansicht
+  // macht hier den Namen daraus.
+  if (typeof d.rolle === 'string') {
+    d.rolle = /** @type {Record<string, string>} */ (T.rolle.namen)[d.rolle] || d.rolle;
+  }
   if (Array.isArray(d.paarungen)) {
     d.paarungen = d.paarungen.map((/** @type {string[]} */ paar) =>
       paar.map((id) => teamById(id).name));

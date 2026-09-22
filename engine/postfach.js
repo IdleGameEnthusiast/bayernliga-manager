@@ -45,6 +45,11 @@
  */
 export const ANTWORTEN = {
   aufstellungUngueltig: ['automatisch', 'selbst'],
+  // Die Rollen-Anfrage der Offseason-Kampagne. Sie hält an, weil sie eine
+  // Entscheidung verlangt, die niemand sonst treffen kann — aber „später" ist
+  // eine vollgültige Antwort: sie lässt den Kalender weiterlaufen und schiebt
+  // den Mann zurück in die Warteschlange, ohne die Frist zu verlängern.
+  rollenanfrage: ['gespraech', 'spaeter'],
 };
 
 /**

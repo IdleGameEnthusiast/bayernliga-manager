@@ -21,7 +21,7 @@ import {
 } from './constants.js';
 import { TEAMS, GRUPPEN, teamById, teamsDerGruppe } from './content.js';
 import {
-  saisonLaenge, spieltagAmTag, phaseAmTag, phasenBeginn,
+  saisonLaenge, spieltagAmTag, phaseAmTag, phasenBeginn, wochenBeginn, woche,
 } from './kalender.js';
 import {
   sende, baueNachrichten, offeneAntworten, beantworte, stutzePost,
@@ -41,6 +41,10 @@ import { teamStaerken } from './team.js';
 import { ziehStab, ocVon, lerneTag, lerneSpiel } from './coach.js';
 import { ziehBindung } from './commitment.js';
 import { lebensjahr } from './lebenslauf.js';
+import {
+  faellige, rolleVon, setzeRolle, verbucheSpiel, drift, offeneGespraeche,
+  neueSaison as rolleNeueSaison, rollenlose, darfAendern, ROLLEN,
+} from './rolle.js';
 
 /**
  * Der Stempel auf einem Speicherstand.
@@ -50,7 +54,7 @@ import { lebensjahr } from './lebenslauf.js';
  * der vorigen Nummer auf diese hebt. Ohne diesen Schritt wird ein solcher Stand
  * beim Laden weggeworfen — der Sprung ist billig, der Verlust nicht.
  */
-export const SAVE_VERSION = 12;
+export const SAVE_VERSION = 13;
 
 /**
  * @typedef {object} SpielStand
@@ -67,6 +71,11 @@ export const SAVE_VERSION = 12;
  * @property {import('./aufstellung.js').Vorgabe | null} aufstellung  Von Hand, nur der eigene Verein
  * @property {import('./postfach.js').Nachricht[]} post  Der Posteingang, ältestes zuerst
  * @property {{ jahr: number, meister: string, meinPlatz: number }[]} historie
+ * @property {import('./rolle.js').Gespraech[]} gespraeche  Das Log der geführten
+ *   Gespräche dieser Saison — `{ tag, spielerId }`, wie `post` Nachrichten sammelt.
+ *   Es **ist** das Wochenkontingent: was diese Woche noch geht, wird gezählt und nicht
+ *   heruntergezählt, und das Fenster verschiebt sich mit dem Tag von selbst. Der
+ *   Saisonwechsel leert es, wie der Papierkorb der Post geleert wird
  */
 
 /**
@@ -506,6 +515,7 @@ export function neuesSpiel(meinTeam, seed) {
     spielplan: frischerGruppenplan(rng),
     post: [],
     historie: [],
+    gespraeche: [],
   };
 
   // Der Stab wird gleich gezogen, nicht erst beim ersten Blick darauf — ein
@@ -546,7 +556,43 @@ function saisonEroeffnung(stand, ruecktritte, gruende, antritt) {
     art: 'vorstandsziel',
     daten: { verein: stand.meinTeam, jahr: stand.jahr, antritt },
   });
+  // Die Erinnerung des Trainerstabs eröffnet die Rollen-Kampagne. Sie steht
+  // hier und nicht in `eintraegeAmTag()`, weil Tag 1 dort nie ankommt:
+  // `weiter()` spielt den heutigen Tag ab, bevor es den ersten weiterzählt.
+  //
+  // Die **Anfragen** der einzelnen Spieler fangen bewusst erst eine Woche
+  // später an. Tag 1 ist der Tag, an dem der Vorstand spricht und an dem eine
+  // neue Karriere anfängt; zwei blockierende Nachfragen im selben Moment
+  // hielten den Kalender an, bevor der Manager seinen Kader überhaupt gesehen
+  // hat. Die Frist kostet das nichts — das Tempo rechnet sich ab Tag 8 neu und
+  // kommt genauso rechtzeitig durch.
+  eintraege.push({
+    art: 'rollenerinnerung',
+    daten: { offen: rollenlose(stand.kader[stand.meinTeam]).length },
+  });
   return sende(stand, 1, eintraege);
+}
+
+/**
+ * Die Rollen-Anfragen, die an einem Wochenanfang fällig sind.
+ *
+ * Eine **eigene** Nachricht je Spieler, nicht eine Sammelmeldung mit fünf
+ * Namen: jede ist eine eigene Entscheidung, jede wird einzeln beantwortet, und
+ * eine Liste mit einem einzigen Antwortknopf wäre die falsche Form dafür.
+ * @param {SpielStand} stand @param {number} tag
+ * @returns {{ art: string, daten?: Record<string, any> }[]}
+ */
+function rollenEintraege(stand, tag) {
+  if (!wochenBeginn(tag)) return [];
+  return faellige(stand.kader[stand.meinTeam] || [], tag).map((sp) => ({
+    art: 'rollenanfrage',
+    daten: {
+      spielerId: sp.id,
+      name: `${sp.vorname} ${sp.nachname}`,
+      position: sp.position,
+      alter: sp.alter,
+    },
+  }));
 }
 
 /**
@@ -691,6 +737,46 @@ function verbucheEinsaetze(a) {
 }
 
 /**
+ * Der Bank-Drift nach dem eigenen Spiel: wer fit war, kommt ins Fenster, und
+ * wer eine Rolle hat, spürt die Differenz.
+ *
+ * Verletzte bleiben außen vor — eine Verletzung ist keine Entscheidung des
+ * Managers und soll die Bilanz nicht verwässern. Wer von sich aus nachfragt,
+ * bekommt eine Nachricht **ohne** Empathie-Gate: ein Spieler bemerkt seine
+ * eigene Bank selbst, ganz gleich, wie aufmerksam sein Positionscoach ist.
+ * @param {SpielStand} stand
+ * @param {import('./aufstellung.js').Aufstellung} meine
+ * @param {number} tag
+ * @returns {{ art: string, daten?: Record<string, any> }[]}
+ */
+function rollenDrift(stand, meine, tag) {
+  const gelaufen = new Set(
+    [...meine.offense, ...meine.defense].filter((pl) => pl.spieler).map((pl) => pl.spieler.id));
+  /** @type {{ art: string, daten?: Record<string, any> }[]} */
+  const eintraege = [];
+
+  for (const sp of stand.kader[stand.meinTeam] || []) {
+    if (!istFit(sp, tag)) continue;
+    verbucheSpiel(sp, gelaufen.has(sp.id));
+    // Die Bindung muss stehen, bevor daran gezogen wird — in einem Stand von
+    // vor Block 7 hängt sie sonst noch im Saatgut.
+    bindungVon(stand, sp);
+    const bewegt = drift(sp, tag);
+    if (!bewegt || !bewegt.beschwerde) continue;
+    eintraege.push({
+      art: 'rollenmismatch',
+      daten: {
+        spielerId: sp.id,
+        name: `${sp.vorname} ${sp.nachname}`,
+        position: sp.position,
+        rolle: rolleVon(sp),
+      },
+    });
+  }
+  return eintraege;
+}
+
+/**
  * Einen Kalendertag ausspielen: alle Partien, die an ihm stehen und noch kein
  * Ergebnis haben. Intern — nach außen führt der Weg über `weiter()`.
  * @param {SpielStand} stand @param {number} tag
@@ -724,6 +810,14 @@ function spieleTag(stand, tag) {
     // Manager seine Leute umschult.
     verbucheEinsaetze(aufstellungen.heim);
     verbucheEinsaetze(aufstellungen.gast);
+
+    // Und der eigene Kader führt Buch darüber, wer zusehen musste: das
+    // rollierende Fenster, aus dem der Rollen-Mismatch gerechnet wird. Nur der
+    // eigene Verein — anderswo setzt niemand Rollen, und ein Fenster ohne
+    // Erwartung wäre Ballast in jedem Speicherstand.
+    if (p.heim === stand.meinTeam || p.gast === stand.meinTeam) {
+      eintraege.push(...rollenDrift(stand, aufstellungen[p.heim === stand.meinTeam ? 'heim' : 'gast'], tag));
+    }
 
     // Und die Koordinatoren haben es gecoacht: die Spielhälfte der
     // Vertrautheit, siehe `lerneSpiel()`. Nur bei gespieltem Spiel — was am
@@ -872,6 +966,12 @@ function eintraegeAmTag(stand, tag) {
     });
   }
 
+  // Der Wochenanfang steht hier neben dem Phasenbeginn, hält den Kalender aber
+  // nicht selbst an — das tun erst die Anfragen, die er verschickt, und nur,
+  // solange welche fällig sind. Nach der Frist ist die Liste leer und der
+  // Wochenanfang kostet nichts.
+  eintraege.push(...rollenEintraege(stand, tag));
+
   return eintraege;
 }
 
@@ -986,6 +1086,74 @@ export function beantworteNachricht(stand, id, antwort) {
   return n;
 }
 
+// --- Gespräche -------------------------------------------------------------
+
+/**
+ * Wie viele Gespräche diese Woche noch gehen.
+ *
+ * Ein Gespräch ist ein Kalendertermin und damit knapp — ohne die Knappheit
+ * wäre es ein Knopf für ein paar Punkte Bindung, den man fünfundvierzig Mal
+ * drückt. Dasselbe Kontingent regelt beide Zugänge gleich: den Knopf im
+ * Personalreiter und die Antwort „Gespräch" im Postfach.
+ * @param {SpielStand} stand
+ */
+export function gespraecheFrei(stand) {
+  if (!stand.gespraeche) stand.gespraeche = [];
+  return offeneGespraeche(stand.gespraeche, stand.tag);
+}
+
+/**
+ * Ob mit diesem Spieler heute über seine Rolle gesprochen werden kann — und
+ * wenn nicht, woran es liegt.
+ *
+ * Zwei getrennte Gründe, weil sie sich verschieden anfühlen: „diese Woche ist
+ * nichts mehr frei" geht nächste Woche wieder, „das haben wir gerade erst
+ * besprochen" erst nach dem Cooldown. Eine einzige Absage für beides ließe den
+ * Manager raten, auf was er warten soll.
+ * @param {SpielStand} stand @param {string} spielerId
+ */
+export function rollenGespraechMoeglich(stand, spielerId) {
+  const sp = (stand.kader[stand.meinTeam] || []).find((x) => x.id === spielerId);
+  if (!sp) return { moeglich: false, frei: 0, gesperrtBis: null };
+  const frei = gespraecheFrei(stand);
+  const darf = darfAendern(sp, stand.tag);
+  return {
+    moeglich: frei > 0 && darf,
+    frei,
+    gesperrtBis: darf ? null : (sp.letzteRollenAenderung ?? null),
+  };
+}
+
+/**
+ * Ein Rollengespräch führen: die Rolle setzen, das Commitment bewegen, den
+ * Termin verbuchen.
+ *
+ * Die offene Anfrage im Postfach wird dabei mitbeantwortet. Sonst könnte der
+ * Manager die Rolle im Personalreiter setzen und stünde danach vor einer
+ * Nachricht, die ihn nach etwas fragt, das längst entschieden ist — und die
+ * bis zur Antwort den Kalender anhielte.
+ * @param {SpielStand} stand @param {string} spielerId
+ * @param {import('./rolle.js').Rolle} rolle
+ * @returns {import('./rolle.js').Reaktion | null} null, wenn es heute nicht geht
+ */
+export function fuehreRollenGespraech(stand, spielerId, rolle) {
+  if (!ROLLEN.includes(rolle)) return null;
+  const kader = stand.kader[stand.meinTeam] || [];
+  const sp = kader.find((x) => x.id === spielerId);
+  if (!sp || !rollenGespraechMoeglich(stand, spielerId).moeglich) return null;
+
+  bindungVon(stand, sp);
+  const reaktion = setzeRolle(kader, sp, rolle, stand.tag);
+  stand.gespraeche.push({ tag: stand.tag, spielerId });
+
+  for (const n of stand.post) {
+    if (n.art === 'rollenanfrage' && n.antwort === null && n.daten.spielerId === spielerId) {
+      beantworte(stand, n.id, 'gespraech');
+    }
+  }
+  return reaktion;
+}
+
 /**
  * Close the season out and start the next one: everyone ages, retirees are
  * replaced, and a new group stage is drawn. The champion is whoever won the
@@ -1024,6 +1192,15 @@ export function naechsteSaison(stand) {
   stand.aufstellung = ohneAbgaenge(stand.aufstellung, stand.kader[stand.meinTeam]);
   stand.jahr++;
   stand.tag = 1;
+  // Das Gesprächslog gehört der Saison, nicht der Karriere: es zählt Wochen ab
+  // Tag 1, und ein Eintrag aus dem Vorjahr läge in derselben Woche wie einer
+  // von heute. Es wird geleert wie der Papierkorb der Post.
+  stand.gespraeche = [];
+  // Die Rollen **bleiben** — nur wer nie eine bekam, taucht in der Kampagne
+  // wieder auf. Zurückgesetzt werden die Tagesmerker, die sonst rückwärts
+  // liefen: Tag 300 des Vorjahres gegen Tag 5 des neuen gehalten ergäbe eine
+  // Sperre, die nie abläuft.
+  for (const sp of stand.kader[stand.meinTeam] || []) rolleNeueSaison(sp);
   stand.spielplan = frischerGruppenplan(rng);
   // Die Rookies bekommen ihre Lebenslage im neuen Jahr — nach dem Hochzählen,
   // damit „seit diesem Jahr im Verein" auch dieses Jahr meint.

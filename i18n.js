@@ -155,6 +155,48 @@ export const DE = {
       antworten: { automatisch: 'Aufstellen lassen', selbst: 'Ich stelle selbst um' },
     },
 
+    // Die drei Nachrichten der Rolle. Die Erinnerung eröffnet die Kampagne,
+    // die Anfrage ist der einzelne Mann, der wissen will, woran er ist — und
+    // die dritte kommt von ihm selbst, wenn die Zusage und die Bank nicht mehr
+    // zusammenpassen.
+    rollenerinnerung: {
+      von: 'Trainerstab',
+      betreff: () => 'Die Mannschaft will wissen, woran sie ist',
+      text: (d) => [
+        'Die Offseason ist da, und in der Kabine wird gerechnet: wer spielt nächste '
+          + 'Saison, wer sitzt. Sag es ihnen lieber selbst, bevor sie es sich gegenseitig '
+          + 'erzählen.',
+        d.offen > 0
+          ? `${d.offen} ${d.offen === 1 ? 'Mann wartet' : 'Männer warten'} noch auf eine `
+            + 'Ansage. Wir schicken dir die Einzelnen über die nächsten Wochen — oder du '
+            + 'gehst im Personalreiter selbst auf sie zu.'
+          : 'Im Moment weiß jeder, woran er ist. Wenn sich das ändert, melden wir uns.',
+        'Bis zwei Wochen vor dem ersten Spieltag sollte das durch sein.',
+      ],
+    },
+
+    rollenanfrage: {
+      von: 'Trainerstab',
+      betreff: (d) => `${d.name} fragt nach seiner Rolle`,
+      text: (d) => [
+        `${d.name} (${d.position}, ${d.alter}) hat mich nach dem Training angesprochen. `
+          + 'Er will wissen, was er nächste Saison erwarten soll.',
+        'Er nimmt jede Antwort — aber er will eine.',
+      ],
+      antworten: { gespraech: 'Mit ihm reden', spaeter: 'Später' },
+    },
+
+    rollenmismatch: {
+      von: 'Trainerstab',
+      betreff: (d) => `${d.name} sitzt und fragt sich, warum`,
+      text: (d) => [
+        `${d.name} (${d.position}) steht als ${d.rolle} im Plan, und in den letzten Spielen `
+          + 'hat er zugesehen. Er hat es nicht laut gesagt, aber er hat es gesagt.',
+        'Entweder er spielt, oder ihr redet noch einmal über seine Rolle. Beides geht; '
+          + 'nichts tun geht auch, aber das kostet.',
+      ],
+    },
+
     spielvorschau: {
       von: 'Trainerstab',
       betreff: (d) => `Morgen: ${d.gegner}`,
@@ -309,13 +351,21 @@ export const DE = {
     sortAuf: '▴',
     bindung: 'Bindung',
     lebenslage: 'Lebenslage',
+    rolle: 'Rolle',
+    ohneRolle: '—',
+    ohneRolleTitel: 'Noch keine Rolle besprochen',
+    uebergangen: 'Sitzt, ohne dass ihm jemand gesagt hätte, was er erwarten soll',
+    rolleVerfehlt: 'Spielt deutlich weniger, als seine Rolle verspricht',
+    gespraech: 'Gespräch',
     // Nur im Playtester-Modus: die Zahlen, die der Manager sonst nie sieht.
     // Druck und Halt sind die Waage aus `lebenslauf.js`, der Zähler die
     // Saisons in Folge, in denen der Druck oben lag — bei zwei geht er.
     verstecktes: 'Versteckt',
     versteckteWerte: (d) => `Commitment ${d.commitment} · Talent ${d.talent} · `
       + `Rücktritt nach ${d.ruecktrittAlter} · Druck ${d.druck} gegen Halt ${d.halt}`
-      + (d.druckJahre > 0 ? ` (${d.druckJahre}. Saison drüber)` : ''),
+      + (d.druckJahre > 0 ? ` (${d.druckJahre}. Saison drüber)` : '')
+      + (d.einsatzFenster ? ` · Einsatzfenster ${d.einsatzFenster}` : '')
+      + (d.mismatch ? ` · Rollen-Mismatch ${d.mismatch}` : ''),
   },
 
   // Die fünf Stufen, in denen der Manager das Commitment sieht — von unten
@@ -325,6 +375,77 @@ export const DE = {
   commitment: {
     stufen: ['mit einem Bein draußen', 'wackelt', 'dabei', 'verlässlich', 'Herz und Seele'],
     stufeTitel: (text) => `Bindung an den Verein: ${text}`,
+  },
+
+  // Die fünf Rollen: was ein Spieler an Einsatzzeit erwarten darf. Der Name
+  // ist, was im Gespräch gesagt wird, die Erwartung das, was er darunter
+  // versteht — Perspektiv- und Ergänzungsspieler versprechen dieselbe knappe
+  // Einsatzzeit, und der Unterschied steht in der Aussicht, nicht in der Zahl.
+  rolle: {
+    namen: {
+      unangefochten: 'Unangefochtener Stammspieler',
+      starter: 'Starter',
+      rotation: 'Rotationsspieler',
+      perspektive: 'Perspektivspieler',
+      ergaenzung: 'Ergänzungsspieler',
+    },
+    kurz: {
+      unangefochten: 'Stamm',
+      starter: 'Starter',
+      rotation: 'Rotation',
+      perspektive: 'Perspektive',
+      ergaenzung: 'Ergänzung',
+    },
+    erwartung: {
+      unangefochten: 'Praktisch jedes Spiel, und keine Konkurrenz in Aussicht.',
+      starter: 'Aktuell die Nummer eins — aber angreifbar.',
+      rotation: 'Ein Anteil der Spiele, im Wechsel mit einem anderen.',
+      perspektive: 'Vorerst selten, mit Aussicht auf mehr.',
+      ergaenzung: 'Selten, und daran wird sich nichts ändern.',
+    },
+    titel: (name, erwartung) => `${name}: ${erwartung}`,
+  },
+
+  // Das Gespräch: ein Kalendertermin, und deshalb knapp. Die Kategorien, die
+  // noch nicht gebaut sind, stehen trotzdem da — sie sagen, was kommt, und ein
+  // gesperrter Knopf ist ehrlicher als eine Lücke.
+  gespraech: {
+    titel: (name) => `Gespräch mit ${name}`,
+    unter: (position, alter) => `${position} · ${alter} Jahre`,
+    kontingent: (frei) => (frei === 1
+      ? 'Diese Woche ist noch ein Gespräch drin.'
+      : `Diese Woche sind noch ${frei} Gespräche drin.`),
+    keinKontingent: 'Diese Woche ist kein Gespräch mehr drin. Nächste Woche wieder.',
+    kategorien: {
+      rolle: 'Rolle besprechen',
+      lebenslage: 'Nach der Lebenslage fragen',
+      persoenlich: 'Über persönliche Themen sprechen',
+      wunsch: 'Wunsch anhören',
+      ueberzeugen: 'Überzeugen',
+    },
+    baustelle: 'Kommt mit dem nächsten Schritt.',
+    // Die Rollen-Auswahl. Die Einschätzung sagt, was der Kader hergibt — sie
+    // ist eine Auskunft des Trainerstabs, keine Vorgabe: wer sie übergeht,
+    // bekommt die Reaktion, nicht eine Fehlermeldung.
+    rolleTitel: 'Was soll er erwarten?',
+    einschaetzung: (rolle) => `Der Stab würde ihn als ${rolle} sehen.`,
+    bisher: (rolle) => `Bisher: ${rolle}`,
+    bisherKeine: 'Bisher hat ihm niemand gesagt, woran er ist.',
+    gesperrt: (tage) => `Darüber wurde gerade erst gesprochen — frühestens in `
+      + `${tage} ${tage === 1 ? 'Tag' : 'Tagen'} wieder.`,
+    fort: 'Der ist nicht mehr da.',
+    abbrechen: 'Nicht jetzt',
+    schliessen: 'Schließen',
+    // Wie er es aufnimmt, Index ist der Ton aus `reaktion()`. Kein Wort über
+    // Zahlen: der Manager sieht nie, wie viel sich bewegt hat, nur wie es
+    // ankam — dieselbe Entscheidung wie bei den Commitment-Stufen.
+    reaktionen: [
+      (name) => `${name} sagt lange nichts. Dann: „Also gut." Es klang nicht nach also gut.`,
+      (name) => `${name} nickt knapp. Das hat er sich anders vorgestellt.`,
+      (name) => `${name} nimmt es zur Kenntnis. Passt schon.`,
+      (name) => `${name} wirkt erleichtert — er wollte es genau so hören.`,
+      (name) => `${name} strahlt. „Darauf hab ich gewartet."`,
+    ],
   },
 
   // Der Satz zur Lebenslage, aus den Feldern gebaut. Es ist das, was der

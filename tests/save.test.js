@@ -15,6 +15,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { neuesSpiel, SAVE_VERSION, coachesVon, bindungVon } from '../engine/saison.js';
+import { rolleVon, rollenlose, mismatch } from '../engine/rolle.js';
 import { migriere, exportiere, importiere } from '../engine/save.js';
 
 /** Ein loser Abzug eines frischen Standes. @param {string} seed */
@@ -113,6 +114,32 @@ test('ein Stand aus Version 10 bekommt Commitment und Lebenslage nachgezogen', (
   assert.deepEqual(bindungVon(neu, spieler), bindungVon(frisch, frisch.kader.heg[3]));
   const coach = coachesVon(neu, 'heg')[1];
   assert.deepEqual(bindungVon(neu, coach), bindungVon(frisch, coachesVon(frisch, 'heg')[1]));
+});
+
+test('ein Stand aus Version 12 bekommt die Rolle als „noch keine"', () => {
+  // Version 12 kannte weder Rolle noch Gesprächslog. Am Spieler bedeutet jedes
+  // fehlende Feld genau den Nullwert — keine Rolle, kein Fenster, keine Sperre
+  // —, deshalb fasst der Schritt keinen Menschen an. Angelegt wird nur der
+  // Behälter am Stand.
+  const alt = abzug('zwoelf');
+  alt.version = 12;
+  delete alt.gespraeche;
+  for (const teamId in alt.kader) {
+    for (const s of alt.kader[teamId]) {
+      delete s.rolle; delete s.letzteRollenAenderung;
+      delete s.einsatzFenster; delete s.rolleBeschwerde;
+    }
+  }
+
+  const neu = importiere(JSON.stringify(alt));
+  assert.equal(neu.version, SAVE_VERSION);
+  assert.deepEqual(neu.gespraeche, [], 'das Log fehlt statt leer zu sein');
+  assert.equal(neu.kader.heg[0].rolle, undefined, 'der Schritt hat eine Rolle erfunden');
+  assert.equal(rolleVon(neu.kader.heg[0]), null);
+  assert.equal(rollenlose(neu.kader.heg).length, neu.kader.heg.length,
+    'die Kampagne soll den ganzen Kader wieder aufnehmen');
+  // Und der Drift greift nicht ins Leere: ohne Rolle gibt es keinen.
+  assert.equal(mismatch(neu.kader.heg[0]), null);
 });
 
 test('ein Stand aus der Zukunft wird abgelehnt', () => {

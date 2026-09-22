@@ -137,20 +137,41 @@ test('ein Stand ohne die Felder bekommt sie aus dem Saatgut nachgezogen', () => 
   assert.deepEqual(alt.coaches, frisch.coaches);
 });
 
-test('die Rookies nach dem Saisonwechsel tragen die Bindung, die Alten behalten ihre', () => {
+test('die Rookies nach dem Saisonwechsel tragen die Bindung, die Alten ihre bewegte', () => {
+  // Dieser Test prüfte einmal, dass sich **kein** Commitment über eine Saison
+  // bewegt. Das galt, bis die Rolle kam: wer ohne Zusage auf der Bank sitzt,
+  // verliert seitdem. Hier wird niemandem eine Rolle gesagt — die Antwort auf
+  // jede Anfrage ist die erste, und die beantwortet nur die Nachricht —, also
+  // ist das der Fall „der Manager kümmert sich nicht".
   const stand = neuesSpiel('heg', 'rookies');
   const vorher = new Map(stand.kader.heg.map((s) => [s.id, s.commitment]));
-  // Bis zum Finale, Antwortpflichten mit der ersten Antwort abräumen — wie
-  // `bisSaisonende()` in saison.test.js.
   for (let i = 0; i < 400 && !meister(stand); i++) {
     for (const n of offeneAntworten(stand)) beantworteNachricht(stand, n.id, antwortenZu(n.art)[0]);
     weiter(stand);
   }
   assert.ok(meister(stand), 'die Saison terminiert');
+
+  // Wer nie auf dem Feld stand, vor dem Wechsel festgehalten: `einsaetze`
+  // verfällt beim Saisonwechsel und wäre danach nicht mehr zu lesen.
+  const nieGespielt = new Set(stand.kader.heg
+    .filter((s) => Object.keys(s.einsaetze || {}).length === 0).map((s) => s.id));
+  assert.ok(nieGespielt.size > 0, 'in einem 30er-Kader sitzt immer jemand');
+
   naechsteSaison(stand);
+  let gefallen = 0;
   for (const s of stand.kader.heg) {
     assert.equal(typeof s.commitment, 'number', `${s.id} ohne Commitment`);
-    if (vorher.has(s.id)) assert.equal(s.commitment, vorher.get(s.id), `${s.id} hat sich bewegt`);
-    else assert.ok(s.lebenslage && s.lebenslage.seit <= stand.jahr, `${s.id} ist von der Zukunft`);
+    if (!vorher.has(s.id)) {
+      assert.ok(s.lebenslage && s.lebenslage.seit <= stand.jahr, `${s.id} ist von der Zukunft`);
+      continue;
+    }
+    // Ohne eine einzige gesetzte Rolle kann nichts steigen: es gibt keine
+    // Zusage, die jemand erfüllen könnte.
+    assert.ok(s.commitment <= vorher.get(s.id), `${s.id} hat ohne Zusage gewonnen`);
+    if (s.commitment < vorher.get(s.id)) gefallen++;
+    if (nieGespielt.has(s.id)) {
+      assert.ok(s.commitment < vorher.get(s.id), `${s.id} saß die Saison ab, ohne dass es kostete`);
+    }
   }
+  assert.ok(gefallen > 0, 'niemand hat die Vernachlässigung gespürt');
 });

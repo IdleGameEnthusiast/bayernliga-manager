@@ -191,3 +191,31 @@ export function phasenBeginn(tag) {
 export function nachDemFinale(tag) {
   return tag > SPIELTAG_TAGE[SPIELTAG_TAGE.length - 1];
 }
+
+/**
+ * Die Woche, in der ein Tag liegt — 0-basiert, gezählt ab Saisonbeginn.
+ *
+ * Reine Modulorechnung wie `wochentag()`, und aus demselben Grund billig: Tag 1
+ * ist immer ein Samstag, also fängt jede Woche der Saison an einem Samstag an,
+ * und jeder Spieltag liegt auf dem ersten Tag einer Woche. Das ist der Rhythmus,
+ * an dem das Gesprächskontingent hängt — ein Fenster, das sich von selbst
+ * verschiebt, statt eines Zählers, den irgendwer jede Woche zurücksetzen müsste.
+ * @param {number} tag
+ */
+export function woche(tag) {
+  return Math.floor((tag - 1) / 7);
+}
+
+/**
+ * Ob an diesem Tag eine Woche anfängt.
+ *
+ * Steht neben `phasenBeginn()` im Tagesschritt: der Wochenanfang ist der
+ * Moment, in dem die Rollen-Kampagne ihre fälligen Anfragen verschickt und
+ * sich das Gesprächskontingent aufs nächste Fenster schiebt. Anders als ein
+ * Phasenbeginn hält er den Kalender **nicht** an — was er auslöst, hält ihn
+ * selbst an, wenn es eine Antwort verlangt.
+ * @param {number} tag
+ */
+export function wochenBeginn(tag) {
+  return (tag - 1) % 7 === 0;
+}

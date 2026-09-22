@@ -465,6 +465,202 @@ export const SCHLUSS_JE_STUFE = /** @type {const} */ ([2.0, 1.4, 1.0, 0.75, 0.5]
  */
 export const KIPPEN_JE_STUFE = /** @type {const} */ ([0.6, 0.3, 0, 0.3, 0.6]);
 
+// --- Rolle und Gespräche — die Kampagne in `rolle.js` ----------------------
+// Die Rolle ist die Erwartung an die Einsatzzeit, die der Manager **setzt**.
+// Sie wird nie aus dem Einsatzmuster erraten — das hieße, dem Manager eine
+// Erwartung unterzuschieben und ihn dafür zu bestrafen. Keine Rolle zu sagen
+// ist trotzdem kein Nullzustand: siehe `ROLLE_OHNE_JE_SPIEL`.
+// Docs: docs/naechste-schritte.md, Block 7, Abschnitt „Rolle".
+
+/**
+ * Wie viele Gespräche der Manager pro Woche führen kann.
+ *
+ * Die Knappheit ist der ganze Punkt: ohne sie wäre ein Gespräch ein Knopf für
+ * +5, den man fünfundvierzig Mal drückt. Drei sind so bemessen, dass die
+ * Rollen-Kampagne (im Schnitt zwei Anfragen die Woche) durchpasst und daneben
+ * noch Luft für einen eigenen Anlass bleibt — aber nicht für beliebig viele.
+ */
+export const GESPRAECHE_JE_WOCHE = 3;
+
+/**
+ * Wie viele Wochen vor dem ersten Spieltag die Rollen-Kampagne fertig sein
+ * muss. Zwei: die letzten beiden Preseason-Wochen gehören der Aufstellung,
+ * nicht mehr den Personalgesprächen.
+ */
+export const ROLLEN_FRIST_WOCHEN = 2;
+
+/**
+ * Wie viele Rollen-Anfragen in einer Woche höchstens rausgehen.
+ *
+ * Die Tempo-Rechnung allein garantiert, dass die Liste rechtzeitig leer wird —
+ * aber nur, wenn der Manager auch antwortet. Wer jede Woche „Später" tippt,
+ * bekam ohne diesen Deckel in der letzten Woche vor der Frist den ganzen Rest
+ * auf einmal: gemessen dreißig blockierende Nachrichten an einem Tag.
+ *
+ * Vier reichen trotzdem: über rund zwanzig Wochen wird jeder mehrfach gefragt.
+ * Wer danach ohne Rolle dasteht, ist übergangen worden, nicht übersehen — und
+ * genau das kostet seit `ROLLE_OHNE_JE_SPIEL` etwas. Der Deckel schützt also
+ * vor der Lawine, nicht vor der Rechnung.
+ */
+export const ROLLE_ANFRAGEN_MAX = 4;
+
+/**
+ * Wie viele Spiele das rollierende Fenster fasst, aus dem der Mismatch
+ * gerechnet wird — und ab wie vielen Einträgen überhaupt gerechnet wird.
+ *
+ * Vier statt drei, weil ein Rotationsspieler bei drei Spielen nur 0, ⅓, ⅔ oder
+ * 1 erreichen kann und seine Erwartung von 0,5 damit nie trifft. Gerechnet wird
+ * ab dreien: wer zwei Spiele lang nicht spielt, hat noch keine Geschichte.
+ */
+export const ROLLE_FENSTER = 4;
+export const ROLLE_FENSTER_MIN = 3;
+
+/**
+ * Welchen Anteil der Spiele eine Rolle verspricht.
+ *
+ * Perspektiv- und Ergänzungsspieler stehen mit **derselben** Zahl da, und das
+ * ist kein Versehen: beide erwarten wenig Einsatzzeit. Der Unterschied
+ * zwischen ihnen ist nicht die Erwartung, sondern ob das Etikett zum Alter
+ * passt — siehe `ROLLE_ALTER_*` weiter unten.
+ */
+export const ROLLE_ERWARTUNG = /** @type {Record<string, number>} */ ({
+  unangefochten: 1.0, starter: 0.85, rotation: 0.5, perspektive: 0.15, ergaenzung: 0.15,
+});
+
+/**
+ * Wie viel Abweichung nach unten geschluckt wird, bevor das Commitment
+ * reagiert — als Grundmaß und als Zuschlag je Coaching-Gruppe.
+ *
+ * Der Zuschlag ist der Grund, warum die Tabelle nach `COACHING_GRUPPEN` und
+ * nicht nach Positionen geschnitten ist: ein Starter-QB erwartet praktisch
+ * jeden Snap und merkt jede Pause, eine DL-Rotation ist im Sport normal und
+ * braucht Luft. Was hier fehlt, bekommt das Grundmaß.
+ */
+export const ROLLE_TOLERANZ = 0.15;
+export const ROLLE_TOLERANZ_JE_GRUPPE = /** @type {Record<string, number>} */ ({
+  QB: 0, RB: 0.15, WR: 0.10, TE: 0.10, OL: 0,
+  DL: 0.20, ILB: 0.05, OLB: 0.05, CB: 0.05, S: 0.10,
+});
+
+/**
+ * Was ein Spiel am Commitment bewegt, wenn die Einsatzzeit die Rolle verfehlt:
+ * Punkte je Anteilspunkt jenseits der Toleranz.
+ *
+ * Bei 8 kostet ein Starter (0,85 erwartet, 0,15 Toleranz), der gar nicht
+ * spielt, 0,7 × 8 ≈ 5,6 Punkte je Spiel — nach drei Spielen ist das eine Stufe.
+ * Das soll wehtun: es ist der laufende Abzug, gegen den ein einmaliges
+ * Downgrade-Gespräch (rund 10 Punkte) billig ist.
+ *
+ * Bei 12 war es zu scharf: gemessen über acht Saisons landete ein Viertel des
+ * Kaders auf Stufe 0, wenn der Manager jedem alles versprach — nicht als
+ * Lehre, sondern als Totalschaden ohne Weg zurück. Mit 8 sind es rund fünf
+ * Mann, und die Lehre bleibt dieselbe.
+ */
+export const ROLLE_MISMATCH_JE_ANTEIL = 8;
+
+/**
+ * Was ein Spiel kostet, in dem er **gar keine** Rolle hat — mal dem Anteil der
+ * Spiele, die er nicht bestritten hat.
+ *
+ * Die Skalierung ist der Kern: wer jedes Spiel macht, weiß auch ohne Gespräch,
+ * woran er ist — das Feld ist die Ansage, und der Abzug geht gegen null. Wer
+ * sitzt und nie gehört hat, was er erwarten soll, trägt ihn voll.
+ *
+ * Bei 1,2 verliert ein Reservist ohne Rolle rund zwölf Punkte über eine
+ * Saison: deutlich weniger als eine falsche Zusage (gemessen −31) und
+ * deutlich schlechter als eine passende (+4,6). Genau diese Reihenfolge ist
+ * gewollt — eine Rolle zu vergeben soll sich lohnen, solange sie nicht völlig
+ * neben der Sache liegt.
+ *
+ * Damit ist die frühere Regel „ohne gesetzte Rolle gibt es keinen Drift"
+ * bewusst aufgehoben. Sie war richtig, solange es keinen Weg gab, eine Rolle
+ * zu setzen — ein Hebel ohne Definition. Den Weg gibt es jetzt, und die
+ * Kampagne fragt bis zur Frist jeden mehrfach: wer ohne Rolle dasteht, ist
+ * übergangen worden, nicht vergessen.
+ */
+export const ROLLE_OHNE_JE_SPIEL = 1.2;
+
+/**
+ * Was ein Spiel bringt, in dem er die Rolle erfüllt oder übertrifft. Klein und
+ * fest: die Waage soll nach oben zeigen können, ohne dass ein Stammspieler
+ * über eine Saison auf 99 läuft.
+ */
+export const ROLLE_ERFUELLT_BONUS = 0.8;
+
+/**
+ * Ab welcher Abweichung jenseits der Toleranz der Spieler von sich aus
+ * nachfragt — und wie viele Tage danach frühestens wieder.
+ *
+ * Die Nachricht läuft ohne das Empathie-Gate der Trend-Nachrichten: ein
+ * Spieler bemerkt seine eigene Bank selbst, egal wie aufmerksam sein Coach
+ * ist. Der Cooldown verhindert, dass aus demselben Missstand jede Woche
+ * dieselbe Nachricht wird.
+ */
+export const ROLLE_BESCHWERDE_SCHWELLE = 0.3;
+export const ROLLE_BESCHWERDE_COOLDOWN = 28;
+
+/**
+ * Was die Reaktion beim Setzen ausmacht: Punkte je Stufe, die die gesetzte
+ * Rolle über oder unter dem liegt, was seine Stärke im Kader erwarten ließe.
+ */
+export const ROLLE_JE_STUFE_ABSTAND = 6;
+
+/**
+ * Der Zuschlag auf ein Downgrade — Verlustaversion. Wer von Starter auf
+ * Rotation fällt, nimmt es schwerer als einer, der ohne Vorgeschichte
+ * Rotationsspieler wird, obwohl am Ende dieselbe Rolle steht.
+ */
+export const ROLLE_DOWNGRADE_ZUSATZ = 5;
+
+/**
+ * Was ein Rollengespräch an sich kostet, sobald es eine bestehende Rolle
+ * ändert. Klein — und **billiger** als der laufende Mismatch-Abzug, um den es
+ * hier geht: wer eine überholte Rolle stehen lässt, zahlt mehr.
+ */
+export const ROLLE_AENDERUNG_ABZUG = 2;
+
+/**
+ * Die Passung von Perspektiv- und Ergänzungsspieler ans Alter, unabhängig von
+ * Perzentil und Vorgeschichte.
+ *
+ * Ein 50-Jähriger als Perspektivspieler ist irritiert — er hat keine
+ * Perspektive mehr zu entwickeln. Ein Rookie als Ergänzungsspieler hört
+ * „aufgegeben". Zwischen den beiden Grenzen passt beides, und dort gibt es
+ * weder Bonus noch Abzug.
+ */
+export const ROLLE_ALTER_PERSPEKTIVE_MAX = 25;
+export const ROLLE_ALTER_ERGAENZUNG_MIN = 28;
+/** Punkte je Jahr jenseits der Grenze, gedeckelt. */
+export const ROLLE_ALTER_JE_JAHR = 1.5;
+export const ROLLE_ALTER_MAX_ABZUG = 12;
+/** Was das passende Etikett bringt: der Alte als Ergänzung, der Junge als Perspektive. */
+export const ROLLE_ALTER_BONUS = 3;
+
+/**
+ * Wie lange eine gesetzte Rolle steht, bevor sie wieder geändert werden darf.
+ *
+ * Drei Wochen. Ohne den Halt wäre die Rolle ein Regler, den man vor jedem
+ * Spieltag auf die Aufstellung dreht, statt eine Zusage, an der man gemessen
+ * wird. Über den Saisonwechsel hinweg gilt er nicht — die Offseason ist genau
+ * die Zeit, in der neu verteilt wird.
+ */
+export const ROLLE_COOLDOWN_TAGE = 21;
+
+/**
+ * Die Grenzen, ab denen die Stärke im Kader eine Rolle erwarten lässt — als
+ * Perzentil, von oben gelesen. Der erste Eintrag, den das Perzentil erreicht,
+ * gewinnt; was darunter liegt, ist die unterste Stufe.
+ *
+ * Gerechnet wird überwiegend **an seiner Position**: ob einer spielt,
+ * entscheidet sich gegen die drei anderen auf seinem Platz und nicht gegen die
+ * Offensive Line. Der kaderweite Anteil steht trotzdem mit drin, sonst wäre
+ * der beste von drei schlechten Kickern ein unangefochtener Stammspieler.
+ */
+export const ROLLE_PERZENTIL_GRENZEN = /** @type {const} */ ([
+  ['unangefochten', 0.90], ['starter', 0.70], ['rotation', 0.45], ['perspektive', 0],
+]);
+export const ROLLE_PERZENTIL_POSITION_ANTEIL = 0.75;
+
 /** Match simulation. */
 export const BASE_POINTS = 20;        // what an evenly matched offence scores
 export const RATING_TO_POINTS = 0.42; // points gained per point of unit advantage

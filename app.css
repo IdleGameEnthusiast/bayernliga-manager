@@ -710,6 +710,24 @@ td.werteknopf { width: 1%; padding-left: 0; padding-right: 8px; text-align: righ
 .fragenknoepfe { display: flex; gap: 8px; flex-wrap: wrap; }
 .fragenknoepfe button { flex: 1 1 140px; max-width: none; }
 
+/* --- Das Gespräch ----------------------------------------------------------
+   Dasselbe Blatt wie die Rückfrage, nur breiter und mit einer Liste darin: die
+   Kategorien und die fünf Rollen stehen untereinander, weil jede Zeile zwei
+   Zeilen Text trägt — nebeneinander würde daraus auf dem Telefon Kleingedrucktes. */
+
+.frage.gespraech { max-width: 480px; }
+.gespraech-kopf { margin-bottom: 12px; }
+.gespraech-kopf h2 { margin: 0 0 2px; }
+.gespraech h3 { margin: 14px 0 6px; }
+.gespraech p { margin: 0 0 6px; }
+.gespraech-liste { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 16px; }
+.gespraech-kategorie {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  width: 100%; max-width: none; text-align: left;
+}
+.gespraech-kategorie.aktuell { border-color: var(--akzent); }
+.gespraech-reaktion { margin-bottom: 10px; }
+
 /* --- Sterne ---------------------------------------------------------------
    Zwei Reihen übereinander: die gefüllte wird beschnitten. So sitzt der halbe
    Stern exakt in der Mitte, ohne ein Halbstern-Zeichen, das viele Schriften

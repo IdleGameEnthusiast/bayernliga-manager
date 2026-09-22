@@ -30,12 +30,20 @@ import {
   staerke as coachStaerke, SOFT_SKILLS, SCHEME_SKILLS, COACHING_GRUPPE_REIHE,
 } from '../engine/coach.js';
 import { stufe } from '../engine/commitment.js';
+import { ROLLEN, rolleVon, mismatch, vernachlaessigung } from '../engine/rolle.js';
 import { druck, halt } from '../engine/lebenslauf.js';
 
 /**
  * Was die Ansicht zeigt, das der Manager sonst nicht sieht. Kommt aus
  * `app.js` — ob der Modus an ist, entscheidet nicht diese Datei.
  * @typedef {{ playtester: boolean }} Einblick
+ */
+
+/**
+ * Was die Ansicht auslösen kann. Heute genau eins: ein Gespräch aufschlagen.
+ * Der Dialog selbst gehört `app.js`, weil er über allen Ansichten liegt und
+ * nicht nur über dieser.
+ * @typedef {{ gespraech: (spielerId: string) => void }} Aktionen
  */
 
 /**
@@ -63,6 +71,12 @@ const SPALTEN = [
   // Stufe ist die Reihenfolge dann nicht willkürlich. Die Zahl steht am Mann,
   // sobald `ergaenzeBindung()` einmal über den Kader gelaufen ist.
   { id: 'bindung', kopf: T.kader.bindung, wert: (sp) => sp.commitment ?? 0 },
+  // Sortiert nach der Stufe der Rolle, nicht alphabetisch: „Starter" gehört
+  // neben „Stammspieler" und nicht zwischen „Rotation" und „Ergänzung". Wer
+  // noch keine hat, steht ganz unten — das ist die Liste, die der Manager in
+  // der Offseason abarbeitet.
+  { id: 'rolle', kopf: T.kader.rolle,
+    wert: (sp) => (rolleVon(sp) === null ? -1 : ROLLEN.length - ROLLEN.indexOf(/** @type {any} */ (rolleVon(sp)))) },
   { id: 'status', kopf: T.kader.status, wert: (sp, tag) => (istFit(sp, tag) ? 0 : sp.verletztBis - tag) },
 ];
 
@@ -99,21 +113,25 @@ const offeneCoaches = new Set();
  * @param {import('../engine/saison.js').SpielStand} stand
  * @param {() => void} neuZeichnen
  * @param {Einblick} einblick
+ * @param {Aktionen} aktionen
  */
-export function zeigePersonal(stand, neuZeichnen, einblick) {
+export function zeigePersonal(stand, neuZeichnen, einblick, aktionen) {
   // Ein alter Stand trägt die Bindung noch nicht; hier wird sie nachgezogen,
   // bevor eine Spalte danach sortiert.
   ergaenzeBindung(stand);
   return el('div', {},
     unterreiter(neuZeichnen),
-    bereich === 'coaches' ? coachesKarte(stand, einblick) : spielerKarte(stand, einblick));
+    bereich === 'coaches'
+      ? coachesKarte(stand, einblick)
+      : spielerKarte(stand, einblick, aktionen));
 }
 
 /**
  * @param {import('../engine/saison.js').SpielStand} stand
  * @param {Einblick} einblick
+ * @param {Aktionen} aktionen
  */
-function spielerKarte(stand, einblick) {
+function spielerKarte(stand, einblick, aktionen) {
   const kader = stand.kader[stand.meinTeam];
   const tag = stand.tag;
 
@@ -134,9 +152,13 @@ function spielerKarte(stand, einblick) {
     leere(halter);
     const liste = sortiere(kader, tag);
     halter.append(machTabelle(
-      [...SPALTEN.map((sp) => kopfzelle(sp, male)), el('th', { 'aria-label': T.kader.werte })],
+      [
+        ...SPALTEN.map((sp) => kopfzelle(sp, male)),
+        el('th', { 'aria-label': T.kader.gespraech }),
+        el('th', { 'aria-label': T.kader.werte }),
+      ],
       liste.flatMap((spieler, i) => [
-        zeile(spieler, stand, male, trennerVor(liste, i), starter.get(spieler.id), einblick),
+        zeile(spieler, stand, male, trennerVor(liste, i), starter.get(spieler.id), einblick, aktionen),
         offeneWerte.has(spieler.id) ? werteZeile(spieler, stand, einblick) : null,
       ].filter(Boolean))));
   };
@@ -196,7 +218,9 @@ function bindungZelle(commitment, einblick) {
   const text = T.commitment.stufen[stufe(commitment)];
   return el('td', { class: 'leise', title: T.commitment.stufeTitel(text) },
     text,
-    einblick.playtester ? el('span', { class: 'versteckt', text: ` ${commitment}` }) : null);
+    einblick.playtester
+      ? el('span', { class: 'versteckt', text: ` ${Math.round(commitment)}` })
+      : null);
 }
 
 /**
@@ -389,8 +413,9 @@ function trennerVor(liste, i) {
  * @param {string} [trenner] Zusatzklasse für die Linie über der Zeile
  * @param {string[]} [plaetze] Die Plätze, die er in der Elf hält
  * @param {Einblick} [einblick]
+ * @param {Aktionen} [aktionen]
  */
-function zeile(sp, stand, male, trenner, plaetze, einblick = { playtester: false }) {
+function zeile(sp, stand, male, trenner, plaetze, einblick = { playtester: false }, aktionen) {
   const tag = stand.tag;
   const fit = istFit(sp, tag);
   const offen = offeneWerte.has(sp.id);
@@ -430,9 +455,58 @@ function zeile(sp, stand, male, trenner, plaetze, einblick = { playtester: false
     el('td', { style: { fontWeight: '600' }, text: String(sp.staerke) }),
     el('td', {}, sterne(talentSterne(sp.talent), T.kader.talentTitel(sp.talent))),
     bindungZelle(bindung.commitment, einblick),
+    rollenZelle(sp),
     el('td', { class: fit ? 'leise' : 'verletzt' },
       fit ? T.kader.fit : T.kader.verletztBis(sp.verletztBis - tag)),
+    // Der Knopf hängt an einer eigenen Zelle und nicht an der Zeile: die Zeile
+    // klappt die Werte auf, und ein Tipp, der je nach Stelle zwei verschiedene
+    // Dinge tut, ist genau der Griff, den man danebensetzt.
+    el('td', {},
+      aktionen
+        ? el('button', {
+          class: 'neben klein',
+          onclick: (/** @type {MouseEvent} */ e) => {
+            e.stopPropagation();
+            aktionen.gespraech(sp.id);
+          },
+        }, T.kader.gespraech)
+        : null),
     el('td', { class: 'werteknopf leise', text: offen ? T.kader.sortAuf : T.kader.sortAb }));
+}
+
+/**
+ * Die Rolle als Kurzform — und ein Zeichen daneben, wenn die Einsatzzeit sie
+ * gerade nicht deckt.
+ *
+ * Die Kurzform, weil „Unangefochtener Stammspieler" eine Tabellenspalte
+ * sprengt; der ganze Name steht im `title` und im Gespräch. Wer noch keine
+ * Rolle hat, bekommt einen Strich und keinen leeren Platz — leer sähe aus wie
+ * ein Fehler, der Strich sagt „noch nicht besprochen".
+ * @param {import('../engine/spieler.js').Spieler} sp
+ */
+function rollenZelle(sp) {
+  const rolle = rolleVon(sp);
+  // Die Marke steht in beiden Fällen, und das ist der Punkt: sie zeigt, wo
+  // Bindung gerade verloren geht. Ohne Rolle ist der Grund ein anderer als mit
+  // — deshalb ein eigener Satz und nicht derselbe zweimal.
+  if (!rolle) {
+    const uebergangen = vernachlaessigung(sp);
+    return el('td', { class: 'leise', title: T.kader.ohneRolleTitel },
+      T.kader.ohneRolle,
+      uebergangen && uebergangen > 0 ? marke(T.kader.uebergangen) : null);
+  }
+  const fehlt = mismatch(sp);
+  return el('td', {
+    class: 'leise',
+    title: T.rolle.titel(T.rolle.namen[rolle], T.rolle.erwartung[rolle]),
+  },
+    T.rolle.kurz[rolle],
+    fehlt && fehlt > 0 ? marke(T.kader.rolleVerfehlt) : null);
+}
+
+/** Das Ausrufezeichen neben der Rolle. @param {string} titel */
+function marke(titel) {
+  return el('span', { class: 'marke warnung', text: '!', title: titel });
 }
 
 /**
@@ -456,7 +530,7 @@ function werteZeile(sp, stand, einblick) {
   const bindung = bindungVon(stand, sp);
 
   return el('tr', { class: 'wertezeile' },
-    el('td', { colspan: String(SPALTEN.length + 1) },
+    el('td', { colspan: String(SPALTEN.length + 2) },
       el('div', { class: 'werte' },
         ATTRIBUTE.map((attribut) => el('div', { class: 'wert' },
           el('span', { class: 'klein leise', text: T.attribute[attribut] }),
@@ -492,10 +566,17 @@ function werteZeile(sp, stand, einblick) {
         ? el('div', { class: 'plaetze versteckt' },
           el('span', { class: 'klein leise', text: T.kader.verstecktes }),
           el('span', { class: 'klein', text: T.kader.versteckteWerte({
-            commitment: bindung.commitment, talent: sp.talent, ruecktrittAlter: sp.ruecktrittAlter,
+            // Gerundet erst hier: der Drift bewegt das Commitment in
+            // Bruchteilen, und die soll der Speicherstand behalten — sonst
+            // verschluckt jedes Spiel mit +0,8 die Bewegung, oder es macht +1
+            // daraus und ein Stammspieler liefe über eine Saison auf 99.
+            commitment: Math.round(bindung.commitment), talent: sp.talent,
+            ruecktrittAlter: sp.ruecktrittAlter,
             druck: Math.round(druck(bindung.lebenslage)),
             halt: Math.round(halt(bindung.commitment, bindung.lebenslage, stand.jahr)),
             druckJahre: bindung.lebenslage.druckJahre || 0,
+            einsatzFenster: (sp.einsatzFenster || []).join(''),
+            mismatch: mismatch(sp) ? Number(mismatch(sp)).toFixed(2) : 0,
           }) }))
         : null));
 }

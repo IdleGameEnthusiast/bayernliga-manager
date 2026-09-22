@@ -15,6 +15,7 @@ import {
   neuesSpiel, weiter, beantworteNachricht, gruppenTabellen, meineTabelle,
   setzeTaktik, automatischAufstellen, eigenePartieAmTag, offenePlaetze,
   aufstellungSetze, aufstellungRaeume, aufstellungLeeren,
+  gespraecheFrei, fuehreRollenGespraech,
 } from './engine/saison.js';
 import { WERTUNG_PUNKTE } from './engine/constants.js';
 import { partienDerRunde } from './engine/spielplan.js';
@@ -30,6 +31,7 @@ import { zeigeTaktik } from './ui/taktik.js';
 import { zeigeSpielplan } from './ui/spielplan.js';
 import { zeigeSpielbericht } from './ui/spielbericht.js';
 import { zeigeFrage } from './ui/frage.js';
+import { zeigeGespraech } from './ui/gespraech.js';
 
 /** @typedef {'start'|'postfach'|'kader'|'personal'|'taktik'|'tabelle'|'spielplan'|'bericht'} Ansicht */
 
@@ -55,6 +57,17 @@ let hinweis = null;
 
 /** @type {import('./ui/frage.js').Frage | null} */
 let frage = null;
+
+/**
+ * Das aufgeschlagene Gespräch, oder keines.
+ *
+ * Es liegt hier und nicht in `ui/gespraech.js`, weil es über **allen**
+ * Ansichten liegt: aufgeschlagen wird es aus dem Personalreiter und aus dem
+ * Postfach, und ein Merker im Ansichtsmodul überlebte das Schließen und ginge
+ * beim nächsten Spieler an der falschen Stelle wieder auf.
+ * @type {import('./ui/gespraech.js').Zustand | null}
+ */
+let gespraech = null;
 
 /**
  * Die Codes, die das Feld ganz unten kennt, und was sie freischalten. Nur
@@ -119,7 +132,7 @@ function zeichne() {
       neuZeichnen: zeichne,
     }));
   } else if (ansicht === 'personal') {
-    wurzel.append(zeigePersonal(stand, zeichne, { playtester }));
+    wurzel.append(zeigePersonal(stand, zeichne, { playtester }, { gespraech: beiGespraech }));
   } else if (ansicht === 'taktik') {
     wurzel.append(zeigeTaktik(stand, beiTaktik));
   } else if (ansicht === 'spielplan') {
@@ -131,6 +144,44 @@ function zeichne() {
   }
 
   if (frage) wurzel.append(zeigeFrage(frage));
+  if (gespraech) {
+    wurzel.append(zeigeGespraech(stand, gespraech, gespraecheFrei(stand), gespraechsAktionen));
+  }
+}
+
+/** @type {import('./ui/gespraech.js').Aktionen} */
+const gespraechsAktionen = {
+  waehleKategorie: (kategorie) => {
+    if (gespraech) gespraech = { ...gespraech, kategorie };
+    zeichne();
+  },
+  setzeRolle: (rolle) => {
+    if (!stand || !gespraech) return;
+    // Die Regel liegt in der Engine: ob heute noch ein Termin frei ist, ob der
+    // Cooldown steht, was sich am Commitment bewegt. Kommt nichts zurück, ging
+    // es nicht — dann bleibt das Blatt stehen, statt so zu tun, als sei geredet
+    // worden.
+    const reaktion = fuehreRollenGespraech(stand, gespraech.spielerId, rolle);
+    if (reaktion) gespraech = { ...gespraech, reaktion };
+    speichere(stand);
+    zeichne();
+  },
+  schliesse: () => {
+    gespraech = null;
+    zeichne();
+  },
+};
+
+/**
+ * Ein Gespräch aufschlagen — aus dem Personalreiter oder aus einer Anfrage im
+ * Postfach. Beide Wege enden auf demselben Blatt, und dasselbe Kontingent
+ * regelt beide gleich.
+ * @param {string} spielerId
+ * @param {string | null} [kategorie] Vorgewählt, wenn der Anlass sie schon kennt
+ */
+function beiGespraech(spielerId, kategorie = null) {
+  gespraech = { spielerId, kategorie, reaktion: null };
+  zeichne();
 }
 
 /** Halbfinale und Finale, in Reihenfolge — leer, solange die Gruppe läuft.
@@ -237,6 +288,10 @@ function setzePlaytester(an) {
 function wechsle(neu) {
   ansicht = neu;
   hinweis = null;
+  // Ein aufgeschlagenes Gespräch gehört zu der Ansicht, aus der es kam. Wer
+  // den Reiter wechselt oder eine Karriere lädt, soll es nicht über dem neuen
+  // Bildschirm wiederfinden.
+  gespraech = null;
   zeichne();
   window.scrollTo(0, 0);
 }
@@ -373,8 +428,16 @@ function beiWiederherstellen(id) {
  */
 function beiAntwort(id, antwort) {
   if (!stand) return;
-  beantworteNachricht(stand, id, antwort);
+  const n = beantworteNachricht(stand, id, antwort);
   speichere(stand);
+  // „Mit ihm reden" ist die Antwort **und** der Weg zum Gespräch: sonst hätte
+  // der Manager geantwortet, der Kalender liefe weiter, und der Mann stünde
+  // unverändert ohne Rolle da. Die Kategorie ist schon klar — er hat ja genau
+  // danach gefragt.
+  if (n && n.art === 'rollenanfrage' && antwort === 'gespraech') {
+    beiGespraech(n.daten.spielerId, 'rolle');
+    return;
+  }
   zeichne();
 }
 
@@ -469,6 +532,7 @@ function beiImport() {
 
 function beiNeu() {
   stand = null;
+  gespraech = null;
   vergissAnsicht();
   wechsle('start');
 }

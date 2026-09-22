@@ -245,6 +245,116 @@ zwei Saisons weg.
 wird nach drei bis fünf Jahren Arbeiter. Wer mehr Studenten will, dreht am
 Rookie-Alter oder an der Student-Zeile nach dem Schulabschluss (55 %).
 
+## 12 — Die Rolle: was der Manager zusagt und was die Bank kostet
+
+*„Die Rollen-Kampagne nervt"* oder *„ich kann jedem alles versprechen".*
+`engine/constants.js`, Modell in `engine/rolle.js`, Docs
+[`naechste-schritte.md`](naechste-schritte.md) Block 7, Abschnitte
+„Gespräche" und „Rolle". Der Manager sieht nie eine Zahl — nur die Rolle, die
+Reaktion in Worten und, wenn es nicht mehr passt, eine Nachricht.
+
+**Die Kampagne und das Kontingent**
+
+| Konstante | Wert | Wirkung | Richtung |
+| --- | --- | --- | --- |
+| `GESPRAECHE_JE_WOCHE` | 3 | wie viele Gespräche eine Woche hergibt | die Knappheit ist der ganze Punkt; bei 5 ist ein Gespräch ein Knopf, bei 1 kommt die Kampagne nicht durch |
+| `ROLLEN_FRIST_WOCHEN` | 2 | wie lange vor dem ersten Spieltag die Kampagne fertig sein muss | die letzten Preseason-Wochen gehören der Aufstellung, nicht dem Personal |
+| `ROLLE_ANFRAGEN_MAX` | 4 | Deckel auf die Anfragen einer Woche | ohne ihn stand vor der Frist der ganze Rest an einem Tag — gemessen dreißig blockierende Nachrichten bei einem Manager, der nie antwortet. Über zwanzig Wochen wird trotzdem jeder mehrfach gefragt |
+| `ROLLE_COOLDOWN_TAGE` | 21 | wie lange eine gesetzte Rolle steht | tiefer = die Rolle wird ein Regler an der Aufstellung statt einer Zusage; der Saisonwechsel setzt ihn ohnehin zurück |
+
+**Die Reaktion beim Setzen**
+
+| Konstante | Wert | Wirkung | Richtung |
+| --- | --- | --- | --- |
+| `ROLLE_JE_STUFE_ABSTAND` | 6 | Punkte je Stufe zwischen zugesagter und erwarteter Rolle | höher = Schmeicheln wirkt stärker, und der Rausch vor dem Kater wird größer |
+| `ROLLE_DOWNGRADE_ZUSATZ` | 5 | Zuschlag je Stufe, die er **verliert** — Verlustaversion | 0 hieße: eine Vorgeschichte zählt nicht, und ein Abstieg fühlt sich an wie ein Neuanfang |
+| `ROLLE_AENDERUNG_ABZUG` | 2 | was das Zurücknehmen einer Zusage an sich kostet | klein halten — er muss billiger bleiben als der laufende Mismatch |
+| `ROLLE_ALTER_PERSPEKTIVE_MAX` / `_ERGAENZUNG_MIN` | 25 / 28 | bis wann „Perspektive" passt, ab wann „Ergänzung" | das Fenster dazwischen trägt beides ohne Bonus und ohne Abzug |
+| `ROLLE_ALTER_JE_JAHR` / `_MAX_ABZUG` / `_BONUS` | 1,5 / 12 / 3 | was das unpassende bzw. passende Etikett kostet und bringt | höher = das Wort zählt mehr als die Einsatzzeit dahinter |
+| `ROLLE_PERZENTIL_GRENZEN` | 0,90 / 0,70 / 0,45 | ab welchem Perzentil der Stab welche Rolle erwartet | höher = der Stab ist strenger, und jede Zusage darüber wirkt großzügiger |
+| `ROLLE_PERZENTIL_POSITION_ANTEIL` | 0,75 | wie viel davon an der eigenen Position gemessen wird | 1,0 machte den Besten von drei schlechten Kickern zum unangefochtenen Stammspieler; 0 machte den zweiten QB zum Ergänzungsspieler |
+
+**Der Bank-Drift**
+
+| Konstante | Wert | Wirkung | Richtung |
+| --- | --- | --- | --- |
+| `ROLLE_ERWARTUNG` | 1,0 / 0,85 / 0,5 / 0,15 / 0,15 | welchen Anteil der Spiele eine Rolle verspricht | Perspektive und Ergänzung stehen mit Absicht gleich — ihr Unterschied ist das Alter, nicht die Zahl |
+| `ROLLE_FENSTER` / `_MIN` | 4 / 3 | wie viele Spiele das rollierende Fenster fasst und ab wann gerechnet wird | 3 im Fenster ließe einen Rotationsspieler seine 0,5 nie treffen; größer = träger, vergibt aber auch langsamer |
+| `ROLLE_TOLERANZ` | 0,15 | Grundmaß, das geschluckt wird, bevor das Commitment reagiert | höher = eine Rolle ist eine Richtung und keine Zusage |
+| `ROLLE_TOLERANZ_JE_GRUPPE` | QB/OL 0 … DL 0,20 | Zuschlag je Coaching-Gruppe | ein Starter-QB erwartet fast jeden Snap, eine DL-Rotation ist im Sport normal |
+| `ROLLE_MISMATCH_JE_ANTEIL` | 8 | Punkte je Anteilspunkt jenseits der Toleranz, **je Spiel** | die schärfste Schraube hier — siehe die Messung unten |
+| `ROLLE_ERFUELLT_BONUS` | 0,8 | was ein Spiel bringt, in dem die Rolle gehalten wird | höher = ein Stammspieler läuft über eine Saison auf 99 |
+| `ROLLE_OHNE_JE_SPIEL` | 1,2 | Abzug je Spiel für einen **ohne** Rolle, mal dem Anteil der Spiele, die er nicht bestritten hat | die Schraube dafür, wie teuer Ignorieren ist. Bei 1,2 kostet eine abgesessene Saison rund −9,6, während ein Vielspieler ohne Rolle bei −0,05 landet — das Feld ist seine Ansage |
+| `ROLLE_BESCHWERDE_SCHWELLE` / `_COOLDOWN` | 0,3 / 28 Tage | ab wann er selbst nachfragt und wie lange er danach schweigt | tiefer/kürzer = das Postfach wird zur Spam-Quelle; die Nachricht läuft **ohne** das Empathie-Gate der Trend-Nachrichten |
+
+**Gemessen beim Einbau** (acht Seeds `a`–`h`, drei Saisons, eigener Kader,
+mittlere Commitment-Änderung gegen den Startwert und Zahl der Spieler auf
+Stufe 0 „mit einem Bein draußen"):
+
+| Strategie | Saison 1 | Saison 2 | Saison 3 |
+| --- | --- | --- | --- |
+| **passend** (Perzentil für die Stufe, Alter für Perspektive/Ergänzung) | +6,3 / 0,8 auf Stufe 0 | +12,0 / 0,4 | +17,7 / 0,6 |
+| **alles versprechen** (jedem „unangefochten") | +1,1 / 2,6 | +1,5 / 5,6 | +6,6 / 5,4 |
+| **keine Rolle** (jede Anfrage vertagen) | −2,4 / 0,5 | −3,9 / 1,1 | −5,7 / 2,1 |
+
+Die drei Zeilen sind die Aussage des Bausteins: Pflege zahlt sich kumulativ
+aus, Schmeicheln fühlt sich ein Jahr lang gut an und hinterlegt dauerhaft ein
+Fünftel des Kaders auf der untersten Stufe, und wer gar nichts sagt, verliert
+langsam, aber stetig — zwei Mann auf Stufe 0 nach drei Saisons.
+
+**Vorsicht bei der ersten Zeile:** „passend" heißt *nicht*
+`erwarteteRolle()` allein. Die Funktion kennt das Alter nicht und liefert für
+jeden auf der Bank „Perspektivspieler" — auch für den 33-Jährigen, den das
+kränkt. Wer so misst, bekommt +4,1 / +10,6 / +16,7 statt der Zahlen oben und
+schreibt den Unterschied fälschlich dem Drift zu. Die Differenz von gut zwei
+Punkten je Saison **ist** die Altersrechnung, und sie steckt allein im
+Etikett.
+
+**Je Spieler, nach Einsatzzeit getrennt** (acht Seeds, eine Saison, derselbe
+Kader unter jeder Strategie; „viel" heißt ≥ 75 % der Spiele, „Bank" ≤ 25 %):
+
+| Gruppe | keine Rolle | passend | oberste Rolle | unterste Rolle |
+| --- | --- | --- | --- | --- |
+| spielt viel (n=172) | −0,05 | **+6,89** | +12,32 | −6,62 |
+| Bank (n=62) | −9,56 | **+4,61** | −31,00 | +0,75 |
+
+Die Reihenfolge auf der Bank ist die Aussage: **passende Rolle (+4,6) vor
+keiner Rolle (−9,6) vor der absurden Zusage (−31,0)**. Eine Rolle zu vergeben
+lohnt sich, solange sie nicht völlig neben der Sache liegt — und Schweigen
+ist kein Nullzustand mehr. Wer viel spielt, trägt daran fast nichts (−0,05):
+das Feld ist seine Ansage. Am falschen Etikett trägt er ebenfalls ungleich
+weniger als die Bank (−6,6 gegen −31,0). Eine Eigenschaft ist **nicht**
+gewollt: für den
+Vielspieler schlägt die oberste Rolle die passende um rund +6. Das ist genau
+`ROLLE_JE_STUFE_ABSTAND` — einmalig dafür, dass er mehr hört, als sein
+Perzentil hergibt — und es bleibt folgenlos, weil „Unangefochten" (1,0) und
+„Starter" (0,85) bei einer Aufstellung fürs ganze Spiel dieselbe Forderung
+sind: er spielt, oder er spielt nicht. Siehe den offenen Punkt unten.
+
+**Offen, bis die Einsatzzeit ein Bruchteil ist:**
+
+- **Erwartungswerte je Position gibt es nicht.** `ROLLE_ERWARTUNG` hängt allein
+  an der Rolle; positionsabhängig ist nur die Toleranz. Dass eine DL-Rotation
+  tatsächlich die Hälfte der Snaps sieht und ein zweiter Quarterback keinen,
+  lässt sich heute nicht abbilden — der beobachtete Anteil ist 1,0 oder 0,0,
+  ein erwarteter Wert dazwischen also gar nicht messbar. Gehört in den
+  Depth-Chart-/Rotations-Umbau: dort ersetzt ein Bruchteil das Ja/Nein, und
+  `ROLLE_ERWARTUNG` wird zu einer Tabelle Rolle × Coaching-Gruppe.
+- **Die fünf Rollen trennen sich dadurch erst dann wirklich.** Heute sind es
+  praktisch zwei Verhaltensweisen — „muss spielen" (Unangefochten, Starter,
+  Rotation) und „muss nicht" (Perspektive, Ergänzung). Die Unterscheidung
+  innerhalb der Gruppen liegt allein im Einmal-Effekt beim Setzen.
+
+`ROLLE_MISMATCH_JE_ANTEIL` stand beim ersten Bau auf **12**. Damit landete
+unter „alles versprechen" schon nach einer Saison ein **Viertel** des Kaders
+auf Stufe 0 (7,3 von 30) — kein Lehrgeld, sondern ein Totalschaden ohne Weg
+zurück. Mit 8 sind es 2,6 nach der ersten und 5,4 nach der dritten Saison.
+Wer den Druck zurückwill, dreht hier und nirgendwo sonst.
+
+Der Deckel `ROLLE_ANFRAGEN_MAX` kam aus derselben Messung: ohne ihn stellte
+„nie reden" über eine Offseason **122** blockierende Anfragen, davon dreißig
+am letzten Tag vor der Frist. Mit Deckel sind es 71, verteilt über die Wochen.
+
 ---
 
 ## Was nicht hier steht

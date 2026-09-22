@@ -49,6 +49,17 @@ import { VORNAMEN, NACHNAMEN } from './content.js';
  *   weil ein Stand von vor Block 7 ihn nicht trägt; `bindungVon()` in `saison.js` zieht
  *   ihn beim ersten Zugriff aus dem Saatgut nach, und danach ist er da
  * @property {import('./commitment.js').Lebenslage} [lebenslage]  Der Druck — ebenso
+ * @property {import('./rolle.js').Rolle | null} [rolle]  Was er an Einsatzzeit erwarten
+ *   darf — vom Manager **gesetzt**, nie aus dem Einsatzmuster erraten. Fehlt oder `null`:
+ *   noch keine bekommen, und dann gibt es auch keinen Bank-Drift
+ * @property {number | null} [letzteRollenAenderung]  Tag **dieser** Saison, an dem die
+ *   Rolle zuletzt gesetzt wurde — der Cooldown. Echtes Zustandsfeld: aus nichts anderem
+ *   zu rekonstruieren. Der Saisonwechsel setzt ihn zurück, siehe `rolle.js`
+ * @property {number[]} [einsatzFenster]  Die letzten `ROLLE_FENSTER` Spiele, in denen er
+ *   fit war: 1 gespielt, 0 zugesehen. Nur der eigene Verein führt es — anderswo gibt es
+ *   keine Rolle, gegen die es zu halten wäre
+ * @property {number | null} [rolleBeschwerde]  Tag dieser Saison, an dem er zuletzt
+ *   nachgefragt hat, warum er nicht spielt
  */
 
 /** A player who has not been handed a number yet. 0 is a real jersey. */

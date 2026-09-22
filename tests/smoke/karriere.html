@@ -21,6 +21,27 @@ const knopf = () => txt('.tageskarte button.haupt');
 const tageskarte = () => txt('.tageskarte');
 const leseKnoepfe = () => alle('.postlese button').map((b) => b.textContent);
 const leseKnopf = (name) => alle('.postlese button').find((b) => b.textContent === name);
+const zeileMit = (text) => alle('.postzeile').find((z) => z.textContent.includes(text));
+
+/**
+ * Durch die Rollen-Kampagne hindurch bis zu einem Datum.
+ *
+ * Seit der Kampagne ist die Offseason nicht mehr leer: an jedem Wochenanfang
+ * fragt jemand nach seiner Rolle, und jede Anfrage hält den Kalender an. Wer
+ * nur durch den Kalender will, tippt auf „Später" — genau das tut dieser
+ * Helfer, Woche für Woche.
+ */
+function weiterBis(datum) {
+  for (let i = 0; i < 90 && txt('.kopf-datum') !== datum; i++) {
+    const k = q('.tageskarte button.haupt');
+    if (!k) break;
+    if (k.textContent.trim() !== 'Zur Nachricht ›') { k.click(); continue; }
+    k.click();
+    const spaeter = leseKnopf('Später');
+    if (!spaeter) break;
+    spaeter.click();
+  }
+}
 
 try {
   // 1 — Der Startbildschirm
@@ -44,9 +65,13 @@ try {
     ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][raster.indexOf(q('.kaltag.heute')) % 7], 'Sa');
   gleich('Kopfzeile trägt ein Datum statt eines Spieltags', txt('.kopf-datum'), 'Sa 18. Okt 2025');
 
-  // 3 — Der Vorstand meldet sich, hält aber niemanden auf
-  gleich('eine Nachricht liegt im Eingang', alle('.postzeile').length, 1);
-  gleich('und ist ungelesen', alle('.postzeile.neu').length, 1);
+  // 3 — Der Vorstand meldet sich und der Trainerstab dazu, aufhalten tut
+  // keiner von beiden. Die Erinnerung eröffnet die Rollen-Kampagne; die
+  // einzelnen Anfragen kommen erst ab der nächsten Woche.
+  gleich('zwei Nachrichten liegen im Eingang', alle('.postzeile').length, 2);
+  gleich('und beide sind ungelesen', alle('.postzeile.neu').length, 2);
+  pruefe('der Trainerstab eröffnet die Rollen-Kampagne', !!zeileMit('woran sie ist'),
+    alle('.postbetreff').map((e) => e.textContent).join(' | '));
   gleich('sie verlangt keine Antwort', alle('.postzeichen.antwort').length, 0);
   gleich('der Weg zum ersten Spieltag ist frei', knopf(), 'Bis dahin');
   enthaelt('nächster Termin', tageskarte(), 'Nächster Termin');
@@ -57,25 +82,25 @@ try {
 
   // Lesen heißt lesen: die Nachricht schlägt rechts auf und bleibt links stehen.
   enthaelt('rechts steht noch nichts', txt('.postlese'), 'Wähle eine Nachricht');
-  q('.postzeile').click();
+  zeileMit('Willkommen bei').click();
   enthaelt('die Nachricht schlägt rechts auf', txt('.postlese'), 'Willkommen bei');
-  gleich('sie ist jetzt gelesen', alle('.postzeile.neu').length, 0);
-  gleich('und liegt weiter im Posteingang', alle('.postzeile').length, 1);
+  gleich('sie ist jetzt gelesen', alle('.postzeile.neu').length, 1);
+  gleich('und liegt weiter im Posteingang', alle('.postzeile').length, 2);
   pruefe('unten steht das Löschen', leseKnoepfe().includes('Löschen'), leseKnoepfe().join(' | '));
   gleich('und sonst nichts', leseKnoepfe().length, 1);
 
   // 4 — Der Ordner „Gelöscht" und der Weg zurück
   gleich('zwei Ordner', alle('.postordner-knopf').length, 2);
   leseKnopf('Löschen').click();
-  gleich('der Posteingang ist leer', alle('.postzeile').length, 0);
-  enthaelt('und sagt es', txt('.postspalte'), 'Der Posteingang ist leer.');
+  gleich('die gelöschte ist aus dem Eingang weg', alle('.postzeile').length, 1);
+  pruefe('die andere bleibt stehen', !!zeileMit('woran sie ist'));
   alle('.postordner-knopf')[1].click();
   gleich('im Gelöscht liegt sie', alle('.postzeile').length, 1);
   q('.postzeile').click();
   leseKnopf('Wiederherstellen').click();
   gleich('der Posteingang steht wieder offen',
     txt('.postordner-knopf.aktiv .postordner-name'), 'Posteingang');
-  gleich('und die Nachricht darin', alle('.postzeile').length, 1);
+  gleich('und beide Nachrichten darin', alle('.postzeile').length, 2);
 
   // 5 — Ein Tipp im Raster wählt nur aus; simuliert wird auf Knopfdruck
   gleich('noch steht keine Auswahl da', alle('.kalauswahl').length, 0);
@@ -91,9 +116,58 @@ try {
   gleich('und bietet den Knopf an',
     txt('.kalauswahl button.haupt'), 'Bis zu diesem Datum simulieren');
   q('.kalauswahl button.haupt').click();
-  gleich('erst der Knopf bewegt sie', txt('.kopf-datum'), 'Fr 31. Okt 2025');
+  // Nicht bis zum 31.: am Wochenanfang davor steht die erste Rollen-Anfrage im
+  // Postfach, und eine offene Antwort geht jedem Ziel vor.
+  gleich('erst der Knopf bewegt sie', txt('.kopf-datum'), 'Sa 25. Okt 2025');
   gleich('die Auswahl ist danach weg', alle('.kalauswahl').length, 0);
-  gleich('und die Tageskarte bietet weiter den Sprung an', knopf(), 'Bis dahin');
+  gleich('und die Tageskarte führt zur offenen Antwort', knopf(), 'Zur Nachricht ›');
+
+  // 5b — Die Rollen-Kampagne: die Anfrage, das Gespräch, die Rolle
+  q('.tageskarte button.haupt').click();
+  enthaelt('ein Spieler fragt nach seiner Rolle', txt('.postlese h3'), 'fragt nach seiner Rolle');
+  pruefe('und lässt sich vertagen oder besprechen',
+    leseKnoepfe().includes('Später') && leseKnoepfe().includes('Mit ihm reden'),
+    leseKnoepfe().join(' | '));
+
+  leseKnopf('Mit ihm reden').click();
+  gleich('das Gespräch schlägt auf', alle('.frageschirm .gespraech').length, 1);
+  enthaelt('es sagt, dass ihm noch niemand etwas gesagt hat',
+    txt('.gespraech'), 'Bisher hat ihm niemand gesagt');
+  gleich('fünf Rollen stehen zur Wahl', alle('.gespraech-kategorie').length, 5);
+  const rollenKnopf = (name) =>
+    alle('.gespraech-kategorie').find((b) => b.textContent.startsWith(name));
+  pruefe('darunter der Ergänzungsspieler', !!rollenKnopf('Ergänzungsspieler'),
+    alle('.gespraech-kategorie').map((b) => b.textContent).join(' | '));
+
+  rollenKnopf('Starter').click();
+  gleich('danach steht nur noch seine Reaktion da', alle('.gespraech-reaktion').length, 1);
+  enthaelt('und die gesetzte Rolle', txt('.gespraech'), 'Bisher: Starter');
+  q('.fragenknoepfe button').click();
+  gleich('das Blatt ist zu', alle('.frageschirm').length, 0);
+  // Diese eine Anfrage ist beantwortet — die zweite dieser Woche steht noch:
+  // das Tempo schickt so viele, dass die Liste bis zur Frist leer wird, und
+  // das sind bei dreißig Mann zwei pro Woche.
+  gleich('eine Anfrage bleibt für diese Woche offen',
+    alle('.postzeile .postzeichen.antwort').length, 1);
+
+  // Und die Rolle steht in der Personalakte, wo sie hingehört.
+  alle('.reiter button').find((b) => b.textContent === 'Personal').click();
+  const kopfzellen = alle('.tabelle-scroll th').map((h) => h.textContent);
+  pruefe('die Personalakte trägt eine Rollenspalte',
+    kopfzellen.some((k) => k.startsWith('Rolle')), kopfzellen.join(' | '));
+  pruefe('und genau ein Mann hat eine',
+    alle('.spielerzeile td').filter((z) => z.textContent === 'Starter').length === 1,
+    alle('.spielerzeile td').filter((z) => z.textContent === 'Starter').length);
+  pruefe('jede Zeile bietet das Gespräch an',
+    alle('.spielerzeile button').length === alle('.spielerzeile').length);
+  alle('.reiter button').find((b) => b.textContent === 'Posteingang').click();
+
+  // Die zweite Anfrage lässt sich vertagen: sie ist damit beantwortet, aber er
+  // hat weiter keine Rolle und steht nächste Woche wieder da.
+  leseKnopf('Später') || zeileMit('fragt nach').click();
+  leseKnopf('Später').click();
+  gleich('danach läuft die Uhr wieder', knopf(), 'Bis dahin');
+  gleich('und steht noch auf demselben Tag', txt('.kopf-datum'), 'Sa 25. Okt 2025');
 
   // 6 — Ein Ziel hinter dem Spieltag: die Uhr hält trotzdem am eigenen Spiel
   for (let i = 0; i < 6; i++) q('.kalkopf .kalpfeil:last-of-type').click();
@@ -103,9 +177,10 @@ try {
   gleich('bis zum 30. April', letzterApr.querySelector('.kalzahl').textContent, '30');
   letzterApr.click();
   q('.kalauswahl button.haupt').click();
+  weiterBis('Sa 21. Mär 2026');
   gleich('die Uhr hält am Beginn der Preseason, nicht am Ziel',
     txt('.kopf-datum'), 'Sa 21. Mär 2026');
-  q('.tageskarte button.haupt').click();
+  weiterBis('Sa 18. Apr 2026');
   gleich('und danach am eigenen Spiel, immer noch nicht am Ziel',
     txt('.kopf-datum'), 'Sa 18. Apr 2026');
   gleich('Raster ist zum heutigen Tag zurückgekehrt', txt('.kalkopf h2'), 'April 2026');

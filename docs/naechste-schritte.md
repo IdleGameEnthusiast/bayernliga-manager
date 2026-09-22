@@ -1051,18 +1051,100 @@ eigenen Platz, es steht als „noch zwei Jahre Schule" ohnehin im Satz.
         Season/Postseason).~~ **Erledigt**, siehe „Kalenderphasen" oben.
         Keine Migration — `Phase` steht nie im Speicherstand. Nicht ganz
         kostenlos: der Beginn der Preseason ist ein neuer Zwangsstopp.
-     2. Die Rollen-Kampagne: leeres `rolle`-Feld, die jährliche Erinnerung,
-        das wöchentliche Tempo, die blockierenden Einzel-Anfragen, die
-        Perzentil/Vorgeschichte/Alter-Reaktion beim Setzen. Das größte Stück,
-        aber die Grundlage für den Rest — ohne Rolle kein Bank-Drift, kein
-        Mismatch, keine Trigger-Substanz.
-     3. Der Gesprächs-Dialog und das Wochenkontingent (Log-basiert), an den
-        die fünf Kategorien andocken.
+     2. ~~Die Rollen-Kampagne~~ **Erledigt**, und zwar größer als geschnitten:
+        beim Bau ist entschieden worden, **Schritt 3 mitzunehmen** (den
+        Gesprächs-Dialog samt Log-Kontingent, vorerst nur mit der Kategorie
+        Rolle) **und den Mismatch-Drift gleich dazu**. Die Begründung für
+        beides ist dieselbe: ohne Dialog gibt es keinen Ort, an dem die Rolle
+        gesetzt würde, und ohne Drift wäre die Rolle eine Saison lang ein
+        Etikett mit einmaliger Wirkung — „Setzen ist billiger als
+        Verfehlen-lassen" wäre dann schlicht nicht wahr.
+        Gebaut: [`engine/rolle.js`](../engine/rolle.js) (fünf Rollen, Kampagne,
+        Reaktion, Fenster, Drift, Kontingent), `woche()`/`wochenBeginn()` im
+        Kalender, [`ui/gespraech.js`](../ui/gespraech.js), Rollenspalte und
+        Gesprächsknopf im Personalreiter, drei Nachrichtenarten, Migration
+        12→13. Die Zahlen und die Messung stehen in
+        [`balancing.md`](balancing.md), Abschnitt 12.
+        Abweichungen vom Plan, die beim Bau gefallen sind:
+        - **Tag 1 fragt noch niemand.** Die Erinnerung des Trainerstabs kommt
+          an Tag 1, die Einzel-Anfragen erst ab Tag 8. Zwei blockierende
+          Nachfragen im selben Moment wie das Wort des Vorstands hielten eine
+          frische Karriere an, bevor der Manager seinen Kader gesehen hat. Die
+          Frist kostet das nichts — das Tempo rechnet sich ab Tag 8 neu.
+        - **Ein Deckel auf das Tempo** (`ROLLE_ANFRAGEN_MAX`, 4). Die reine
+          Formel stellte einem Manager, der immer „später" tippt, in der
+          letzten Woche vor der Frist dreißig blockierende Nachrichten auf
+          einmal zu. Was der Deckel liegen lässt, bleibt ohne Rolle — und ohne
+          Rolle gibt es keinen Drift, es kostet also nur die Gelegenheit.
+        - **Gefragt wird nach Stärke, nicht gewürfelt.** Wer den Kader trägt,
+          will als Erster wissen, woran er ist; und der Manager soll die teuren
+          Entscheidungen treffen, solange er noch Kontingent hat.
+        - **Nur der eigene Verein führt ein Einsatzfenster.** Rollen gibt es
+          nur beim eigenen Kader, und ein Fenster ohne Erwartung wäre Ballast
+          in jedem Speicherstand.
+        - **Vier Felder am Spieler, alle „fehlt = Nullwert"**: `rolle`,
+          `letzteRollenAenderung`, `einsatzFenster`, `rolleBeschwerde`. Der
+          Migrationsschritt fasst deshalb keinen Menschen an und legt nur den
+          Behälter `gespraeche` am Stand an — wie `coaches` in 8→9.
+        - **Die beiden Tagesmerker werden beim Saisonwechsel geleert**, die
+          Rolle nicht. Tag 300 des Vorjahres gegen Tag 5 des neuen gehalten
+          ergäbe eine Sperre, die nie abläuft.
+        - **Ein Rollengespräch beantwortet die offene Anfrage mit.** Sonst
+          setzte der Manager die Rolle im Personalreiter und stünde danach vor
+          einer Nachricht, die den Kalender wegen einer längst gefallenen
+          Entscheidung anhält.
+        - **Keine Rolle ist kein Nullzustand — die Regel ist umgedreht
+          worden.** Hier stand „ohne gesetzte Rolle gibt es keinen Drift — kein
+          Hebel ohne Definition", und beim Nachmessen fiel auf, dass damit
+          Schweigen die billigste Strategie war: für jeden, der ohnehin spielt,
+          besser als ein ehrliches Gespräch. Die Regel war richtig, solange es
+          keinen Weg gab, eine Rolle zu setzen; den gibt es jetzt, und die
+          Kampagne fragt bis zur Frist jeden mehrfach. Seitdem kostet eine
+          fehlende Rolle — **skaliert mit dem, was er nicht spielt**
+          (`ROLLE_OHNE_JE_SPIEL`, `vernachlaessigung()`). Wer jedes Spiel
+          macht, verliert praktisch nichts, weil das Feld die Ansage ist; wer
+          sitzt, trägt den vollen Satz. Gemessen ergibt das auf der Bank die
+          Reihenfolge **passende Rolle (+4,6) vor keiner Rolle (−9,6) vor der
+          absurden Zusage (−31,0)**, und für Vielspieler ist die schlimmste
+          Fehlbesetzung mit −6,6 rund fünfmal billiger als auf der Bank.
+          Sichtbar ist es im Personalreiter: die Marke neben dem Strich in der
+          Rollenspalte steht jetzt auch für den Übergangenen. Eine eigene
+          Nachricht bekommt er **nicht** — die Kampagne hat ihn schon gefragt,
+          ein zweiter Kanal daneben wäre Nörgeln.
+        - **`naechsterStopp()` sagt die Kampagne nicht vorher.** Es bleibt der
+          nächste **Kalender**termin; eine Anfrage, die unterwegs entsteht,
+          verlegt ihn vor. Das stand so schon in seiner Doku und hätte sonst
+          einen fünften `grund` und eine zweite Tageskarte verlangt.
+     3. ~~Der Gesprächs-Dialog und das Wochenkontingent~~ **mit Schritt 2
+        erledigt**, siehe dort. Der Dialog führt die vier fehlenden Kategorien
+        schon gesperrt auf; sie einzuhängen ist Schritt 4.
      4. Nach Lebenslage fragen + `wissbarAb`, Über persönliche Themen
         sprechen, Wunsch anhören (Position, Nummer), Überzeugen
         (`abgelehntePositionen`).
      Drift durch Coach, Verletzung, Erfolg, Vereinsjahre bleibt **offen** und
-     ist nicht Teil dieses Zuschnitts — Rolle deckt nur die Bank ab.
+     ist nicht Teil dieses Zuschnitts — Rolle deckt nur die Bank ab. Die
+     generische Trend-Nachricht mit dem Empathie-Gate des Positionscoaches ist
+     damit ebenfalls noch offen: gebaut ist nur die Rollen-Mismatch-Nachricht,
+     die bewusst **ohne** dieses Gate läuft.
+
+     **Offen und dem Depth-Chart-/Rotations-Umbau zugeschlagen** (beim Messen
+     nach dem Bau aufgefallen, siehe [`balancing.md`](balancing.md)
+     Abschnitt 12):
+     - **Erwartungswerte je Position.** `ROLLE_ERWARTUNG` hängt heute allein an
+       der Rolle; positionsabhängig ist nur die Toleranz. Dass eine
+       DL-Rotation die Hälfte der Snaps sieht und ein zweiter Quarterback
+       keinen, ist nicht abbildbar, solange eine Aufstellung fürs ganze Spiel
+       gilt — der beobachtete Anteil ist 1,0 oder 0,0. Mit Snap-Anteilen wird
+       aus der Konstanten eine Tabelle **Rolle × Coaching-Gruppe**.
+     - **Die fünf Rollen trennen sich erst dann.** Heute gibt es praktisch zwei
+       Verhaltensweisen: „muss spielen" (Unangefochten, Starter, Rotation) und
+       „muss nicht" (Perspektive, Ergänzung). Die Folge, gemessen: einem
+       Vielspieler „Unangefochten" zu sagen bringt rund +6 mehr als die
+       passende Rolle und bleibt folgenlos, weil 1,0 und 0,85 dieselbe
+       Forderung sind. Die oberste Rolle braucht ein eigenes Risiko — entweder
+       Snap-Anteile, oder der Teil ihrer Definition, der heute ungenutzt ist:
+       „keine Konkurrenz in Aussicht" lässt sich am Kader prüfen, auch ohne
+       Bruchteile.
 3. **Abgänge und Rekrutierung**, zusammen: der Grund beim Abgang wird
    sichtbar gemacht, Kanäle, Ehemaligen-Pool, Abwerben als externes Ereignis
    mit derselben Waage; `ruecktrittAlter` geht in der Waage auf.

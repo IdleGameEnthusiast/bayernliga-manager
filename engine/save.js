@@ -37,6 +37,23 @@ export const STORAGE_KEY = 'bayernliga.save';
  * @type {Record<number, (roh: any) => any>}
  */
 const MIGRATIONEN = {
+  // 12 → 13: die Rolle kam — und mit ihr das Gesprächslog. Am Spieler sind es
+  // vier Felder, die alle „fehlt = der natürliche Nullwert" bedeuten: `rolle`
+  // (noch keine bekommen, also taucht er in der Kampagne auf), das Einsatz-
+  // fenster (leer, füllt sich ab dem nächsten Spiel), und die beiden Tages-
+  // merker für Cooldown und Beschwerde. Keines davon will gezogen werden, also
+  // fasst der Schritt keinen Menschen an — wie schon bei der Bindung.
+  //
+  // Angelegt wird nur das Log: es ist ein Behälter am Stand, kein Feld an einer
+  // Person, und `gespraecheFrei()` zählt darin. Ein fehlendes Array fänge der
+  // Lesepfad zwar ab, aber ein Stand soll nach der Migration vollständig sein
+  // und nicht erst nach dem ersten Zugriff — wie `coaches` in 8 → 9.
+  12: (roh) => {
+    roh.gespraeche = [];
+    roh.version = 13;
+    return roh;
+  },
+
   // 11 → 12: der Lebenslauf kam — die Lebenslage bewegt sich jetzt von Jahr
   // zu Jahr. Dabei wuchs sie um Felder, die ein alter Stand alle nicht trägt
   // und alle nicht braucht: `druckJahre` (fehlt = 0), `verlaengert` (fehlt =

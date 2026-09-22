@@ -55,6 +55,28 @@ function raeumeAntworten(s, wahl = (a) => a[0]) {
 }
 
 /**
+ * Bewegt die Uhr auf `halt` zu — und prüft, dass sie genau dort stehen bleibt.
+ *
+ * Seit der Rollen-Kampagne ist die Offseason nicht mehr leer: an jedem
+ * Wochenanfang fragt ein Spieler nach seiner Rolle, und jede dieser Anfragen
+ * ist ein eigener Zwangsstopp. Ein Test, der wissen will, wo der **Kalender**
+ * anhält, räumt sie weg wie ein Manager, der gerade nicht reden will, und tippt
+ * auf „Später" — die letzte Antwort jeder Anfrage.
+ *
+ * Geprüft wird dabei das, worauf es ankommt: dass ein Ziel weit dahinter den
+ * Termin nicht überspringt.
+ * @param {any} s @param {number} halt @param {number | null} [ziel]
+ */
+function bisHalt(s, halt, ziel = null) {
+  for (let i = 0; i < 60 && s.tag < halt; i++) {
+    raeumeAntworten(s, (a) => a[a.length - 1]);
+    weiter(s, ziel);
+    assert.ok(s.tag <= halt, `die Uhr ist über Tag ${halt} hinausgelaufen`);
+  }
+  assert.equal(s.tag, halt, `Tag ${halt} ist nicht erreicht worden`);
+}
+
+/**
  * Spielt bis zum entschiedenen Finale.
  *
  * `meister(s) !== null` ist das neue `saisonVorbei(s)` — es tritt am Tag des
@@ -343,15 +365,17 @@ test('ein Zwangsstopp hält ein Ziel auf', () => {
   // Tag 300 liegt tief in der Postseason. Der Kalender kommt nicht hin: erst
   // fängt die Preseason an, dann steht am ersten Spieltag das eigene Spiel, und
   // keins von beidem wird übersprungen, nur weil weiter hinten ein Ziel steht.
+  // Der allererste Halt ist keiner des Kalenders: an Tag 8 steht die erste
+  // Rollen-Anfrage im Postfach, und eine offene Antwort geht allem vor.
   const f = weiter(s, 300);
-  assert.equal(f.bisTag, PRESEASON_BEGINN);
-  assert.equal(f.grund, 'phase');
-  assert.equal(s.tag, PRESEASON_BEGINN);
+  assert.equal(f.grund, 'antwort');
+  assert.equal(s.tag, 8);
 
-  const g = weiter(s, 300);
-  assert.equal(g.bisTag, tagVonSpieltag(1));
-  assert.equal(g.grund, 'spiel');
-  assert.equal(s.tag, tagVonSpieltag(1));
+  // Durch die Kampagne hindurch bleiben die beiden Kalendertermine stehen.
+  bisHalt(s, /** @type {number} */ (PRESEASON_BEGINN), 300);
+  bisHalt(s, tagVonSpieltag(1), 300);
+  assert.equal(naechstePartie(s, s.meinTeam)?.tag, tagVonSpieltag(1),
+    'am Spieltag ist noch nicht angepfiffen');
 });
 
 test('eine offene Antwort blockiert die Uhr', () => {
@@ -374,10 +398,11 @@ test('eine offene Antwort blockiert die Uhr', () => {
   }
 
   // Erst die Antwort löst die Bremse. Wo die Uhr dann stehen bleibt, ist hier
-  // gleichgültig — der nächste Zwangsstopp ist der Beginn der Preseason —,
-  // geprüft wird, dass sie sich überhaupt wieder bewegt.
+  // gleichgültig — geprüft wird, dass sie sich überhaupt wieder bewegt. Dass
+  // am nächsten Wochenanfang die nächste Anfrage steht, ist die Kampagne und
+  // nicht die Bremse: deshalb reicht es, dass der Tag sich bewegt hat.
   raeumeAntworten(s);
-  assert.notEqual(weiter(s).grund, 'antwort');
+  weiter(s);
   assert.ok(s.tag > 1);
 });
 
@@ -785,8 +810,11 @@ test('die Engine fragt vor dem Kickoff nicht mehr — das tut der Knopf', () => 
   aufstellungLeeren(stand);
 
   const spieltag = tagVonSpieltag(1);
-  for (let i = 0; i < 40 && stand.tag < spieltag; i++) {
+  for (let i = 0; i < 60 && stand.tag < spieltag; i++) {
     const vorher = stand.tag;
+    // Die Rollen-Anfragen der Offseason werden auf dem Weg weggeräumt — sie
+    // sind hier nicht der Gegenstand, aber sie halten an.
+    raeumeAntworten(stand, (a) => a[a.length - 1]);
     weiter(stand, spieltag);
     if (stand.tag === vorher) break;
   }

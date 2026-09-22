@@ -16,11 +16,26 @@ import '../../app.js';
 
 /**
  * Ein Klick auf das, was gerade dran ist — genau die Handgriffe, die ein
- * Mensch täte: den Spielbericht wegklicken, eine Antwort geben, sonst die
- * Tageskarte drücken.
+ * Mensch täte: den Spielbericht wegklicken, ein Gespräch führen, eine Antwort
+ * geben, sonst die Tageskarte drücken.
+ *
+ * Das Gespräch zählt als **ein** Handgriff, obwohl es drei Klicks sind: für
+ * den Manager ist es eine Handlung — aufschlagen, Rolle sagen, zumachen.
  * @returns {string} was getan wurde
  */
 function einSchritt() {
+  if (alle('.frageschirm .gespraech').length > 0) {
+    // Der Erste der Liste ist die größte Zusage. Dass dieser Tester jedem alles
+    // verspricht, ist genau der Fall, der später wehtut — und damit der, den
+    // eine Saison im Browser gesehen haben sollte.
+    const wahl = q('.gespraech-kategorie');
+    if (!wahl) return 'gespräch ohne wahl';
+    wahl.click();
+    const zu = q('.fragenknoepfe button');
+    if (!zu) return 'gespräch ohne schluss';
+    zu.click();
+    return 'gesprochen';
+  }
   if (alle('.bericht-kopf').length > 0) {
     q('.fuss button.haupt').click();
     return 'bericht zu';
@@ -47,14 +62,21 @@ try {
   // überrollt. Sie tut es am letzten Tag der Sommerpause, nicht auf Knopfdruck.
   const wege = [];
   let i = 0;
-  for (; i < 200 && txt('.kopf-unter') !== 'Saison 2027'; i++) {
+  for (; i < 400 && txt('.kopf-unter') !== 'Saison 2027'; i++) {
     const was = einSchritt();
     wege.push(was);
     if (was === 'nichts zu tun' || was === 'antwort fehlt') break;
   }
   pruefe('die Saison lässt sich durchklicken', txt('.kopf-unter') === 'Saison 2027',
     `${i} Handgriffe, zuletzt: ${wege.slice(-4).join(' / ')}`);
-  pruefe('und zwar in überschaubar vielen Handgriffen', i < 60, `${i}`);
+  // Die Zahl ist seit der Rollen-Kampagne eine andere: die Offseason hat jetzt
+  // Arbeit. An rund zwanzig Wochenanfängen fragen ein bis zwei Spieler nach
+  // ihrer Rolle, und dieser Tester redet mit jedem von ihnen, statt zu
+  // vertagen. Das ist der teuerste Weg durch eine Saison, den es gibt — die
+  // Grenze sagt deshalb, dass er im Rahmen bleibt, nicht dass er kurz ist.
+  pruefe('und zwar in überschaubar vielen Handgriffen', i < 160, `${i}`);
+  const gespraeche = wege.filter((w) => w === 'gesprochen').length;
+  pruefe('die Rollen-Kampagne ist durchgelaufen', gespraeche >= 20, `${gespraeche}`);
   // Zehn Gruppenspiele hat jeder; Halbfinale und Finale nur, wer hinkommt.
   const kickoffs = wege.filter((w) => w === 'Kickoff').length;
   pruefe('ein Kickoff je eigenem Spiel', kickoffs >= 10 && kickoffs <= 12, `${kickoffs}`);
@@ -66,6 +88,9 @@ try {
   // Und im Postfach liegt, was der Wechsel mitbringt. Rücktritte sind nicht
   // darunter: nach der ersten Saison ist dafür niemand alt genug.
   gleich('nichts hält die Uhr auf', alle('.postzeichen.antwort').length, 0);
+  const neueBetreffe = alle('.postbetreff').map((e) => e.textContent);
+  pruefe('der Trainerstab eröffnet die Kampagne des neuen Jahres',
+    neueBetreffe.some((b) => b.includes('woran sie ist')), neueBetreffe.join(' | '));
   const betreffe = alle('.postbetreff').map((e) => e.textContent);
   pruefe('der Vorstand meldet sich wieder mit den Zielen für 2027',
     betreffe.some((b) => b.includes('2027')), betreffe.join(' | '));

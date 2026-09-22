@@ -56,6 +56,7 @@ in Millisekunden durchspielen können.
 | `engine/coach.js` | Der Stab: Coaching-Gruppen und ihre Ähnlichkeit, die drei Blöcke, der Stärkewert je Rolle, die Ziehung |
 | `engine/commitment.js` | Commitment und Lebenslage: die fünf Stufen, die Ziehung aus Status und Vereinsjahren, das Abschlussalter, der Horizont mit Plan und Grund — für Spieler und Coaches dieselbe |
 | `engine/lebenslauf.js` | Was von Jahr zu Jahr geschieht: Schule, Studium, Ausbildung enden, der Arbeiter-Zyklus, das Kippen des Plans durch das Commitment, die Waage Druck gegen Halt |
+| `engine/rolle.js` | Die Rolle: die fünf Stufen, die Offseason-Kampagne mit ihrem Tempo, die Reaktion beim Setzen aus Perzentil, Vorgeschichte und Alter, der Bank-Drift aus dem rollierenden Einsatzfenster, das Wochenkontingent für Gespräche |
 | `engine/aufstellung.js` | Personnel, die zweiundzwanzig Plätze, der Doppeleinsatz, die drei Special-Teams-Plätze, die Vorgabe des Managers |
 | `engine/team.js` | Aus einer Aufstellung werden Lauf- und Passwerte je Einheit |
 | `engine/spielplan.js` | Gruppenrunde nach dem Kreisverfahren, dazu das Bracket |
