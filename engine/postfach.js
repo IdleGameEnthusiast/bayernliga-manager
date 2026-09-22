@@ -128,6 +128,25 @@ export function offeneAntworten(stand) {
   return stand.post.filter((n) => brauchtAntwort(n.art) && n.antwort === null);
 }
 
+/**
+ * Wie viel Ungelesenes im Posteingang liegt.
+ *
+ * Der Papierkorb zählt hier **nicht** mit, anders als bei `offeneAntworten()`:
+ * dort geht es um eine Pflicht, der man nicht durch Wegwerfen entkommen soll,
+ * hier um einen Hinweis, den der Manager abstellen können muss. Ein Punkt, den
+ * eine ungelesene Zeile im Papierkorb am Leuchten hielte, wäre einer, der sich
+ * nur durch Wiederherstellen und Lesen löschen ließe.
+ *
+ * Die Zahl steht in der Engine und nicht in der Ansicht, weil sie an zwei
+ * Stellen gezeigt wird — als Punkt am Reiter ganz oben und als Zahl am
+ * Ordnerknopf im Postfach. Zweimal dieselbe Regel abgeschrieben heißt: eines
+ * Tages zeigen beide etwas anderes.
+ * @param {import('./saison.js').SpielStand} stand
+ */
+export function ungeleseneAnzahl(stand) {
+  return stand.post.filter((n) => !n.gelesen && !n.geloescht).length;
+}
+
 /** @param {import('./saison.js').SpielStand} stand @param {string} id */
 export function nachrichtMit(stand, id) {
   return stand.post.find((n) => n.id === id) || null;

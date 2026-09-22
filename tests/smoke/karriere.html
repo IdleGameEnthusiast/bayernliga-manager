@@ -70,6 +70,14 @@ try {
   // einzelnen Anfragen kommen erst ab der nächsten Woche.
   gleich('zwei Nachrichten liegen im Eingang', alle('.postzeile').length, 2);
   gleich('und beide sind ungelesen', alle('.postzeile.neu').length, 2);
+  // Der Punkt oben am Reiter ist der einzige Hinweis, den man von den anderen
+  // Ansichten aus sieht. Er zählt nicht sichtbar mit — die Zahl steht am
+  // Ordnerknopf —, aber sein Titel tut es, und daran ist er zu prüfen.
+  const punkte = () => alle('.reiter .reiterpunkt').length;
+  gleich('der Reiter oben trägt einen Punkt', punkte(), 1);
+  gleich('und zwar der Posteingang',
+    q('.reiterpunkt').closest('button').textContent, 'Posteingang');
+  gleich('er weiß, wie viel da liegt', q('.reiterpunkt').title, '2 ungelesen');
   pruefe('der Trainerstab eröffnet die Rollen-Kampagne', !!zeileMit('woran sie ist'),
     alle('.postbetreff').map((e) => e.textContent).join(' | '));
   gleich('sie verlangt keine Antwort', alle('.postzeichen.antwort').length, 0);
@@ -85,6 +93,7 @@ try {
   zeileMit('Willkommen bei').click();
   enthaelt('die Nachricht schlägt rechts auf', txt('.postlese'), 'Willkommen bei');
   gleich('sie ist jetzt gelesen', alle('.postzeile.neu').length, 1);
+  gleich('der Punkt oben zählt mit', q('.reiterpunkt').title, '1 ungelesen');
   gleich('und liegt weiter im Posteingang', alle('.postzeile').length, 2);
   pruefe('unten steht das Löschen', leseKnoepfe().includes('Löschen'), leseKnoepfe().join(' | '));
   gleich('und sonst nichts', leseKnoepfe().length, 1);
@@ -101,6 +110,8 @@ try {
   gleich('der Posteingang steht wieder offen',
     txt('.postordner-knopf.aktiv .postordner-name'), 'Posteingang');
   gleich('und beide Nachrichten darin', alle('.postzeile').length, 2);
+  zeileMit('woran sie ist').click();
+  gleich('nichts Ungelesenes mehr, kein Punkt', punkte(), 0);
 
   // 5 — Ein Tipp im Raster wählt nur aus; simuliert wird auf Knopfdruck
   gleich('noch steht keine Auswahl da', alle('.kalauswahl').length, 0);

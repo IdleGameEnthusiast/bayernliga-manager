@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import {
   ANTWORTEN, POST_MAX, brauchtAntwort, antwortenZu, laufendeNummer,
   baueNachrichten, sende, offeneAntworten, nachrichtMit, markiereGelesen,
-  beantworte, loescheNachricht, stelleWiederHer, stutzePost,
+  beantworte, loescheNachricht, stelleWiederHer, stutzePost, ungeleseneAnzahl,
 } from '../engine/postfach.js';
 import { T } from '../i18n.js';
 
@@ -132,6 +132,23 @@ test('gelesen heißt gelesen und sonst nichts', () => {
   assert.equal(n.gelesen, true);
   assert.equal(n.geloescht, false, 'das Lesen hat sie in ein Archiv geschoben');
   assert.equal(markiereGelesen(s, 'gibtesnicht'), null);
+});
+
+test('der Papierkorb hält den Punkt am Reiter nicht am Leuchten', () => {
+  const s = stand();
+  const [a, b] = sende(s, 1, [{ art: 'spielbericht' }, { art: 'verletzung' }]);
+  assert.equal(ungeleseneAnzahl(s), 2);
+
+  markiereGelesen(s, a.id);
+  assert.equal(ungeleseneAnzahl(s), 1);
+
+  // Wegwerfen ist auch eine Art, fertig zu sein: sonst bliebe ein Hinweis
+  // stehen, den man nur durch Wiederherstellen und Lesen abstellen könnte.
+  loescheNachricht(s, b.id);
+  assert.equal(ungeleseneAnzahl(s), 0);
+
+  stelleWiederHer(s, b.id);
+  assert.equal(ungeleseneAnzahl(s), 1, 'zurück im Eingang, immer noch ungelesen');
 });
 
 test('löschen und wiederherstellen sind ein Feld, kein zweiter Stapel', () => {

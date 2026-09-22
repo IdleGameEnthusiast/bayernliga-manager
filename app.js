@@ -10,7 +10,9 @@ import { el, leere, kontrastFarbe } from './ui/dom.js';
 import { T } from './i18n.js';
 import { teamById } from './engine/content.js';
 import { datum } from './engine/kalender.js';
-import { markiereGelesen, loescheNachricht, stelleWiederHer } from './engine/postfach.js';
+import {
+  markiereGelesen, loescheNachricht, stelleWiederHer, ungeleseneAnzahl,
+} from './engine/postfach.js';
 import {
   neuesSpiel, weiter, beantworteNachricht, gruppenTabellen, meineTabelle,
   setzeTaktik, automatischAufstellen, eigenePartieAmTag, offenePlaetze,
@@ -236,12 +238,27 @@ function reiter() {
     ['tabelle', T.nav.tabelle],
     ['spielplan', T.nav.spielplan],
   ];
+  // Der Punkt am Posteingang sagt „da liegt was", nicht wie viel: die Zahl
+  // steht einen Klick tiefer am Ordnerknopf, und sechs Reiter nebeneinander
+  // haben auf einem Telefon keinen Platz für eine zweite Zahl, die dasselbe
+  // meint. Er hängt hier oben, weil er sonst nur dort zu sehen wäre, wo man
+  // ohnehin schon hingeschaut hat.
+  const ungelesen = stand ? ungeleseneAnzahl(stand) : 0;
+
   return el('div', { class: 'reiter', role: 'tablist' },
     tabs.map(([id, label]) => el('button', {
       role: 'tab',
       'aria-selected': String(ansicht === id),
       onclick: () => wechsle(id),
-    }, label)));
+    }, label, id === 'postfach' && ungelesen > 0 ? ungelesenPunkt(ungelesen) : null)));
+}
+
+/** @param {number} ungelesen */
+function ungelesenPunkt(ungelesen) {
+  const text = T.postfach.ungelesen(ungelesen);
+  return el('span', {
+    class: 'reiterpunkt', role: 'img', title: text, 'aria-label': text,
+  });
 }
 
 // --- Aktionen --------------------------------------------------------------

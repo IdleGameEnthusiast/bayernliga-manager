@@ -28,7 +28,7 @@ import {
   datum, tagVonDatum, tageImMonat, rasterVersatz, spieltagAmTag, phaseAmTag,
   saisonLaenge, nachDemFinale,
 } from '../engine/kalender.js';
-import { brauchtAntwort, antwortenZu } from '../engine/postfach.js';
+import { brauchtAntwort, antwortenZu, ungeleseneAnzahl } from '../engine/postfach.js';
 import { naechsterStopp, eigenePartieAmTag } from '../engine/saison.js';
 
 /**
@@ -365,7 +365,7 @@ function postKarte(stand, aktionen) {
   return el('div', { class: 'karte postfach' },
     el('div', { class: 'postordner', role: 'tablist', 'aria-label': T.postfach.ordner },
       ordnerKnopf('posteingang', T.postfach.posteingang,
-        eingang.filter((n) => !n.gelesen).length, aktionen),
+        ungeleseneAnzahl(stand), aktionen),
       ordnerKnopf('geloescht', T.postfach.geloescht, 0, aktionen)),
     el('div', { class: 'postspalte' },
       liste.length === 0
