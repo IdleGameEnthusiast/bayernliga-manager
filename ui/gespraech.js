@@ -14,10 +14,11 @@
  * sich merkt, welcher Schritt gerade offen ist, überlebt sonst das Schließen
  * und geht beim nächsten Spieler an der falschen Stelle wieder auf.
  *
- * **Die noch nicht gebauten Kategorien stehen trotzdem da**, mit dem Hinweis,
- * dass sie kommen — eine Liste, in der später ohne Ankündigung Zeilen
- * erscheinen, liest sich wie ein anderes Spiel. Wer den Rahmen hier einmal
- * hat, hängt sie nur noch ein.
+ * Solange Kategorien fehlten, standen sie trotzdem schon in der Liste, mit
+ * einem gesperrten Knopf und dem Hinweis, dass sie kommen — eine Liste, in der
+ * später ohne Ankündigung Zeilen erscheinen, liest sich wie ein anderes Spiel.
+ * Mit der fünften ist das Gerüst weg. Wer eine sechste anhängt, baut es
+ * wieder ein: erst ankündigen, dann liefern.
  *
  * Jede Kategorie bekommt ihren eigenen zweiten Schritt: die Rolle die Auswahl
  * der fünf Stufen, das persönliche Gespräch eine Nachfrage. Was einen Termin
@@ -51,6 +52,7 @@ import { positionsKuerzel } from '../engine/positionen.js';
  * @typedef {object} Aktionen
  * @property {(kategorie: string) => void} waehleKategorie
  * @property {(rolle: import('../engine/rolle.js').Rolle) => void} setzeRolle
+ * @property {() => void} frageNachLage
  * @property {() => void} redePersoenlich
  * @property {() => void} frageNachWunsch
  * @property {() => void} gibNummer
@@ -58,14 +60,8 @@ import { positionsKuerzel } from '../engine/positionen.js';
  * @property {() => void} schliesse
  */
 
-/** Die Kategorien in der Reihenfolge des Fahrplans, und ob sie schon ziehen. */
-const KATEGORIEN = /** @type {[string, boolean][]} */ ([
-  ['rolle', true],
-  ['lebenslage', false],
-  ['persoenlich', true],
-  ['wunsch', true],
-  ['ueberzeugen', true],
-]);
+/** Die Kategorien in der Reihenfolge des Fahrplans. */
+const KATEGORIEN = ['rolle', 'lebenslage', 'persoenlich', 'wunsch', 'ueberzeugen'];
 
 /**
  * @param {import('../engine/saison.js').SpielStand} stand
@@ -89,6 +85,9 @@ export function zeigeGespraech(stand, zustand, frei, aktionen) {
   if (zustand.reaktion) {
     if (zustand.kategorie === 'wunsch') {
       return wunschReaktion(sp, name, kopf, zustand.reaktion.ton, aktionen);
+    }
+    if (zustand.kategorie === 'lebenslage') {
+      return lebenslageReaktion(stand, sp, name, kopf, zustand.reaktion.ton, aktionen);
     }
     if (zustand.kategorie === 'ueberzeugen') {
       return blattMit(kopf, [
@@ -114,6 +113,10 @@ export function zeigeGespraech(stand, zustand, frei, aktionen) {
     return rollenSchritt(kader, sp, kopf, frei, stand.tag, aktionen);
   }
 
+  if (zustand.kategorie === 'lebenslage') {
+    return lebenslageSchritt(stand, sp, kopf, frei, aktionen);
+  }
+
   if (zustand.kategorie === 'persoenlich') {
     return persoenlichSchritt(stand, sp, kopf, frei, aktionen);
   }
@@ -131,7 +134,7 @@ export function zeigeGespraech(stand, zustand, frei, aktionen) {
   // führte, wäre eine Einladung, einen Termin auf ein Nein zu verbrauchen —
   // und die Antwort auf „hat er etwas?" gibt es schon: das Wunschgespräch.
   const sichtbar = KATEGORIEN.filter(
-    ([id]) => id !== 'ueberzeugen' || offeneAblehnungen(sp).length > 0,
+    (id) => id !== 'ueberzeugen' || offeneAblehnungen(sp).length > 0,
   );
 
   return blattMit(kopf, [
@@ -140,14 +143,12 @@ export function zeigeGespraech(stand, zustand, frei, aktionen) {
       text: frei > 0 ? T.gespraech.kontingent(frei) : T.gespraech.keinKontingent,
     }),
     el('div', { class: 'gespraech-liste' },
-      sichtbar.map(([id, offen]) => el('button', {
+      sichtbar.map((id) => el('button', {
         class: 'neben gespraech-kategorie',
-        disabled: (!offen || frei === 0) || undefined,
-        title: offen ? undefined : T.gespraech.baustelle,
-        onclick: offen ? () => aktionen.waehleKategorie(id) : null,
+        disabled: frei === 0 || undefined,
+        onclick: () => aktionen.waehleKategorie(id),
       },
-        el('span', { text: T.gespraech.kategorien[id] }),
-        offen ? null : el('span', { class: 'klein leise', text: T.gespraech.baustelle })))),
+        el('span', { text: T.gespraech.kategorien[id] })))),
   ], [
     { label: T.gespraech.abbrechen, klasse: 'neben', wirkung: aktionen.schliesse },
   ]);
@@ -246,6 +247,78 @@ function persoenlichSchritt(stand, sp, kopf, frei, aktionen) {
       ? [{ label: T.gespraech.persoenlichKnopf, klasse: 'haupt', wirkung: aktionen.redePersoenlich }]
       : []),
   ]);
+}
+
+/**
+ * Der zweite Schritt beim Fragen nach der Lebenslage.
+ *
+ * Vorab steht da, was in der Akte steht — derselbe Satz wie im Personalreiter.
+ * Das ist kein Füllwerk, sondern die halbe Kategorie: ohne den alten Stand vor
+ * Augen ist die Antwort hinterher nicht als Änderung zu erkennen, und genau
+ * darum geht es hier. Ein zweiter Satz daneben, der die Änderung benennt, wäre
+ * die bequemere Lösung und die falsche — der Manager soll den Unterschied
+ * selbst sehen, wie er ihn auch in der Akte sehen wird.
+ * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {import('../engine/spieler.js').Spieler} sp
+ * @param {(HTMLElement)[]} kopf
+ * @param {number} frei
+ * @param {Aktionen} aktionen
+ */
+function lebenslageSchritt(stand, sp, kopf, frei, aktionen) {
+  const inhalt = [
+    el('h3', { class: 'klein', text: T.gespraech.lebenslageTitel }),
+    el('p', { class: 'klein leise', text: T.gespraech.lebenslageHinweis }),
+    ...akteZeilen(stand, sp, T.gespraech.lebenslageAkte),
+  ];
+  if (frei === 0) {
+    inhalt.push(el('p', { class: 'klein warnung', text: T.gespraech.keinKontingent }));
+  }
+
+  return blattMit(kopf, inhalt, [
+    { label: T.gespraech.abbrechen, klasse: 'neben', wirkung: aktionen.schliesse },
+    ...(frei > 0
+      ? [{ label: T.gespraech.lebenslageKnopf, klasse: 'haupt', wirkung: aktionen.frageNachLage }]
+      : []),
+  ]);
+}
+
+/**
+ * Was er erzählt hat — und darunter, was jetzt in der Akte steht.
+ *
+ * Der Satz wird frisch aus der Lebenslage gebaut, nicht aus der Auskunft
+ * gereicht: die Engine hat sie im Gespräch eventuell geändert, und der Dialog
+ * soll dasselbe zeigen wie der Personalreiter eine Sekunde später. Zwei Wege
+ * zu derselben Zeile liefen irgendwann auseinander.
+ * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {import('../engine/spieler.js').Spieler} sp
+ * @param {string} name
+ * @param {(HTMLElement)[]} kopf
+ * @param {number} ton
+ * @param {Aktionen} aktionen
+ */
+function lebenslageReaktion(stand, sp, name, kopf, ton, aktionen) {
+  return blattMit(kopf, [
+    el('p', { class: 'gespraech-reaktion', text: T.gespraech.lebenslageReaktionen[ton](name) }),
+    ...akteZeilen(stand, sp, T.gespraech.lebenslageJetzt),
+  ], [
+    { label: T.gespraech.schliessen, klasse: 'haupt', wirkung: aktionen.schliesse },
+  ]);
+}
+
+/**
+ * Die Lebenslage in Worten, mit einer Überschrift davor. Steht zweimal im
+ * Blatt — vor der Frage als Akte, danach als das, was jetzt darin steht.
+ * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {import('../engine/spieler.js').Spieler} sp
+ * @param {string} titel
+ */
+function akteZeilen(stand, sp, titel) {
+  const lage = sp.lebenslage;
+  if (!lage) return [];
+  return [
+    el('p', { class: 'klein leise', text: titel }),
+    el('p', { class: 'gespraech-wunsch', text: T.lebenslage.satz(lage, stand.jahr) }),
+  ];
 }
 
 /**

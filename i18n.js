@@ -391,7 +391,12 @@ export const DE = {
       + `Rücktritt nach ${d.ruecktrittAlter} · Druck ${d.druck} gegen Halt ${d.halt}`
       + (d.druckJahre > 0 ? ` (${d.druckJahre}. Saison drüber)` : '')
       + (d.einsatzFenster ? ` · Einsatzfenster ${d.einsatzFenster}` : '')
-      + (d.mismatch ? ` · Rollen-Mismatch ${d.mismatch}` : ''),
+      + (d.mismatch ? ` · Rollen-Mismatch ${d.mismatch}` : '')
+      + (d.wahrheit ? ` · in Wahrheit ${d.wahrheit}` : ''),
+    // Ab welchem Jahr er die zweite Wahrheit im Gespräch herausrücken würde.
+    // Ohne diese Zahl ist beim Spieltesten nicht zu unterscheiden, ob ein
+    // Gespräch nichts zu holen hatte oder nur zu früh kam.
+    wissbarAb: (jahr) => ` (weiß es ab ${jahr})`,
   },
 
   // Die fünf Stufen, in denen der Manager das Commitment sieht — von unten
@@ -438,9 +443,12 @@ export const DE = {
     titel: (name, erwartung) => `${name}: ${erwartung}`,
   },
 
-  // Das Gespräch: ein Kalendertermin, und deshalb knapp. Die Kategorien, die
-  // noch nicht gebaut sind, stehen trotzdem da — sie sagen, was kommt, und ein
-  // gesperrter Knopf ist ehrlicher als eine Lücke.
+  // Das Gespräch: ein Kalendertermin, und deshalb knapp. Bis alle fünf
+  // Kategorien gebaut waren, standen die ungebauten mit einem gesperrten Knopf
+  // und dem Hinweis „kommt noch" daneben — eine Liste, in der ohne Ankündigung
+  // Zeilen erscheinen, liest sich wie ein anderes Spiel. Der Hinweis ist mit
+  // der letzten Kategorie weggefallen; wer eine sechste anhängt, baut ihn
+  // wieder ein, statt sie stillschweigend erscheinen zu lassen.
   gespraech: {
     titel: (name) => `Gespräch mit ${name}`,
     unter: (position, alter) => `${position} · ${alter} Jahre`,
@@ -455,7 +463,23 @@ export const DE = {
       wunsch: 'Wunsch anhören',
       ueberzeugen: 'Überzeugen',
     },
-    baustelle: 'Kommt mit dem nächsten Schritt.',
+    // Nach der Lebenslage fragen. Der Hinweis sagt ausdrücklich, dass die
+    // Antwort der Stand von heute ist — wer hier eine Garantie erwartet, hält
+    // das spätere „ich zieh doch weg" für einen Wortbruch, dabei ist es das
+    // Gegenteil: er hat es gesagt, sobald er es wusste.
+    lebenslageTitel: 'Wie sieht es bei dir aus?',
+    lebenslageHinweis: 'Einmal nach dem Leben neben dem Verein fragen. Was er sagt, ist, was '
+      + 'er heute weiß — entschieden hat er womöglich noch gar nichts. Kostet einen Termin.',
+    lebenslageKnopf: 'Fragen',
+    lebenslageAkte: 'Das steht bisher in seiner Akte:',
+    lebenslageJetzt: 'Neu in der Akte:',
+    // Index ist der Ton aus `frageNachLebenslage()`: es bleibt beim Plan, oder
+    // er rückt mit etwas anderem heraus. Ton 0 sagt bewusst nicht, ob es
+    // nichts zu erfahren gab oder ob er es nur selbst noch nicht weiß.
+    lebenslageReaktionen: [
+      (name) => `${name} erzählt eine Weile. Es läuft, wie es zuletzt gelaufen ist.`,
+      (name) => `${name} druckst herum. „Wollte ich dir sowieso sagen." Dann sagt er es.`,
+    ],
     // Über persönliche Themen sprechen. Der Hinweis vorab nennt den Abstand
     // zum letzten Gespräch, weil der Ertrag daran hängt — ein Termin, der
     // nichts bringt, soll vorher erkennbar sein und nicht hinterher.

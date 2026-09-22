@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<title>Lebenslage: der Plan in der Akte und die Wahrheit daneben</title>
+<link rel="stylesheet" href="../../app.css">
+<link rel="stylesheet" href="melder.css">
+<script src="./melder.js"></script>
+</head>
+<body><div id="app" class="app"></div><div id="bericht"></div>
+
+<!-- Erst den Stand hinlegen, dann erst die App laden — sie liest ihn beim
+     Start. Beides statisch importiert; ein `await import()` ginge am
+     load-Ereignis vorbei.
+
+     Zwei Männer mit derselben Abweichung und verschiedenen Jahren, in denen
+     sie davon wissen: das ist die ganze Kategorie. Erspielen ließe sich der
+     Fall zwar — eine zweite Wahrheit hat fast jeder Dritte —, aber nicht
+     gezielt, und ein Rauchtest, der auf eine Ziehung wartet, prüft nichts. -->
+<script type="module">
+import { neuesSpiel, ergaenzeBindung } from '../../engine/saison.js';
+import { speichere } from '../../engine/save.js';
+
+localStorage.clear();
+
+const s = neuesSpiel('heg', 'lebenslage-smoke');
+ergaenzeBindung(s);
+
+// 187 km ist als Wegzug eindeutig: weiter, als je einer ins Training fährt
+// (das oberste Band endet bei 120), also kann die Zeile nicht mit der
+// Entfernung verwechselt werden.
+const plan = () => ({ jahr: s.jahr + 4, dann: 'bleibt', km: 0 });
+const wahrheit = (wissbarAb) => ({ jahr: s.jahr + 4, dann: 'wegzug', km: 187, wissbarAb });
+
+const jetzt = s.kader[s.meinTeam][0];
+jetzt.lebenslage.horizont = plan();
+jetzt.lebenslage.horizontWahrheit = wahrheit(s.jahr);
+window.redetName = `${jetzt.vorname} ${jetzt.nachname}`;
+
+const spaeter = s.kader[s.meinTeam][1];
+spaeter.lebenslage.horizont = plan();
+spaeter.lebenslage.horizontWahrheit = wahrheit(s.jahr + 3);
+window.schweigtName = `${spaeter.vorname} ${spaeter.nachname}`;
+
+speichere(s);
+</script>
+
+<script type="module">
+import '../../app.js';
+
+try {
+  gleich('die App läuft im gelegten Stand', alle('.start-team').length, 0);
+  alle('.reiter button').find((b) => b.textContent === 'Personal').click();
+
+  const zeileVon = (name) => alle('.spielerzeile').find((z) => z.textContent.includes(name));
+  const katKnopf = (name) =>
+    alle('.gespraech-kategorie').find((b) => b.textContent.startsWith(name));
+  const knopf = (name) => alle('.fragenknoepfe button').find((b) => b.textContent === name);
+
+  // 1 — Die Akte zeigt den Plan, nicht die Wahrheit. Das ist der Zustand, von
+  // dem alles Weitere abhängt: stünde sie hier schon, wäre die Kategorie ein
+  // Knopf ohne Inhalt.
+  const zeile = zeileVon(redetName);
+  pruefe('der Mann steht im Roster', !!zeile, redetName);
+  zeile.click();
+  enthaelt('aufgeklappt steht seine Lebenslage da', txt('.tabelle-scroll'), 'Lebenslage');
+  enthaelt('und darin sein Plan', txt('.tabelle-scroll'), 'will bleiben');
+  pruefe('von der Wahrheit steht nichts da',
+    !txt('.tabelle-scroll').includes('187 km'), txt('.tabelle-scroll'));
+
+  // 2 — Der Dialog fragt, bevor der Termin draufgeht, und zeigt vorher, was
+  // bisher in der Akte steht — ohne den alten Stand ist die Antwort hinterher
+  // nicht als Änderung zu erkennen.
+  zeile.querySelector('button').click();
+  pruefe('die Kategorie steht in der Liste', !!katKnopf('Nach der Lebenslage'),
+    alle('.gespraech-kategorie').map((b) => b.textContent).join(' | '));
+  katKnopf('Nach der Lebenslage').click();
+  enthaelt('erst wird gefragt, bevor der Termin draufgeht',
+    txt('.gespraech'), 'Wie sieht es bei dir aus?');
+  enthaelt('mit dem, was bisher in der Akte steht', txt('.gespraech'), 'will bleiben');
+  pruefe('und einem Knopf dafür', !!knopf('Fragen'),
+    alle('.fragenknoepfe button').map((b) => b.textContent).join(' | '));
+
+  // 3 — Er weiß es selbst, also sagt er es. Danach steht die Wahrheit im Blatt.
+  knopf('Fragen').click();
+  gleich('danach steht seine Reaktion da', alle('.gespraech-reaktion').length, 1);
+  enthaelt('und die neue Auskunft daneben', txt('.gespraech'), '187 km');
+  q('.fragenknoepfe button').click();
+  gleich('das Blatt ist zu', alle('.frageschirm').length, 0);
+
+  // 4 — Und zwar dauerhaft: die Akte trägt sie jetzt, nicht nur der Dialog.
+  enthaelt('die Akte trägt die Wahrheit jetzt selbst', txt('.tabelle-scroll'), '187 km');
+
+  // 5 — Der Zweite weiß es noch nicht. Er bestätigt den Plan, und zwar ohne zu
+  // lügen: er hat sich selbst noch nicht entschieden.
+  const zweite = zeileVon(schweigtName);
+  zweite.querySelector('button').click();
+  katKnopf('Nach der Lebenslage').click();
+  knopf('Fragen').click();
+  gleich('auch beim Zweiten steht eine Reaktion da', alle('.gespraech-reaktion').length, 1);
+  pruefe('aber kein Wort von der Wahrheit — er weiß sie selbst noch nicht',
+    !txt('.gespraech').includes('187 km'), txt('.gespraech'));
+  enthaelt('er bestätigt den Plan', txt('.gespraech'), 'will bleiben');
+  q('.fragenknoepfe button').click();
+
+  // 6 — Zwei Fragen, zwei Termine. Das Kontingent ist die einzige Schranke der
+  // Kategorie, und ohne sie wäre sie ein Knopf, den man fünfundvierzigmal
+  // drückt, bis jede Wahrheit auf dem Tisch liegt.
+  zweite.querySelector('button').click();
+  enthaelt('zwei Termine sind weg', txt('.gespraech'), 'noch ein Gespräch');
+  q('.fragenknoepfe button').click();
+} catch (e) { merkeFehler(e); }
+melde();
+</script>
+</body></html>

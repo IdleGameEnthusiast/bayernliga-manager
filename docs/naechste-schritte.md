@@ -12,12 +12,10 @@ hängen — siehe [`umbau-aufstellung.md`](umbau-aufstellung.md). Aus Block 7
 sind Schritt 1 (Commitment und Lebenslage als Felder) und Schritt 2a (der
 Statusübergangs-Motor: Horizonte, Statuswechsel, Druck gegen Halt) umgesetzt.
 Von Schritt 2b stehen die Kalenderphasen, die Rollen-Kampagne samt
-Gesprächs-Dialog und Wochenkontingent und die Kategorien „Über persönliche
-Themen sprechen", „Wunsch anhören" und „Überzeugen". **Als Nächstes steht die
-letzte Gesprächskategorie** — Nach Lebenslage fragen —, siehe die
-Baureihenfolge unten. Danach bleibt die Drift durch Coach,
-Verletzung, Erfolg und Vereinsjahre offen, und mit ihr die Trend-Nachricht
-vom Positionscoach.
+Gesprächs-Dialog und Wochenkontingent und **alle fünf Gesprächskategorien**.
+**Als Nächstes steht die Drift durch Coach, Verletzung, Erfolg und
+Vereinsjahre**, und mit ihr die generische Trend-Nachricht vom Positionscoach
+mit ihrem Empathie-Gate — das Einzige, was aus Schritt 2b noch offen ist.
 
 ---
 
@@ -723,7 +721,11 @@ Dialog unsichtbar.
 - Ein Risiko wie bei jeder anderen Kategorie: zu forsches Drängen kostet eine
   Spur Commitment, auch wenn es (noch) nicht zieht.
 
-### Nach Lebenslage fragen — der Zeitpunkt einer Enthüllung
+### Nach Lebenslage fragen — der Zeitpunkt einer Enthüllung ✅ gebaut
+
+*Umgesetzt mit zwei Ergänzungen — siehe die Baureihenfolge weiter unten,
+Punkt 4. Der Entwurf bleibt stehen, weil er die Gründe trägt.*
+
 
 „Die Wahrheit liegt daneben" (siehe oben) heißt nicht, dass sie von Anfang an
 feststeht *und bekannt wäre* — ein Student mit Vier-Jahres-Plan weiß am Tag
@@ -1226,9 +1228,36 @@ eigenen Platz, es steht als „noch zwei Jahre Schule" ohnehin im Satz.
            läuft ohne Empathie-Gate, wie die Rollen-Mismatch-Nachricht: der
            Spieler sagt es selbst, und es ist das einzige der drei
            Spieltags-Dinge, das der Manager nicht hat kommen sehen können.
-        4. Nach Lebenslage fragen + `horizontWahrheit` und `wissbarAb`.
+        4. ~~Nach Lebenslage fragen + `horizontWahrheit` und `wissbarAb`.
            Zuletzt, weil hier als Einzigem eine zweite, versteckte Wahrheit
-           neben den Plan tritt — das ist kein Verdrahten mehr.
+           neben den Plan tritt — das ist kein Verdrahten mehr.~~ **Gebaut**
+           (`engine/auskunft.js`, Save-Version 17), mit zwei Ergänzungen, die
+           sich beim Bauen als zwingend herausgestellt haben:
+           - **Der Kalender deckt auch auf, nicht nur das Gespräch.** Läuft
+             das geplante Jahr ab, ohne dass etwas geschieht, hat der Plan
+             sich selbst widerlegt und die Wahrheit rückt ungefragt in die
+             Akte. Ohne das stünde dort drei Saisons lang „noch dieses Jahr
+             Studium", und der Manager hielte es für einen Fehler. Es geht
+             immer auf, weil `wissbarAb` nie hinter dem geplanten Jahr liegt —
+             an dieser Stelle weiß er es längst selbst. Wer fragt, erfährt es
+             also **früher**, nicht als Einziger: ein Vorsprung, kein
+             Geheimnis.
+           - **Die Enthüllung überschreibt den Plan.** Danach gibt es nur
+             noch eine Zukunft, und sie steht in der Akte. Beides nebeneinander
+             anzuzeigen hätte einen dritten Zustand in jede Ansicht getragen,
+             für einen Unterschied, der nach dem Gespräch niemanden mehr
+             interessiert.
+
+           Gemessen in [`balancing.md`](balancing.md) Abschnitt 16: 26 % der
+           Pläne tragen eine Wahrheit, Vorlauf im Mittel 1,8 Jahre, und drei
+           von fünf eingetretenen Wahrheiten wären vorher erfahrbar gewesen.
+           Der Vorlauf ist der Ertrag — am Horizont dreht `gekippt()` einen
+           Wegzug bei hoher Stufe noch in ein Bleiben.
+
+           Mit dieser Kategorie ist das Gerüst für ungebaute Kategorien
+           weggefallen (der gesperrte Knopf mit „kommt mit dem nächsten
+           Schritt"). Wer eine sechste anhängt, baut es wieder ein: erst
+           ankündigen, dann liefern.
      Drift durch Coach, Verletzung, Erfolg, Vereinsjahre bleibt **offen** und
      ist nicht Teil dieses Zuschnitts — Rolle deckt nur die Bank ab. Die
      generische Trend-Nachricht mit dem Empathie-Gate des Positionscoaches ist

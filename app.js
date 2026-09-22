@@ -19,6 +19,7 @@ import {
   aufstellungSetze, aufstellungRaeume, aufstellungLeeren,
   gespraecheFrei, fuehreRollenGespraech, fuehrePersoenlichesGespraech,
   fuehreWunschGespraech, erfuelleNummernwunsch, fuehreUeberzeugenGespraech,
+  fuehreLebenslageGespraech,
 } from './engine/saison.js';
 import { WERTUNG_PUNKTE } from './engine/constants.js';
 import { partienDerRunde } from './engine/spielplan.js';
@@ -166,6 +167,17 @@ const gespraechsAktionen = {
     // worden.
     const reaktion = fuehreRollenGespraech(stand, gespraech.spielerId, rolle);
     if (reaktion) gespraech = { ...gespraech, reaktion };
+    speichere(stand);
+    zeichne();
+  },
+  frageNachLage: () => {
+    if (!stand || !gespraech) return;
+    // Der Ton sagt nur, ob er etwas anderes erzählt hat als bisher. **Was** er
+    // erzählt, steht danach in seiner Lebenslage, und das Blatt liest es von
+    // dort — wie beim Wunsch, und aus demselben Grund: zwei Wege zu derselben
+    // Zeile laufen auseinander.
+    const auskunft = fuehreLebenslageGespraech(stand, gespraech.spielerId);
+    if (auskunft) gespraech = { ...gespraech, reaktion: { ton: auskunft.ton } };
     speichere(stand);
     zeichne();
   },

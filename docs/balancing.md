@@ -610,6 +610,86 @@ zerlegt hat, nur mit umgekehrtem Vorzeichen.
 
 ---
 
+## 16 — Nach der Lebenslage fragen: der Zeitpunkt einer Enthüllung
+
+*„Der Plan in der Akte stimmt doch immer"* oder *„man erfährt es sowieso zu
+spät".* `engine/constants.js`, Ziehung in `engine/commitment.js`, Gespräch in
+`engine/auskunft.js`, Docs [`naechste-schritte.md`](naechste-schritte.md)
+Block 7, Abschnitt „Nach Lebenslage fragen".
+
+Die einzige der fünf Kategorien, die einen **neuen Zustand** einführt statt
+einen vorhandenen zu verdrahten: neben dem Plan, den der Spieler erzählt,
+steht die Wahrheit, und der einzige Weg dorthin führt über das Fragen — oder
+über den Kalender, der sie irgendwann selbst aufdeckt.
+
+| Konstante | Wert | Wirkung | Richtung |
+| --- | --- | --- | --- |
+| `WAHRHEIT_CHANCE` | 0,30 | wie oft ein frisch gezogener Plan nicht hält | niedriger = der Manager fragt neunzehnmal umsonst und hört auf, bevor der eine Fall kommt; höher = die Akte ist wertlos, und mit ihr der Personalreiter |
+| `WAHRHEIT_ARTEN` | 50 / 50 | Abweichung im Zeitpunkt oder im Ausgang | mehr Zeitpunkt = lauter Verschiebungen, über die niemand handeln muss; mehr Ausgang = jede Enthüllung ist ein Schock |
+| `WAHRHEIT_VERSCHIEBUNG` | +1: 45, +2: 25, −1: 30 | um wie viele Jahre der Zeitpunkt rutscht | Abschnitte im Leben ziehen sich, sie verkürzen sich selten |
+| `WISSBAR_ANTEIL` | 0,30 … 0,90 | ab welchem Anteil der geplanten Strecke er es selbst weiß | Untergrenze höher = die Wahrheit kommt immer zu spät, um noch zu wirken; Obergrenze niedriger = das Gespräch wird ein Orakel |
+
+Die Untergrenze ist **nicht** 0: ein Student mit Vier-Jahres-Plan weiß am Tag
+der Einschreibung nicht, dass er in Jahr zwei abbricht. Bis dahin bestätigt er
+im Gespräch ehrlich den alten Plan, und das ist keine Lüge, sondern eine
+Auskunft über den Stand von heute. Eine Wurfchance auf „er verschweigt es"
+wurde verworfen — sie machte aus einer Frage nach dem Leben ein Verhör mit
+Trefferwahrscheinlichkeit.
+
+**Gemessen, erstens: wie oft der Plan nicht hält.** Acht Seeds, sechs
+Saisons, 2 880 gezählte Pläne im eigenen Kader:
+
+| | Anteil |
+| --- | --- |
+| Pläne mit zweiter Wahrheit | 26,2 % |
+| davon Abweichung im Zeitpunkt | 48,8 % |
+| davon Abweichung im Ausgang | 51,2 % |
+
+26 statt 30 %, weil die Zählung jeden Mann jede Saison mitnimmt: ein
+aufgedeckter oder eingetretener Plan läuft eine Weile ohne Wahrheit weiter.
+Die häufigste Verschiebung ist `bleibt → wegzug` (148 Fälle), gefolgt von
+`wegzug → bleibt` (78) und `bleibt → schluss` (58) — also überwiegend
+schlechte Nachrichten, und das ist richtig so: an einer guten muss niemand
+arbeiten.
+
+**Zweitens: wie viel Vorlauf das Fragen bringt.** Jahre zwischen dem Jahr, ab
+dem er es selbst weiß, und dem Eintreten:
+
+| Vorlauf | 0 | 1 | 2 | 3 | 4 | 5 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Anteil | 15,1 % | 25,7 % | 31,6 % | 20,2 % | 6,6 % | 0,8 % |
+
+Mittel **1,8 Jahre**. Das ist die Zahl, an der die Kategorie hängt: bei zwei
+Jahren Vorlauf kann der Manager noch etwas tun, denn am Horizont dreht
+`gekippt()` einen Wegzug bei hoher Commitment-Stufe mit 60 % in ein Bleiben
+(Abschnitt 11). Die Kette ist also **fragen, erfahren, handeln** — und die
+15 % ohne Vorlauf sind der Preis dafür, dass sie nicht garantiert ist.
+
+**Drittens: was systematisches Fragen einbringt.** Derselbe Lauf, einmal mit
+einem Manager, der jeden fragt, sobald er es wissen könnte, und einmal mit
+einem, der nie fragt. Von 109 eingetretenen Wahrheiten:
+
+| | Fälle | Anteil |
+| --- | --- | --- |
+| vorher erfahrbar gewesen | 66 | 60,6 % |
+| erst mit dem Ereignis | 43 | 39,4 % |
+
+Drei von fünf Abgängen und Wegzügen kündigen sich also an, wenn man fragt —
+und zwei von fünf eben nicht. Der Rest kommt über den Kalender: **läuft das
+geplante Jahr ab, ohne dass etwas geschieht, übernimmt die Akte die Wahrheit
+von selbst.** Sonst stünde dort drei Jahre lang „noch dieses Jahr Studium",
+und ein Manager hielte das für einen Fehler im Spiel. Wer fragt, erfährt es
+früher — er erfährt es nicht als Einziger, und das ist der Unterschied
+zwischen einem Vorsprung und einem Geheimnis.
+
+**Die Strategietabelle aus Abschnitt 14 bleibt stehen.** Acht Seeds, drei
+Saisons: nichts tun −8,3 / 3,0, „Rolle + reden" +23,5 / 0,9 (vorher −8,0 / 2,6
+und +24,1 / 0,8). Die Abweichung im Zehntel kommt daher, dass die Ziehung der
+Wahrheit einen Wurf je Mensch und Jahr in den Strom des Saisonwechsels legt;
+Reihenfolge und Größenordnung der Strategien sind unverändert.
+
+---
+
 ## Was nicht hier steht
 
 Formeln (`FORMELN`, `PROFIL_BEITRAG`, `KOERPER_KORRIDOR`), die Blockgewichte

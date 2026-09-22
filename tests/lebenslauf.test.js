@@ -12,7 +12,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { druck, halt, lebensjahr } from '../engine/lebenslauf.js';
-import { ziehAbschlussalter, ziehHorizont, ziehLebenslage, wegzugKm } from '../engine/commitment.js';
+import {
+  ziehAbschlussalter, ziehHorizont, ziehLebenslage, wegzugKm, echterHorizont,
+} from '../engine/commitment.js';
 import {
   makeRng, DRUCK_JAHRE_BIS_ABGANG, DRUCK_FAKTOR_AUTO, DRUCK_FAKTOR_FAMILIE,
   HALT_JE_VEREINSJAHR, HALT_FAMILIENBONUS_JUNG,
@@ -143,7 +145,10 @@ test('weiterstudieren geht nur einmal', () => {
     let bleibtStudent = 0;
     for (let jahr = 2026; jahr < 2040; jahr++) {
       if (p.lebenslage.status !== 'student') break;
-      const h = /** @type {NonNullable<Lebenslage['horizont']>} */ (p.lebenslage.horizont);
+      // Die Uhr auf das Jahr stellen, in dem das Studium **wirklich** endet —
+      // seit der zweiten Wahrheit ist das nicht immer das erzählte.
+      const h = /** @type {NonNullable<Lebenslage['horizont']>} */ (
+        echterHorizont(p.lebenslage));
       lebensjahr(makeRng(`w${i}${jahr}`), p, 24 + (jahr - 2026), h.jahr);
       if (p.lebenslage.status === 'student') bleibtStudent++;
     }
@@ -295,6 +300,14 @@ test('der Lebenslauf ist reproduzierbar und hängt nicht an der Kaderreihenfolge
   b.kader.heg.reverse();
   bisSaisonende(a);
   bisSaisonende(b);
+  // Die Commitments gleichziehen, bevor der Lebenslauf läuft. Sie sind
+  // auseinandergelaufen, und das zu Recht: die automatische Aufstellung geht
+  // den Kader der Reihe nach durch, ein umgedrehter Kader spielt also andere
+  // Leute, und wer spielt, driftet anders. Das ist eine andere Eigenschaft als
+  // die hier geprüfte — die Waage liest das Commitment, und ein Zähler, der an
+  // der Einsatzzeit hängt, sagt über die Ziehungen des Lebenslaufs nichts.
+  const werte = new Map(a.kader.heg.map((s) => [s.id, s.commitment]));
+  for (const s of b.kader.heg) if (werte.has(s.id)) s.commitment = werte.get(s.id);
   naechsteSaison(a);
   naechsteSaison(b);
   const lagenA = new Map(a.kader.heg.map((s) => [s.id, JSON.stringify(s.lebenslage)]));

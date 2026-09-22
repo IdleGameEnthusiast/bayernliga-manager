@@ -488,6 +488,52 @@ export const SCHLUSS_JE_STUFE = /** @type {const} */ ([2.0, 1.4, 1.0, 0.75, 0.5]
  */
 export const KIPPEN_JE_STUFE = /** @type {const} */ ([0.6, 0.3, 0, 0.3, 0.6]);
 
+// --- Die zweite Wahrheit — der versteckte Horizont -------------------------
+// Docs: docs/naechste-schritte.md, Block 7, „Nach Lebenslage fragen — der
+// Zeitpunkt einer Enthüllung". Was in der Akte steht, ist der **Plan**, den
+// der Spieler erzählt. Manchmal kommt es anders, und dann liegt die Wahrheit
+// daneben — sichtbar nur im Gespräch, und auch dort erst, wenn er sich selbst
+// entschieden hat. Gezogen wird sie in `commitment.js`, verbraucht in
+// `lebenslauf.js`, erfragt über `auskunft.js`.
+
+/**
+ * Wie oft ein gezogener Plan in Wahrheit nicht hält.
+ *
+ * Knapp ein Drittel, und das ist bewusst keine Seltenheit wie die
+ * Positionsverweigerung: der Plan ist eine Prognose über Jahre, und dass jede
+ * dritte davon danebenliegt, ist eher optimistisch. Wäre es ein Zwanzigstel,
+ * wäre das Fragen eine Formalie — der Manager bekäme neunzehnmal dieselbe
+ * Bestätigung und hörte auf zu fragen, bevor der eine Fall kommt.
+ */
+export const WAHRHEIT_CHANCE = 0.30;
+
+/**
+ * Woran der Plan scheitert: am Zeitpunkt oder am Ausgang. Zwei Arten und nicht
+ * eine, weil „das Studium dauert ein Jahr länger" und „ich ziehe doch weg"
+ * ganz verschiedene Nachrichten sind — die erste verschiebt eine Planung, die
+ * zweite wirft sie um.
+ * @type {(readonly ['dauer'|'ausgang', number])[]}
+ */
+export const WAHRHEIT_ARTEN = [['dauer', 50], ['ausgang', 50]];
+
+/**
+ * Um wie viele Jahre sich der Zeitpunkt verschiebt. Öfter später als früher:
+ * Abschnitte im Leben ziehen sich, sie verkürzen sich selten.
+ * @type {(readonly [number, number])[]}
+ */
+export const WAHRHEIT_VERSCHIEBUNG = [[1, 45], [2, 25], [-1, 30]];
+
+/**
+ * Ab welchem Anteil der Strecke bis zum geplanten Ereignis er es selbst weiß —
+ * gleichverteilt zwischen den beiden Werten.
+ *
+ * Die Untergrenze ist nicht 0: ein Student mit Vier-Jahres-Plan weiß am Tag
+ * der Einschreibung nicht, dass er in Jahr zwei abbricht. Die Obergrenze ist
+ * nicht 1, sonst käme die Wahrheit immer zu spät, um noch etwas zu ändern —
+ * und genau das ist der Wert des Gesprächs: Vorlauf.
+ */
+export const WISSBAR_ANTEIL = /** @type {const} */ ([0.30, 0.90]);
+
 // --- Rolle und Gespräche — die Kampagne in `rolle.js` ----------------------
 // Die Rolle ist die Erwartung an die Einsatzzeit, die der Manager **setzt**.
 // Sie wird nie aus dem Einsatzmuster erraten — das hieße, dem Manager eine

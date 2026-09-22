@@ -35,6 +35,7 @@ import {
   COMMITMENT_STUFEN, COMMITMENT_BASIS, COMMITMENT_STREUUNG,
   COMMITMENT_JE_VEREINSJAHR, COMMITMENT_VEREINSJAHRE_MAX, COMMITMENT_JE_STATUS,
   SCHLUSS_JE_STUFE,
+  WAHRHEIT_CHANCE, WAHRHEIT_ARTEN, WAHRHEIT_VERSCHIEBUNG, WISSBAR_ANTEIL,
   clamp, randInt, randNormal, pickWeighted,
 } from './constants.js';
 
@@ -50,14 +51,17 @@ import {
  * Jahre".
  *
  * Was hier steht, ist, was der Spieler **erzählt**. Die Wahrheit daneben —
- * das Studium dauert fünf Jahre statt vier — kommt mit den Gesprächen in
- * Schritt 2; bis dahin ist der Plan die Wahrheit.
+ * das Studium dauert fünf Jahre statt vier — steht in `horizontWahrheit`, und
+ * der einzige Weg dorthin ist das Gespräch.
  * @typedef {object} Lebenslage
  * @property {Status} status
  * @property {number} entfernung   km bis zum Training — zum eigenen Verein, siehe offene Entscheidung 10
  * @property {boolean} auto        ob er selbst fahren kann
  * @property {boolean} familie     die eigene — beim Arbeiter legt sie sich auf die Strecke
  * @property {Horizont | null} horizont  was als Nächstes ansteht — null: nichts Bestimmtes
+ * @property {Horizont | null} [horizontWahrheit]  was **wirklich** kommt, wenn es vom Plan
+ *   abweicht. null oder fehlend: der Plan hält. Gerechnet wird mit `echterHorizont()`,
+ *   angezeigt wird `horizont` — das ist der ganze Trick. Siehe `auskunft.js`
  * @property {number} seit         Jahr des Eintritts in den Verein
  * @property {number} [druckJahre] Saisons in Folge, in denen der Druck über dem Halt lag —
  *   der Zähler der Waage, siehe `lebenslauf.js`. Fehlt in einem Stand vor Version 12: null
@@ -83,6 +87,9 @@ import {
  * @property {'wegzug'|'bleibt'|'schluss'|'familie'} dann
  * @property {number} km   nur bei `wegzug`, sonst 0
  * @property {Grund} [grund]  nur bei `schluss`; fehlt in einem Stand vor Version 12 und heißt dann Körper
+ * @property {number} [wissbarAb]  nur auf `horizontWahrheit`: das Jahr, ab dem er es selbst
+ *   weiß und im Gespräch damit herausrückt. Davor bestätigt er den Plan — und lügt dabei
+ *   nicht, er hat sich schlicht noch nicht entschieden
  */
 
 /** Die Statusnamen, in der Reihenfolge eines Lebens. */
@@ -328,6 +335,95 @@ export function ziehHorizont(rng, status, alter, jahr, familie, { frisch = false
   return null;
 }
 
+// --- Die zweite Wahrheit ---------------------------------------------------
+
+/**
+ * Was statt des Plans in Frage kommt, wenn es anders kommt als angekündigt.
+ *
+ * Für Schüler, Student und Azubi genau das jeweils andere: am Ende eines
+ * Abschnitts steht Wegzug oder Bleiben, ein Drittes gibt es dort nicht.
+ * `amHorizont()` würde einen „Schluss" nach der Schule auch gar nicht
+ * ausführen — es wechselt dort immer den Status —, und eine Wahrheit, die
+ * niemand einlösen kann, wäre eine Lüge der Engine an sich selbst.
+ * @param {Status} status
+ * @param {'wegzug'|'bleibt'|'schluss'|'familie'} plan
+ * @param {boolean} familie
+ * @returns {(readonly ['wegzug'|'bleibt'|'schluss'|'familie', number])[]}
+ */
+function ausgangsAlternativen(status, plan, familie) {
+  if (status === 'schueler' || status === 'student' || status === 'azubi') {
+    return plan === 'wegzug' ? [['bleibt', 1]] : [['wegzug', 1]];
+  }
+  /** @type {(readonly ['wegzug'|'bleibt'|'schluss'|'familie', number])[]} */
+  const alle = [['bleibt', 35], ['wegzug', 30], ['schluss', 25], ['familie', 10]];
+  return alle.filter(([d]) => d !== plan
+    && !(d === 'familie' && (familie || status === 'rentner')));
+}
+
+/**
+ * Die zweite Wahrheit neben dem Plan — oder null, wenn der Plan hält.
+ *
+ * Gezogen wird sie aus dem Plan heraus, nicht frei daneben: eine unabhängige
+ * zweite Ziehung stünde irgendwo, und der Spieler hätte nicht einen Plan, der
+ * sich als falsch herausstellt, sondern zwei beliebige Zukünfte. Abgewichen
+ * wird deshalb in **einer** Größe — im Zeitpunkt oder im Ausgang.
+ *
+ * `wissbarAb` rechnet über die Strecke bis zum **ursprünglich geplanten**
+ * Ereignis, nicht bis zum wahren: der Spieler hängt an seinem eigenen Plan und
+ * merkt am Weg dorthin, dass er nicht aufgeht. Der Deckel auf `w.jahr` hält
+ * den Fall ab, in dem die Wahrheit früher eintritt, als sie zu erfahren wäre —
+ * dann fällt die Enthüllung eben mit dem Ereignis zusammen, und der Manager
+ * erfährt es zu spät. Das kommt vor und bleibt so: ein Gespräch, das immer
+ * rechtzeitig kommt, wäre ein Orakel.
+ * @param {() => number} rng
+ * @param {Horizont | null} plan
+ * @param {Status} status
+ * @param {number} alter
+ * @param {number} jahr
+ * @param {boolean} familie
+ * @returns {Horizont | null}
+ */
+export function ziehWahrheit(rng, plan, status, alter, jahr, familie) {
+  if (!plan || rng() >= WAHRHEIT_CHANCE) return null;
+
+  /** @type {Horizont} */
+  const w = { jahr: plan.jahr, dann: plan.dann, km: plan.km };
+  if (plan.grund) w.grund = plan.grund;
+
+  if (pickWeighted(rng, WAHRHEIT_ARTEN) === 'dauer') {
+    // Nur Verschiebungen, die in der Zukunft landen — eine Wahrheit, deren
+    // Jahr schon vorbei ist, wird nie geprüft und wäre still verloren.
+    const moeglich = WAHRHEIT_VERSCHIEBUNG.filter(([v]) => plan.jahr + v > jahr);
+    if (moeglich.length === 0) return null;
+    w.jahr = plan.jahr + pickWeighted(rng, moeglich);
+  } else {
+    const alternativen = ausgangsAlternativen(status, plan.dann, familie);
+    if (alternativen.length === 0) return null;
+    const dann = pickWeighted(rng, alternativen);
+    w.dann = dann;
+    w.km = dann === 'wegzug' ? wegzugKm(rng, status) : 0;
+    if (dann === 'schluss') w.grund = ziehGrund(rng, alter);
+    else delete w.grund;
+  }
+
+  const strecke = Math.max(0, plan.jahr - jahr);
+  const anteil = WISSBAR_ANTEIL[0] + rng() * (WISSBAR_ANTEIL[1] - WISSBAR_ANTEIL[0]);
+  w.wissbarAb = Math.min(w.jahr, jahr + Math.round(anteil * strecke));
+  return w;
+}
+
+/**
+ * Womit die Engine rechnet: die Wahrheit, wenn eine gezogen ist, sonst der
+ * Plan. Was der Manager **liest**, ist immer `l.horizont` — das ist die
+ * Trennung, auf der die ganze Kategorie steht, und sie hält nur, solange
+ * niemand in `lebenslauf.js` versehentlich den Plan nimmt.
+ * @param {Lebenslage} l
+ * @returns {Horizont | null}
+ */
+export function echterHorizont(l) {
+  return l.horizontWahrheit || l.horizont;
+}
+
 /**
  * Eine Lebenslage für einen Menschen dieses Alters, im Jahr `jahr`.
  *
@@ -335,6 +431,13 @@ export function ziehHorizont(rng, status, alter, jahr, familie, { frisch = false
  * Reihenfolge der Ziehungen ist fest — wer sie ändert, ändert jede
  * Lebenslage jedes gespeicherten Standes, denn die werden aus dem Saatgut
  * nachgezogen.
+ *
+ * Genau deshalb fehlt hier die zweite Wahrheit: sie hängt `ziehBindung()`
+ * **hinter** dem Commitment an, als letzter Wurf überhaupt. Mitten hinein
+ * gesetzt hätte sie jeden Wurf danach verschoben und damit jeden Menschen in
+ * jedem Stand, der seine Bindung erst noch nachzieht, zu einem anderen
+ * gemacht. Wer `ziehLebenslage()` direkt ruft, bekommt deshalb eine Lage ohne
+ * Wahrheit — im Spiel führt kein Weg daran vorbei.
  * @param {() => number} rng
  * @param {number} alter
  * @param {number} jahr
@@ -391,5 +494,8 @@ export function ziehCommitment(rng, lebenslage, jahr) {
  */
 export function ziehBindung(rng, alter, jahr) {
   const lebenslage = ziehLebenslage(rng, alter, jahr);
-  return { commitment: ziehCommitment(rng, lebenslage, jahr), lebenslage };
+  const commitment = ziehCommitment(rng, lebenslage, jahr);
+  lebenslage.horizontWahrheit = ziehWahrheit(
+    rng, lebenslage.horizont, lebenslage.status, alter, jahr, lebenslage.familie);
+  return { commitment, lebenslage };
 }

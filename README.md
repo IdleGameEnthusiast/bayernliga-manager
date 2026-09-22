@@ -54,12 +54,13 @@ in Millisekunden durchspielen können.
 | `engine/positionen.js` | Körperkorridore, Positionsformeln, Plätze, die Eignung |
 | `engine/spieler.js` | Spieler erzeugen, Attribute, Alterskurve, Verletzungen, Saisonwechsel |
 | `engine/coach.js` | Der Stab: Coaching-Gruppen und ihre Ähnlichkeit, die drei Blöcke, der Stärkewert je Rolle, die Ziehung |
-| `engine/commitment.js` | Commitment und Lebenslage: die fünf Stufen, die Ziehung aus Status und Vereinsjahren, das Abschlussalter, der Horizont mit Plan und Grund — für Spieler und Coaches dieselbe |
+| `engine/commitment.js` | Commitment und Lebenslage: die fünf Stufen, die Ziehung aus Status und Vereinsjahren, das Abschlussalter, der Horizont mit Plan und Grund, und die zweite Wahrheit daneben — für Spieler und Coaches dieselbe |
 | `engine/lebenslauf.js` | Was von Jahr zu Jahr geschieht: Schule, Studium, Ausbildung enden, der Arbeiter-Zyklus, das Kippen des Plans durch das Commitment, die Waage Druck gegen Halt |
 | `engine/rolle.js` | Die Rolle: die fünf Stufen, die Offseason-Kampagne mit ihrem Tempo, die Reaktion beim Setzen aus Perzentil, Vorgeschichte und Alter, der Bank-Drift aus dem rollierenden Einsatzfenster |
 | `engine/gespraech.js` | Was allen Gesprächskategorien gemeinsam ist: das Wochenkontingent aus dem Gesprächslog, die Nähe aus dem Abstand zum letzten Termin — und das persönliche Gespräch, das nichts weiter braucht |
 | `engine/wunsch.js` | Was ein Spieler von sich aus möchte: der Anlass zum Positions- und zum Nummernwunsch, das Aussprechen im Gespräch, und was ein Spiel auf dem falschen Platz danach kostet |
 | `engine/ueberzeugen.js` | Die Gegenseite: wogegen ein Spieler sich sperrt, wann das überhaupt entsteht, was ein Spiel auf einer abgelehnten Position kostet, und wie viele Gespräche es braucht, ihn umzustimmen |
+| `engine/auskunft.js` | Nach der Lebenslage fragen: ab wann ein Spieler selbst weiß, dass sein Plan nicht hält, und wann die Wahrheit an dessen Stelle in die Akte rückt |
 | `engine/aufstellung.js` | Personnel, die zweiundzwanzig Plätze, der Doppeleinsatz, die drei Special-Teams-Plätze, die Vorgabe des Managers |
 | `engine/team.js` | Aus einer Aufstellung werden Lauf- und Passwerte je Einheit |
 | `engine/spielplan.js` | Gruppenrunde nach dem Kreisverfahren, dazu das Bracket |
@@ -157,16 +158,17 @@ Scheme, Vertrautheit und Positionstechnik; der OC lernt das gespielte System
 mit jedem Tag und jedem Spiel, und beide Koordinatoren zählen im Duell des
 Taktikreiters mit (siehe [`docs/umbau-coaches.md`](docs/umbau-coaches.md));
 jeder Mensch im Verein trägt außerdem eine **Bindung** in fünf Stufen und eine
-Lebenslage — Student ohne Auto, 40 km, in zwei Jahren Wegzug —, die im ersten
-Schritt nur angezeigt wird und sich noch nicht bewegt (Block 7 in
-[`docs/naechste-schritte.md`](docs/naechste-schritte.md)) —,
+Lebenslage — Student ohne Auto, 40 km, in zwei Jahren Wegzug —, die sich von
+Jahr zu Jahr weiterbewegt und deren Plan nicht immer hält: rund jeder dritte
+weicht in Wahrheit davon ab, und erfahren kann man das nur im Gespräch
+(Block 7 in [`docs/naechste-schritte.md`](docs/naechste-schritte.md)) —,
 Spielplan,
 Spielbericht mit Box Score, Halbfinale und Finale als Bracket — das seine vier
 Plätze schon während der Gruppenrunde benennt und sagt, wer sie gerade hält —,
 Saisonwechsel mit Alterung und Rücktritten, Export und Import. Ganz unten im
 Postfach steht ein Feld **Redeem Code**: `playtester` zeigt die Zahlen, die
 das Spiel sonst versteckt — Commitment, Rücktrittsalter, den Druck der
-Lebenslage.
+Lebenslage und die zweite Wahrheit hinter dem Plan.
 
 ## Wie eine Saison aussieht
 

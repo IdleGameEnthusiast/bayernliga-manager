@@ -51,6 +51,7 @@ import {
   frageNachWunsch, gibNummer, wunschDrift, ausgesprochenerWunsch,
 } from './wunsch.js';
 import { ueberzeugungsDrift, ueberzeuge, offeneAblehnungen } from './ueberzeugen.js';
+import { frageNachLebenslage } from './auskunft.js';
 
 /**
  * Der Stempel auf einem Speicherstand.
@@ -60,7 +61,7 @@ import { ueberzeugungsDrift, ueberzeuge, offeneAblehnungen } from './ueberzeugen
  * der vorigen Nummer auf diese hebt. Ohne diesen Schritt wird ein solcher Stand
  * beim Laden weggeworfen — der Sprung ist billig, der Verlust nicht.
  */
-export const SAVE_VERSION = 16;
+export const SAVE_VERSION = 17;
 
 /**
  * @typedef {object} SpielStand
@@ -1283,6 +1284,29 @@ export function erfuelleNummernwunsch(stand, spielerId) {
 export function bekannteAblehnungen(stand, spielerId) {
   const sp = (stand.kader[stand.meinTeam] || []).find((x) => x.id === spielerId);
   return sp ? offeneAblehnungen(sp) : [];
+}
+
+/**
+ * Ihn fragen, wie es bei ihm aussieht.
+ *
+ * Kostet einen Termin wie das Wunschgespräch, und wie dort auch dann, wenn
+ * nichts dabei herauskommt — die Frage wurde gestellt, und dass die Antwort
+ * „alles wie gehabt" lautet, ist selbst eine Auskunft. Ob sie stimmt, weiß der
+ * Manager nicht; ob sie ehrlich ist, schon (siehe `auskunft.js`).
+ *
+ * `bindungVon()` steht davor, weil ein Mann aus einem Stand vor Block 7 noch
+ * gar keine Lebenslage hat — die Frage würde ihn sonst nicht finden.
+ * @param {SpielStand} stand @param {string} spielerId
+ * @returns {import('./auskunft.js').Auskunft | null} null, wenn es heute nicht geht
+ */
+export function fuehreLebenslageGespraech(stand, spielerId) {
+  const sp = (stand.kader[stand.meinTeam] || []).find((x) => x.id === spielerId);
+  if (!sp || gespraecheFrei(stand) === 0) return null;
+
+  bindungVon(stand, sp);
+  const auskunft = frageNachLebenslage(sp, stand.jahr);
+  stand.gespraeche.push({ tag: stand.tag, spielerId });
+  return auskunft;
 }
 
 /**

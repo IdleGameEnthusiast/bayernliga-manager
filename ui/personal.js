@@ -282,6 +282,23 @@ function lebenslageZeile(lebenslage, jahr) {
 }
 
 /**
+ * Was wirklich kommt, und ab wann er es selbst weiß — nur für den Playtester.
+ *
+ * Der Satz wird mit derselben Vorlage gebaut wie der sichtbare Plan, nur mit
+ * der Wahrheit an der Stelle des Horizonts. Ein eigener Satz dafür sagte
+ * dasselbe in anderen Worten, und beim Vergleichen zweier Zeilen ist genau das
+ * die Störung.
+ * @param {import('../engine/commitment.js').Lebenslage} l
+ * @param {number} jahr
+ */
+function versteckteWahrheit(l, jahr) {
+  const w = l.horizontWahrheit;
+  if (!w) return '';
+  return T.lebenslage.horizont({ ...l, horizont: w }, jahr)
+    + T.kader.wissbarAb(w.wissbarAb ?? w.jahr);
+}
+
+/**
  * Ein ausgesprochener Wunsch, eine Zeile unter der Lebenslage — oder nichts.
  *
  * Er muss außerhalb des Dialogs stehen, sonst wäre er nach dem Gespräch weg:
@@ -623,6 +640,7 @@ function werteZeile(sp, stand, einblick) {
             druckJahre: bindung.lebenslage.druckJahre || 0,
             einsatzFenster: (sp.einsatzFenster || []).join(''),
             mismatch: mismatch(sp) ? Number(mismatch(sp)).toFixed(2) : 0,
+            wahrheit: versteckteWahrheit(bindung.lebenslage, stand.jahr),
           }) }))
         : null));
 }

@@ -37,6 +37,23 @@ export const STORAGE_KEY = 'bayernliga.save';
  * @type {Record<number, (roh: any) => any>}
  */
 const MIGRATIONEN = {
+  // 16 → 17: neben dem Plan in der Lebenslage steht jetzt `horizontWahrheit` —
+  // was wirklich kommt, wenn es anders kommt als angekündigt. Fehlt das Feld,
+  // hält der Plan, und das ist für einen alten Stand nicht nur die bequeme,
+  // sondern die richtige Auskunft: bis gestern **war** der Plan die Wahrheit,
+  // die Engine hat mit nichts anderem gerechnet.
+  //
+  // Nachträglich würfeln wäre hier schlimmer als in den drei Schritten davor.
+  // Es hieße, jedem Spieler eines laufenden Standes rückwirkend ein Geheimnis
+  // anzudichten — und zwar eines, das der Manager in der Saison zuvor hätte
+  // erfragen können und nicht erfragt hat, weil es die Frage nicht gab. Die
+  // Wahrheiten kommen deshalb mit dem nächsten Plan, also beim nächsten
+  // Horizont, für jeden Menschen einzeln.
+  16: (roh) => {
+    roh.version = 17;
+    return roh;
+  },
+
   // 15 → 16: „Überzeugen" kam und mit ihm `abgelehntePositionen` am Spieler —
   // das Feld, das „Wunsch anhören" bewusst ausgelassen hatte, weil es dort
   // niemand gefüllt hätte. Fehlt es, hat sich nie jemand gegen etwas gesperrt,

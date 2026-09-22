@@ -33,21 +33,28 @@
  * - Kein Jugend-Mobilitäts-Rabatt: junge Leute sind mobil, weil sie
  *   ausprobieren wollen — das macht sie nicht fester.
  *
+ * Gerechnet wird mit `echterHorizont()` — der zweiten Wahrheit, wenn eine
+ * gezogen ist, sonst dem Plan. Der Plan selbst wird hier nie gelesen; er ist
+ * die Auskunft an den Manager, und sie einzulösen ist nicht Sache dieser
+ * Datei. Die beiden fallen erst im Gespräch wieder zusammen (`auskunft.js`).
+ *
  * Was hier **nicht** passiert, mit Absicht: das Commitment bewegt sich nicht
- * (Bank, Coach, Verletzung kommen in Schritt 2b), der Plan ist die Wahrheit
- * (die Abweichung kommt mit den Gesprächen, sonst gäbe es keinen Weg, sie zu
- * erfahren), und wer geht, wird durch einen Rookie ersetzt wie der Rücktritt
- * heute — für jeden Verein derselbe Weg, damit die Symmetrie zur KI hält.
+ * (Bank, Coach, Verletzung kommen in Schritt 2b), und wer geht, wird durch
+ * einen Rookie ersetzt wie der Rücktritt heute — für jeden Verein derselbe
+ * Weg, damit die Symmetrie zur KI hält.
  *
  * Docs: docs/naechste-schritte.md, Block 7, „Statusübergänge — die Verteilungen"
  */
 
-import { stufe, ziehHorizont, wegzugKm, AUTO_JE_STATUS } from './commitment.js';
+import {
+  stufe, ziehHorizont, ziehWahrheit, echterHorizont, wegzugKm, AUTO_JE_STATUS,
+} from './commitment.js';
 import {
   DRUCK_FAKTOR_AUTO, DRUCK_FAKTOR_FAMILIE, DRUCK_MAX,
   HALT_JE_VEREINSJAHR, HALT_FAMILIENBONUS_JUNG, DRUCK_JAHRE_BIS_ABGANG, KIPPEN_JE_STUFE,
   pickWeighted, randInt,
 } from './constants.js';
+import { uebernimmWahrheit } from './auskunft.js';
 
 /** @typedef {import('./commitment.js').Lebenslage} Lebenslage */
 /** @typedef {import('./commitment.js').Status} Status */
@@ -174,7 +181,9 @@ function wechsle(rng, l, nach) {
  * @returns {Ereignis | null}
  */
 function amHorizont(rng, l, s, alter, jahr) {
-  const h = /** @type {Horizont} */ (l.horizont);
+  // Die Wahrheit, nicht der Plan. Was der Manager in der Akte gelesen hat,
+  // spielt hier keine Rolle mehr — es geschieht, was geschieht.
+  const h = /** @type {Horizont} */ (echterHorizont(l));
   const von = l.status;
   const dann = gekippt(rng, h, s);
   // Ein Wegzug setzt die Entfernung neu, alles andere lässt sie — auch das
@@ -215,6 +224,9 @@ function amHorizont(rng, l, s, alter, jahr) {
   if (von === 'student' && l.status === 'student' && l.horizont) {
     l.horizont.jahr = jahr + randInt(rng, MASTER_JAHRE[0], MASTER_JAHRE[1]);
   }
+  // Ein neuer Plan, eine neue Wahrheit — und die alte ist damit erledigt, auch
+  // wenn nie jemand nach ihr gefragt hat. Sie ist gerade eingetreten.
+  l.horizontWahrheit = ziehWahrheit(rng, l.horizont, l.status, alter, jahr, l.familie);
   return ereignis;
 }
 
@@ -237,15 +249,27 @@ export function lebensjahr(rng, person, alter, jahr) {
   const l = person.lebenslage;
   const s = stufe(person.commitment);
 
+  // Ein abgelaufener Plan, bei dem nichts geschehen ist, hat sich selbst
+  // widerlegt — ab hier steht die Wahrheit in der Akte, auch ungefragt. Das
+  // geht immer auf: `wissbarAb` liegt nie hinter dem geplanten Jahr, er weiß
+  // es an dieser Stelle also längst selbst.
+  if (l.horizontWahrheit && l.horizont && l.horizont.jahr <= jahr) uebernimmWahrheit(l);
+
+  // Fällig ist, was wirklich kommt. Eine Wahrheit, die ein Jahr früher liegt
+  // als der Plan, trifft den Manager genau so — unangekündigt, es sei denn, er
+  // hat gefragt.
+  const faellig = echterHorizont(l);
+
   /** @type {Ereignis | null} */
   let ereignis = null;
-  if (l.horizont && l.horizont.jahr <= jahr) {
+  if (faellig && faellig.jahr <= jahr) {
     ereignis = amHorizont(rng, l, s, alter, jahr);
     if (ereignis && ereignis.art === 'abgang') return ereignis;
   } else if (!l.horizont && l.status === 'arbeiter') {
     // Ein Arbeiter ohne Plan stammt aus einem Stand vor Version 12; er
     // bekommt seinen Zyklus, damit die Uhr für ihn auch läuft.
     l.horizont = ziehHorizont(rng, 'arbeiter', alter, jahr, l.familie, { frisch: true, stufe: s });
+    l.horizontWahrheit = ziehWahrheit(rng, l.horizont, 'arbeiter', alter, jahr, l.familie);
   }
 
   if (druck(l) > halt(person.commitment, l, jahr)) {
