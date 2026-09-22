@@ -349,7 +349,7 @@ export const DE = {
     sortieren: (spalte) => `Nach ${spalte} sortieren`,
     sortAb: '▾',
     sortAuf: '▴',
-    bindung: 'Bindung',
+    commitment: 'Commitment',
     lebenslage: 'Lebenslage',
     rolle: 'Rolle',
     ohneRolle: '—',
@@ -369,12 +369,18 @@ export const DE = {
   },
 
   // Die fünf Stufen, in denen der Manager das Commitment sieht — von unten
-  // nach oben, Index ist die Stufe aus `stufe()`. Sie klingen wie ein Trainer
-  // redet, nicht wie eine Skala: „verlässlich" ist ein Urteil, „3 von 5" wäre
-  // eine Zahl mit Umweg.
+  // nach oben, Index ist die Stufe aus `stufe()`.
+  //
+  // Vorher standen hier Trainersätze („mit einem Bein draußen", „Herz und
+  // Seele"). Die lasen sich gut und sagten das Falsche: „mit einem Bein
+  // draußen" klingt nach einer Entscheidung, die schon gefallen ist, dabei
+  // ist Stufe 0 nur ein niedriger Wert — einer, der bleiben kann, wenn der
+  // Druck niedrig bleibt. Die Waage in `lebenslauf.js` entscheidet, nicht die
+  // Stufe. Deshalb jetzt eine Skala, die benennt, was sie misst, und dem
+  // Manager das Urteil überlässt.
   commitment: {
-    stufen: ['mit einem Bein draußen', 'wackelt', 'dabei', 'verlässlich', 'Herz und Seele'],
-    stufeTitel: (text) => `Bindung an den Verein: ${text}`,
+    stufen: ['niedrig', 'schwankend', 'moderat', 'hoch', 'sehr hoch'],
+    stufeTitel: (text) => `Commitment: ${text}`,
   },
 
   // Die fünf Rollen: was ein Spieler an Einsatzzeit erwarten darf. Der Name

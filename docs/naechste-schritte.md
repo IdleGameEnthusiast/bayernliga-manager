@@ -388,10 +388,12 @@ hineinpassen.
   es Orga gibt — kein Feld an einer Entität, die nicht existiert.
 - Der Manager sieht **nie die Zahl**, nur eine von **fünf Stufen** als Text,
   mit harten Bändern, ohne Unschärfe. Versteckte Zahl mit festen Stufen ist
-  das, was Football Manager auch macht, und es trägt. Die Stufen klingen wie
-  ein Trainer redet, nicht wie eine Skala: „Herz und Seele", „verlässlich",
-  „dabei", „wackelt", „mit einem Bein draußen" — in der Art, die Texte stehen
-  in `i18n.js`.
+  das, was Football Manager auch macht, und es trägt. Die Stufen benennen die
+  Höhe des Werts: „sehr hoch", „hoch", „moderat", „schwankend", „niedrig" —
+  die Texte stehen in `i18n.js`. Anfangs standen dort Trainersätze („Herz und
+  Seele", „mit einem Bein draußen"); die lasen sich besser und sagten das
+  Falsche, weil „mit einem Bein draußen" einen Abgang behauptet, den erst die
+  Waage entscheidet.
 - Die Stufenlogik liegt **einmal** in `engine/commitment.js`
   (`stufe(wert) → 0..4`), nicht in `spieler.js` und `coach.js` doppelt.
   Sobald Orga dazukommt, ist es dieselbe Funktion.
@@ -858,11 +860,11 @@ einen anstehenden Wegzug in ein Bleiben dreht, ein niedriges einen unauffällige
 
 | Commitment-Stufe | geplanter Wegzug wird Bleiben | geplantes Bleiben wird Wegzug |
 | --- | --- | --- |
-| Herz und Seele | 60 % | — |
-| verlässlich | 30 % | — |
-| dabei | — | — |
-| wackelt | — | 30 % |
-| mit einem Bein draußen | — | 60 % |
+| sehr hoch | 60 % | — |
+| hoch | 30 % | — |
+| moderat | — | — |
+| schwankend | — | 30 % |
+| niedrig | — | 60 % |
 
 Dieselbe Tabelle kippt einen geplanten **Schluss** in ein Bleiben — außer der
 Grund ist der **Körper**, den redet niemand weg. Verworfen: die Ortsachse erst
@@ -911,11 +913,11 @@ ursprüngliche Warnung bei „Rücktritt als berechneter Wert":
 
 | Commitment-Stufe | Multiplikator auf Schluss |
 | --- | --- |
-| Herz und Seele | × 0,5 |
-| verlässlich | × 0,75 |
-| dabei | × 1,0 |
-| wackelt | × 1,4 |
-| mit einem Bein draußen | × 2,0 |
+| sehr hoch | × 0,5 |
+| hoch | × 0,75 |
+| moderat | × 1,0 |
+| schwankend | × 1,4 |
+| niedrig | × 2,0 |
 
 Der **Grund** eines Schlusses wird mit dem Plan gezogen, altersabhängig — das
 behebt den Fehler, dass `T.lebenslage.horizont` jedem Schluss „körperlich"

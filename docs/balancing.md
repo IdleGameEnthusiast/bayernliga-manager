@@ -183,14 +183,14 @@ Die Vereinsstärken selbst stehen im Katalog (`engine/content.js`), und
 
 ## 10 — Commitment: wie fest die Leute am Verein hängen
 
-*„Alle sind ‚dabei'"* oder *„die halbe Liga steht mit einem Bein draußen".*
+*„Alle sind ‚moderat'"* oder *„die halbe Liga hängt nur ‚niedrig' dran".*
 `engine/constants.js`, Docs [`naechste-schritte.md`](naechste-schritte.md)
 Block 7. Der Wert bewegt sich noch nicht — das hier ist nur die Ziehung. Der
 Manager sieht nie die Zahl, nur die Stufe.
 
 | Konstante | Wert | Wirkung | Richtung |
 | --- | --- | --- | --- |
-| `COMMITMENT_STUFEN` | 20 / 40 / 60 / 80 | die unteren Grenzen der Stufen 1–4; darunter Stufe 0 | Bänder verschieben heißt Texte verschieben, nicht Werte — wer mehr „Herz und Seele" will, senkt die 80 |
+| `COMMITMENT_STUFEN` | 20 / 40 / 60 / 80 | die unteren Grenzen der Stufen 1–4; darunter Stufe 0 | Bänder verschieben heißt Texte verschieben, nicht Werte — wer mehr „sehr hoch" will, senkt die 80 |
 | `COMMITMENT_BASIS` | 52 | wo die Ziehung anfängt | die eine Schraube, wenn die ganze Liga zu locker oder zu fest hängt |
 | `COMMITMENT_STREUUNG` | 14 | Streuung um das Ergebnis | höher = die Ränder füllen sich; bei 12 standen von 415 nur 5 ganz unten und 8 ganz oben, bei 14 sind es 4–9 und 17–30 |
 | `COMMITMENT_JE_STATUS` | Schüler +4, Student −6, Azubi +4, Arbeiter +2, Rentner +10 | was der Status mitbringt | der Student ist der Einzige mit Abzug — er ist gekommen, um zu gehen |
@@ -289,7 +289,7 @@ Reaktion in Worten und, wenn es nicht mehr passt, eine Nachricht.
 
 **Gemessen beim Einbau** (acht Seeds `a`–`h`, drei Saisons, eigener Kader,
 mittlere Commitment-Änderung gegen den Startwert und Zahl der Spieler auf
-Stufe 0 „mit einem Bein draußen"):
+Stufe 0 „niedrig"):
 
 | Strategie | Saison 1 | Saison 2 | Saison 3 |
 | --- | --- | --- | --- |

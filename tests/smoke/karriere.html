@@ -392,11 +392,11 @@ try {
   gleich('eine Zeile klappt die Werte auf', alle('tr.wertezeile').length, 1);
   enthaelt('samt der Kickwerte', txt('tr.wertezeile'), 'Kickstärke');
 
-  // 10b — Die Bindung: eine Spalte mit Stufe, der Satz unter den Werten, und
+  // 10b — Das Commitment: eine Spalte mit Stufe, der Satz unter den Werten, und
   // die Zahl bleibt versteckt, solange niemand den Code eingelöst hat.
-  const stufen = ['mit einem Bein draußen', 'wackelt', 'dabei', 'verlässlich', 'Herz und Seele'];
+  const stufen = ['niedrig', 'schwankend', 'moderat', 'hoch', 'sehr hoch'];
   const koepfe = alle('thead th').map((h) => h.textContent);
-  pruefe('die Tabelle hat eine Spalte Bindung', koepfe.some((k) => k.startsWith('Bindung')), koepfe.join(' | '));
+  pruefe('die Tabelle hat eine Spalte Commitment', koepfe.some((k) => k.startsWith('Commitment')), koepfe.join(' | '));
   const bindungZellen = alle('tr.spielerzeile td').filter((td) => stufen.includes(td.textContent));
   pruefe('jede Zeile trägt eine Stufe', bindungZellen.length > 20, String(bindungZellen.length));
   gleich('und keine Zahl daneben', alle('tr.spielerzeile .versteckt').length, 0);
@@ -413,8 +413,8 @@ try {
   gleich('und es sind vier', alle('.werteblock').length, 4);
   enthaelt('mit der Vertrautheit', txt('tr.wertezeile'), 'Vertrautheit mit Personnel');
   enthaelt('und der Lebenslage des Coaches', txt('tr.wertezeile'), 'Lebenslage');
-  gleich('auch der Stab trägt eine Spalte Bindung',
-    alle('thead th').filter((h) => h.textContent === 'Bindung').length, 1);
+  gleich('auch der Stab trägt eine Spalte Commitment',
+    alle('thead th').filter((h) => h.textContent === 'Commitment').length, 1);
 
   // 12 — Redeem Code: ein falscher Code sagt es, `playtester` zeigt die Zahlen
   reiterKnopf('Posteingang').click();

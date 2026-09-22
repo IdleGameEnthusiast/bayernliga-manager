@@ -93,10 +93,11 @@ export const STATUS_REIHE = /** @type {const} */ (['schueler', 'student', 'azubi
 /**
  * Die Stufe zu einem Wert, 0 bis 4. Der Manager sieht nur sie.
  *
- * Fünf Stufen und nicht drei oder zehn, aus zwei Gründen: sie klingen wie ein
- * Trainer redet („dabei", „wackelt"), nicht wie eine Skala — und ein
- * Stufenwechsel ist später der einzige Auslöser für eine Nachricht. Bei zehn
- * Stufen wäre das Postfach mit 45 Spielern eine Spam-Quelle.
+ * Fünf Stufen und nicht drei oder zehn: ein Stufenwechsel ist später der
+ * einzige Auslöser für eine Nachricht, und bei zehn Stufen wäre das Postfach
+ * mit 45 Spielern eine Spam-Quelle. Die Namen dazu (`i18n.js`) benennen die
+ * Höhe des Werts und sagen nichts über den Ausgang — das entscheidet die
+ * Waage in `lebenslauf.js`, nicht die Stufe.
  * @param {number} wert 0..99
  * @returns {0|1|2|3|4}
  */

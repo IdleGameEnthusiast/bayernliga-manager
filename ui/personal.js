@@ -70,7 +70,7 @@ const SPALTEN = [
   // Sortiert nach der versteckten Zahl, nicht nach der Stufe: innerhalb einer
   // Stufe ist die Reihenfolge dann nicht willkürlich. Die Zahl steht am Mann,
   // sobald `ergaenzeBindung()` einmal über den Kader gelaufen ist.
-  { id: 'bindung', kopf: T.kader.bindung, wert: (sp) => sp.commitment ?? 0 },
+  { id: 'commitment', kopf: T.kader.commitment, wert: (sp) => sp.commitment ?? 0 },
   // Sortiert nach der Stufe der Rolle, nicht alphabetisch: „Starter" gehört
   // neben „Stammspieler" und nicht zwischen „Rotation" und „Ergänzung". Wer
   // noch keine hat, steht ganz unten — das ist die Liste, die der Manager in
@@ -191,7 +191,7 @@ function coachesKarte(stand, einblick) {
         el('th', { text: T.coach.gruppe }),
         el('th', { text: T.coach.alter }),
         el('th', { text: T.coach.staerke }),
-        el('th', { text: T.kader.bindung }),
+        el('th', { text: T.kader.commitment }),
         el('th', { 'aria-label': T.kader.werte }),
       ],
       stab.flatMap((coach) => [
