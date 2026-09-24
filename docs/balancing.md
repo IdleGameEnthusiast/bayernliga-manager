@@ -280,6 +280,41 @@ zwei Saisons weg.
 wird nach drei bis fünf Jahren Arbeiter. Wer mehr Studenten will, dreht am
 Rookie-Alter oder an der Student-Zeile nach dem Schulabschluss (55 %).
 
+**Plausible Lebenslagen, Herbst 2026.** Eine Durchsicht generierter Kader
+fand 18-jährige Schüler mit „noch 3 Jahre Schule", 27-jährige Studenten mit
+noch fünf Jahren Studium, 19 km draußen in einem Dorf ohne Hochschule, und
+Familienväter, die „in vier Jahren den Wegzug planen". Geändert — alles als
+Modell in `commitment.js`, die Tabellen und ihr Warum stehen dort:
+
+| Was | Vorher | Nachher |
+| --- | --- | --- |
+| Azubi unter den 20- bis 25-Jährigen | flach 25 % | 30 % bis 21, 12 % bis 23, 5 % bis 25; der Rest an den Arbeiter |
+| Entfernung | ein Band für alle: 1–15 km 60 %, 16–50 30 %, 51–120 10 % | je Status (`ENTFERNUNG_JE_STATUS`), mit „um die Ecke" (bis 5 km) als eigenem Band; der Zehntel von weit her nur noch beim Arbeiter |
+| Student eines Vereins ohne Hochschule | wie alle | zur Hälfte in der Uni-Stadt, `uniKm` ± 20 % (`STUDENT_IN_UNISTADT` 0,5, `uniKm` je Verein in `content.js`) |
+| Restjahre eines laufenden Studiums | 1–5, für jedes Alter | höchstens bis zum 29. (`STUDIUM_SPAETESTENS`) |
+| Zweite Wahrheit beim Schüler | ±1, +2 ohne Grenze | keine Verschiebung über den Abschluss mit 20 hinaus (`SCHULE_SPAETESTENS`) |
+| Wegzug im Arbeiter-Zyklus mit Familie | wie ohne | × 0,4, der Rest an „bleibt" (`WEGZUG_MIT_FAMILIE`), ebenso in der zweiten Wahrheit |
+
+Gemessen (drei Seeds, acht Saisons, 415 Spieler, Start → nach acht Saisons):
+
+| | Vorher | Nachher |
+| --- | --- | --- |
+| Azubis unter den 22- bis 25-Jährigen | 24–27 % → 2–4 % | 5–12 % → 3–7 % |
+| wohnt um die Ecke (≤ 5 km) | 19 % → 13–15 % | 33–37 % → 22–29 % |
+| Studenten bis 15 km | 53–69 % → 53–56 % | 69–83 % → 58–74 % |
+| Studenten, ≥ 5 Jahre im Verein **und** ≥ 4 Jahre Rest | 11–15 % → 8–10 % | 6–9 % → 3–9 % |
+| Schüler mit Abschluss nach 20 | 1–4 von 24–29 → 1–5 von 10–13 | 0 → 0 |
+| Arbeiter mit Familie und Wegzug-Plan | 24–29 % → 21–27 % | 6–11 % → 6–11 % |
+| Lebenslauf-Abgänge je Verein und Saison | 1,49 | 1,48 |
+| Abgänge übers Alter | 1,29 | 1,26 |
+
+Die Waage merkt von allem fast nichts: weniger Weitfahrer bei Schülern,
+Azubis und Rentnern, dafür etwas mehr Studenten in der Uni-Stadt. Die übrigen
+Studenten mit langer Vereinszeit und langem Rest sind die, die mit 16 als
+Schüler kamen — das ist kein Fehler, das ist ein Vereinskind. Dass „um die
+Ecke" über die Jahre abnimmt, kommt vom Wegzug am Horizont: wer geht und
+bleibt, wohnt danach weiter weg.
+
 ## 12 — Die Rolle: was der Manager zusagt und was die Bank kostet
 
 *„Die Rollen-Kampagne nervt"* oder *„ich kann jedem alles versprechen".*
@@ -626,7 +661,7 @@ steht die Wahrheit, und der einzige Weg dorthin führt über das Fragen — oder
 | --- | --- | --- | --- |
 | `WAHRHEIT_CHANCE` | 0,30 | wie oft ein frisch gezogener Plan nicht hält | niedriger = der Manager fragt neunzehnmal umsonst und hört auf, bevor der eine Fall kommt; höher = die Akte ist wertlos, und mit ihr der Personalreiter |
 | `WAHRHEIT_ARTEN` | 50 / 50 | Abweichung im Zeitpunkt oder im Ausgang | mehr Zeitpunkt = lauter Verschiebungen, über die niemand handeln muss; mehr Ausgang = jede Enthüllung ist ein Schock |
-| `WAHRHEIT_VERSCHIEBUNG` | +1: 45, +2: 25, −1: 30 | um wie viele Jahre der Zeitpunkt rutscht | Abschnitte im Leben ziehen sich, sie verkürzen sich selten |
+| `WAHRHEIT_VERSCHIEBUNG` | +1: 45, +2: 25, −1: 30 | um wie viele Jahre der Zeitpunkt rutscht | Abschnitte im Leben ziehen sich, sie verkürzen sich selten. Beim Schüler nie über den Abschluss mit 20 hinaus (`SCHULE_SPAETESTENS`, Abschnitt 11) |
 | `WISSBAR_ANTEIL` | 0,30 … 0,90 | ab welchem Anteil der geplanten Strecke er es selbst weiß | Untergrenze höher = die Wahrheit kommt immer zu spät, um noch zu wirken; Obergrenze niedriger = das Gespräch wird ein Orakel |
 
 Die Untergrenze ist **nicht** 0: ein Student mit Vier-Jahres-Plan weiß am Tag

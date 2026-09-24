@@ -11,7 +11,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  stufe, ziehLebenslage, ziehCommitment, ziehBindung, STATUS_REIHE,
+  stufe, ziehLebenslage, ziehCommitment, ziehBindung, ziehHorizont, ziehEntfernung,
+  STATUS_REIHE, SCHULE_SPAETESTENS,
 } from '../engine/commitment.js';
 import { COMMITMENT_STUFEN, makeRng } from '../engine/constants.js';
 import {
@@ -104,6 +105,65 @@ test('der Satz zur Lebenslage lässt sich für jede Ziehung bauen', () => {
       assert.ok(!satz.includes('undefined') && !satz.includes('NaN'), satz);
     }
   }
+});
+
+test('kein Schüler geht über 20 zur Schule — auch nicht in der zweiten Wahrheit', () => {
+  // Die Wahrheit war der Weg, auf dem es geschah: sie schob den Abschluss um
+  // zwei Jahre, und nach dem Gespräch stand da ein 18-Jähriger mit „noch 3
+  // Jahre Schule".
+  let geprueft = 0;
+  for (let i = 0; i < 3000; i++) {
+    const alter = 15 + (i % 5);
+    const { lebenslage: l } = ziehBindung(makeRng(`schule${i}`), alter, 2026);
+    if (l.status !== 'schueler') continue;
+    for (const h of [l.horizont, l.horizontWahrheit]) {
+      if (!h) continue;
+      geprueft++;
+      assert.ok(alter + h.jahr - 2026 <= SCHULE_SPAETESTENS, `mit ${alter} noch ${h.jahr - 2026} Jahre Schule`);
+    }
+  }
+  assert.ok(geprueft > 1000, `nur ${geprueft} Horizonte gesehen`);
+});
+
+test('ein laufendes Studium endet nach Plan spätestens mit 29', () => {
+  const rng = makeRng('reststudium');
+  for (let i = 0; i < 1000; i++) {
+    const alter = 24 + (i % 8);
+    const h = /** @type {import('../engine/commitment.js').Horizont} */ (
+      ziehHorizont(rng, 'student', alter, 2026, false));
+    const rest = h.jahr - 2026;
+    assert.ok(rest >= 1, 'ein Jahr bleibt immer');
+    assert.ok(rest === 1 || alter + rest <= 29, `mit ${alter} noch ${rest} Jahre Studium`);
+  }
+});
+
+test('der Student eines Vereins ohne Hochschule wohnt oft in der Uni-Stadt', () => {
+  const rng = makeRng('unistadt');
+  let dort = 0;
+  const n = 2000;
+  for (let i = 0; i < n; i++) {
+    const km = ziehEntfernung(rng, 'student', 50);
+    if (km >= 40 && km <= 60) dort++;
+    // Mit einer Hochschule im Ort fährt kein Student weiter als von den Eltern.
+    assert.ok(ziehEntfernung(rng, 'student', 0) <= 40);
+  }
+  assert.ok(dort > n * 0.35 && dort < n * 0.65, `${dort} von ${n} in der Uni-Stadt`);
+});
+
+test('ferne Pläne klingen unsicher, nahe nennen die Kilometer', () => {
+  const lage = (/** @type {any} */ status, /** @type {any} */ horizont) =>
+    /** @type {any} */ ({ status, horizont });
+  const h = T.lebenslage.horizont;
+  assert.equal(h(lage('student', { jahr: 2031, dann: 'wegzug', km: 80 }), 2026),
+    'noch 5 Jahre Studium, danach Wegzug geplant');
+  assert.equal(h(lage('student', { jahr: 2028, dann: 'wegzug', km: 80 }), 2026),
+    'noch 2 Jahre Studium, danach Wegzug, 80 km entfernt');
+  assert.equal(h(lage('azubi', { jahr: 2027, dann: 'bleibt', km: 0 }), 2026),
+    'noch ein Jahr Ausbildung, will danach bleiben');
+  assert.equal(h(lage('arbeiter', { jahr: 2030, dann: 'wegzug', km: 60 }), 2026), 'denkt über einen Wegzug nach');
+  assert.equal(h(lage('arbeiter', { jahr: 2027, dann: 'wegzug', km: 60 }), 2026),
+    'plant nächstes Jahr den Wegzug, 60 km entfernt');
+  assert.equal(h(lage('arbeiter', { jahr: 2029, dann: 'familie', km: 0 }), 2026), 'wünscht sich Familie');
 });
 
 test('ein frischer Stand trägt die Bindung an jedem Menschen', () => {

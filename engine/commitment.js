@@ -119,22 +119,63 @@ export function stufe(wert) {
 /**
  * Welcher Status in welchem Alter wie wahrscheinlich ist. Die Grenzen sind
  * inklusive Obergrenzen; die letzte Zeile fängt alles darüber.
+ *
+ * Der Azubi klingt nach 21 ab. Bis zum Herbst 2026 stand er von 20 bis 25 mit
+ * flachen 25 % in einem einzigen Band — in jedem dieser Jahrgänge jeder
+ * Vierte, obwohl eine Ausbildung mit 15 bis 19 beginnt und drei Jahre dauert.
+ * Der Lebenslauf selbst baut sie richtig ab (nach acht Saisons sind es unter
+ * den 22- bis 25-Jährigen 2–4 %), nur der Startkader und jeder Rookie kamen
+ * aus dieser Tabelle. Was dem Azubi genommen ist, geht an den Arbeiter: wer
+ * mit 24 keine Ausbildung mehr macht, hat meist eine hinter sich.
  * @type {[number, (readonly [Status, number])[]][]}
  */
 const STATUS_JE_ALTER = [
   [19, [['schueler', 60], ['azubi', 40]]],
-  [25, [['student', 50], ['azubi', 25], ['arbeiter', 25]]],
+  [21, [['student', 50], ['azubi', 30], ['arbeiter', 20]]],
+  [23, [['student', 50], ['azubi', 12], ['arbeiter', 38]]],
+  [25, [['student', 45], ['azubi', 5], ['arbeiter', 50]]],
   [30, [['student', 15], ['arbeiter', 85]]],
   [63, [['arbeiter', 100]]],
   [Infinity, [['rentner', 100]]],
 ];
 
 /**
- * Wie weit einer fährt: drei Bänder, die meisten wohnen in der Nähe. Der
- * Zehntel, der von weit her kommt, ist der, um den es in Block 7 geht.
- * @type {(readonly [[number, number], number])[]}
+ * Wie weit einer fährt, je Status: Bänder, die meisten wohnen in der Nähe.
+ * Bis 5 km heißt der Satz „wohnt um die Ecke" — das ist die Stadt selbst.
+ *
+ * Bis zum Herbst 2026 galt ein Band für alle, und darin war „nah" 1–15 km am
+ * Stück. Damit fuhr der Schüler so weit wie der Arbeiter, und ein Student lag
+ * so oft 30 km draußen wie ein Familienvater im Nachbarlandkreis. Jetzt hängt
+ * es daran, woran einer gebunden ist: der Schüler an Eltern und Schule — er
+ * fährt fast nie weit, und ohne Auto hielte er es auch nicht aus —, der Azubi
+ * an den Betrieb vor Ort, der Arbeiter und der Rentner an nichts Bestimmtes.
+ * Der Zehntel von weit her, um den es in Block 7 geht, bleibt beim Arbeiter.
+ *
+ * Der Student steht hier nur mit dem Teil, der **nicht** in der Uni-Stadt
+ * wohnt; siehe `ziehEntfernung()`.
+ * @type {Record<Status, (readonly [[number, number], number])[]>}
  */
-const ENTFERNUNG_BAENDER = [[[1, 15], 60], [[16, 50], 30], [[51, 120], 10]];
+const ENTFERNUNG_JE_STATUS = {
+  schueler: [[[1, 5], 45], [[6, 15], 40], [[16, 35], 15]],
+  student: [[[1, 5], 60], [[6, 15], 25], [[16, 40], 15]],
+  azubi: [[[1, 5], 40], [[6, 15], 35], [[16, 50], 20], [[51, 90], 5]],
+  arbeiter: [[[1, 5], 30], [[6, 15], 30], [[16, 50], 30], [[51, 120], 10]],
+  rentner: [[[1, 5], 40], [[6, 15], 35], [[16, 50], 20], [[51, 120], 5]],
+};
+
+/**
+ * Wie viele Studenten eines Vereins ohne eigene Hochschule in der nächsten
+ * Uni-Stadt wohnen. Der Rest wohnt im Ort — oder noch bei den Eltern — und
+ * pendelt zur Vorlesung statt zum Training.
+ *
+ * Verworfen: den Studenten einfach wie alle anderen zu ziehen. Dann wohnte
+ * einer, der 250 km weit zum Studieren gekommen ist, in einem Dorf 19 km
+ * draußen, in dem es keine Hochschule gibt — er ist aber wegen der Hochschule
+ * da, und dort wohnt er auch.
+ */
+const STUDENT_IN_UNISTADT = 0.5;
+/** Wie weit die Wohnung um die Uni-Stadt streut, als Anteil der Strecke dorthin. */
+const UNISTADT_STREUUNG = 0.2;
 
 /**
  * Wer ein Auto hat, je Status. Gilt bei der Ziehung — und noch einmal beim
@@ -162,6 +203,26 @@ const JUGEND_ALTER = 16;
 function nachAlter(tabelle, alter) {
   for (const [bis, wert] of tabelle) if (alter <= bis) return wert;
   return tabelle[tabelle.length - 1][1];
+}
+
+/**
+ * Die Kilometer bis zum Training, beim Eintritt.
+ *
+ * Nur beim Studenten spielt der Ort des Vereins hinein: hat die Stadt keine
+ * Hochschule, wohnt die Hälfte dort, wo sie ist. Hat sie eine, ist die
+ * Uni-Stadt der Ort selbst, und die Zeile in `ENTFERNUNG_JE_STATUS` gilt für
+ * alle.
+ * @param {() => number} rng
+ * @param {Status} status
+ * @param {number} uniKm  siehe `TeamDef.uniKm` in `content.js`
+ */
+export function ziehEntfernung(rng, status, uniKm) {
+  if (status === 'student' && uniKm > 0 && rng() < STUDENT_IN_UNISTADT) {
+    const streuung = 1 + (rng() * 2 - 1) * UNISTADT_STREUUNG;
+    return Math.max(1, Math.round(uniKm * streuung));
+  }
+  const band = pickWeighted(rng, ENTFERNUNG_JE_STATUS[status]);
+  return randInt(rng, band[0], band[1]);
 }
 
 // --- Der Horizont ----------------------------------------------------------
@@ -192,6 +253,32 @@ export function ziehAbschlussalter(rng, alter) {
   const schulart = pickWeighted(rng, ABSCHLUSSALTER);
   return Math.max(pickWeighted(rng, schulart), alter + 1);
 }
+
+/**
+ * Spätestens mit diesem Alter ist jeder aus der Schule, auch der Gymnasiast
+ * mit Ehrenrunde. Ein Schüler steht also höchstens mit 19 im Kader.
+ *
+ * Die Grenze gilt vor allem für die zweite Wahrheit: bis zum Herbst 2026
+ * schob `ziehWahrheit()` den Abschluss um bis zu zwei Jahre, ohne auf das
+ * Alter zu sehen, und so erzählte jeder neunte Schüler nach dem Gespräch von
+ * einem Abitur mit 21 — ein 18-Jähriger mit „noch 3 Jahre Schule".
+ */
+export const SCHULE_SPAETESTENS = 20;
+
+/**
+ * Das Alter, mit dem ein Studium, das bei der Ziehung **schon läuft**, nach
+ * seinem Plan zu Ende ist — auch mit Master und einem Umweg. Wer älter ist,
+ * steht deshalb näher am Ende als am Anfang.
+ *
+ * Bis zum Herbst 2026 bekam ein 27-Jähriger dieselben ein bis fünf Restjahre
+ * wie ein Erstsemester, und jeder achte Student war zugleich fünf Jahre im
+ * Verein und noch vier Jahre an der Uni. Die zweite Wahrheit darf über diese
+ * Grenze hinaus schieben — dass sich ein Studium zieht, ist genau die Art
+ * Überraschung, für die sie da ist. Ein frisch begonnenes Studium (nach der
+ * Schule, der Master) ist nicht gedeckelt; seine Dauer kommt aus
+ * `DAUER_JE_ABSCHNITT.frisch` und dem Alter beim Übergang.
+ */
+const STUDIUM_SPAETESTENS = 29;
 
 /**
  * Wie weit ein Wegzug führt: der **Median** je Status. Der Schüler zieht am
@@ -259,6 +346,19 @@ const ZYKLUS_JE_ALTER = [
 ];
 
 /**
+ * Womit das Wegzug-Gewicht eines Arbeiters multipliziert wird, der schon eine
+ * Familie hat — im Zyklus wie in der zweiten Wahrheit. Was abgeht, geht an
+ * „bleibt".
+ *
+ * Bis zum Herbst 2026 zog der Familienvater so oft weg wie der Ledige, und
+ * jeder vierte von ihnen „plante den Wegzug in vier Jahren". Mit Haus, Kita und
+ * dem Job der Partnerin zieht man seltener, und wenn, dann nicht nach Plan.
+ * Die Waage merkt davon nichts: die Familie legt sich dort weiter auf die
+ * Strecke (`DRUCK_FAKTOR_FAMILIE`) — wer schon weit fährt, geht trotzdem.
+ */
+const WEGZUG_MIT_FAMILIE = 0.4;
+
+/**
  * Warum ein Arbeiter aufhört, je Altersband: der Junge aus Lust oder wegen
  * des Berufs, der Alte wegen des Körpers.
  * @type {(readonly [number, (readonly [Grund, number])[]])[]}
@@ -307,7 +407,10 @@ export function ziehHorizont(rng, status, alter, jahr, familie, { frisch = false
   }
   if (status === 'student' || status === 'azubi') {
     const dauer = DAUER_JE_ABSCHNITT[status];
-    const jahre = frisch ? pickWeighted(rng, dauer.frisch) : randInt(rng, dauer.drin[0], dauer.drin[1]);
+    const bis = status === 'student'
+      ? Math.max(dauer.drin[0], Math.min(dauer.drin[1], STUDIUM_SPAETESTENS - alter))
+      : dauer.drin[1];
+    const jahre = frisch ? pickWeighted(rng, dauer.frisch) : randInt(rng, dauer.drin[0], bis);
     const dann = pickWeighted(rng, PLAN_JE_ABSCHNITT[status]);
     return { jahr: jahr + jahre, dann, km: km(dann) };
   }
@@ -315,11 +418,12 @@ export function ziehHorizont(rng, status, alter, jahr, familie, { frisch = false
     const dauer = DAUER_JE_ABSCHNITT.arbeiter;
     const jahre = frisch ? pickWeighted(rng, dauer.frisch) : randInt(rng, dauer.drin[0], dauer.drin[1]);
     const band = nachAlter(ZYKLUS_JE_ALTER, alter);
+    const wegzug = band.wegzug * (familie ? WEGZUG_MIT_FAMILIE : 1);
     /** @type {(readonly ['bleibt'|'familie'|'wegzug'|'schluss', number])[]} */
     const gewichte = [
-      ['bleibt', band.bleibt + (familie ? band.familie : 0)],
+      ['bleibt', band.bleibt + (familie ? band.familie + band.wegzug - wegzug : 0)],
       ['familie', familie ? 0 : band.familie],
-      ['wegzug', band.wegzug],
+      ['wegzug', wegzug],
       ['schluss', band.schluss * SCHLUSS_JE_STUFE[stufe]],
     ];
     const dann = pickWeighted(rng, gewichte.filter(([, g]) => g > 0));
@@ -355,7 +459,8 @@ function ausgangsAlternativen(status, plan, familie) {
     return plan === 'wegzug' ? [['bleibt', 1]] : [['wegzug', 1]];
   }
   /** @type {(readonly ['wegzug'|'bleibt'|'schluss'|'familie', number])[]} */
-  const alle = [['bleibt', 35], ['wegzug', 30], ['schluss', 25], ['familie', 10]];
+  const alle = [['bleibt', 35], ['wegzug', 30 * (familie ? WEGZUG_MIT_FAMILIE : 1)],
+    ['schluss', 25], ['familie', 10]];
   return alle.filter(([d]) => d !== plan
     && !(d === 'familie' && (familie || status === 'rentner')));
 }
@@ -392,8 +497,11 @@ export function ziehWahrheit(rng, plan, status, alter, jahr, familie) {
 
   if (pickWeighted(rng, WAHRHEIT_ARTEN) === 'dauer') {
     // Nur Verschiebungen, die in der Zukunft landen — eine Wahrheit, deren
-    // Jahr schon vorbei ist, wird nie geprüft und wäre still verloren.
-    const moeglich = WAHRHEIT_VERSCHIEBUNG.filter(([v]) => plan.jahr + v > jahr);
+    // Jahr schon vorbei ist, wird nie geprüft und wäre still verloren. Und
+    // beim Schüler keine, die ihn über `SCHULE_SPAETESTENS` hinaus in der
+    // Schule hält: das Jahr seines Horizonts **ist** sein Abschlussalter.
+    const moeglich = WAHRHEIT_VERSCHIEBUNG.filter(([v]) => plan.jahr + v > jahr
+      && (status !== 'schueler' || alter + plan.jahr + v - jahr <= SCHULE_SPAETESTENS));
     if (moeglich.length === 0) return null;
     w.jahr = plan.jahr + pickWeighted(rng, moeglich);
   } else {
@@ -441,12 +549,13 @@ export function echterHorizont(l) {
  * @param {() => number} rng
  * @param {number} alter
  * @param {number} jahr
+ * @param {number} [uniKm]  wie weit der Verein von der nächsten Hochschule liegt; ohne
+ *   Angabe hat er eine im Ort
  * @returns {Lebenslage}
  */
-export function ziehLebenslage(rng, alter, jahr) {
+export function ziehLebenslage(rng, alter, jahr, uniKm = 0) {
   const status = pickWeighted(rng, nachAlter(STATUS_JE_ALTER, alter));
-  const band = pickWeighted(rng, ENTFERNUNG_BAENDER);
-  const entfernung = randInt(rng, band[0], band[1]);
+  const entfernung = ziehEntfernung(rng, status, uniKm);
   const auto = rng() < AUTO_JE_STATUS[status];
   const familie = rng() < nachAlter(FAMILIE_JE_ALTER, alter);
   const horizont = ziehHorizont(rng, status, alter, jahr, familie);
@@ -490,10 +599,11 @@ export function ziehCommitment(rng, lebenslage, jahr) {
  * @param {() => number} rng
  * @param {number} alter
  * @param {number} jahr
+ * @param {number} [uniKm]  siehe `ziehLebenslage()`
  * @returns {{ commitment: number, lebenslage: Lebenslage }}
  */
-export function ziehBindung(rng, alter, jahr) {
-  const lebenslage = ziehLebenslage(rng, alter, jahr);
+export function ziehBindung(rng, alter, jahr, uniKm = 0) {
+  const lebenslage = ziehLebenslage(rng, alter, jahr, uniKm);
   const commitment = ziehCommitment(rng, lebenslage, jahr);
   lebenslage.horizontWahrheit = ziehWahrheit(
     rng, lebenslage.horizont, lebenslage.status, alter, jahr, lebenslage.familie);

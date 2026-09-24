@@ -608,20 +608,32 @@ export const DE = {
       teile.push(T.lebenslage.vereinsjahre(jahr - l.seit));
       return teile.join(' · ');
     },
+    // Wie sicher einer über seine Zukunft spricht, hängt am Abstand. Wer noch
+    // drei oder mehr Jahre Studium vor sich hat, weiß nicht, in welche Stadt der
+    // erste Job ihn führt — er hat einen Wegzug vor, aber keine Adresse; die
+    // Kilometer kommen in den Satz, wenn der Abschluss näher rückt. Beim
+    // Arbeiter endet nichts, das ihn zu einer Entscheidung zwänge: niemand
+    // „plant den Wegzug in vier Jahren". Er plant ihn fürs nächste Jahr, oder
+    // er denkt darüber nach. Dasselbe gilt für die Familie.
     horizont: (l, jahr) => {
       const h = l.horizont;
       if (!h) return 'fester Wohnsitz in der Gegend';
       const jahre = Math.max(0, h.jahr - jahr);
       const noch = jahre === 0 ? 'dieses Jahr' : jahre === 1 ? 'noch ein Jahr' : `noch ${jahre} Jahre`;
       const abschnitt = T.lebenslage.abschnitt[l.status];
-      const danach = h.dann === 'wegzug'
-        ? `Wegzug, ${h.km} km entfernt`
-        : h.dann === 'bleibt' ? 'will bleiben' : 'Schluss';
-      if (abschnitt) return `${noch} ${abschnitt}, danach ${danach}`;
+      if (abschnitt) {
+        const fern = jahre >= 3;
+        const danach = h.dann === 'wegzug'
+          ? (fern ? 'danach Wegzug geplant' : `danach Wegzug, ${h.km} km entfernt`)
+          : h.dann === 'bleibt' ? 'will danach bleiben' : 'danach Schluss';
+        return `${noch} ${abschnitt}, ${danach}`;
+      }
       if (h.dann === 'schluss') return T.lebenslage.schluss[h.grund || 'koerper'](jahre);
-      const wann = jahre === 0 ? 'dieses Jahr' : `in ${jahre} ${jahre === 1 ? 'Jahr' : 'Jahren'}`;
-      if (h.dann === 'wegzug') return `plant ${wann} den Wegzug, ${h.km} km entfernt`;
-      if (h.dann === 'familie') return `plant ${wann} Familie`;
+      const wann = jahre === 0 ? 'dieses Jahr' : 'nächstes Jahr';
+      if (h.dann === 'wegzug') {
+        return jahre <= 1 ? `plant ${wann} den Wegzug, ${h.km} km entfernt` : 'denkt über einen Wegzug nach';
+      }
+      if (h.dann === 'familie') return jahre <= 1 ? `plant ${wann} Familie` : 'wünscht sich Familie';
       return 'will bleiben';
     },
     vereinsjahre: (n) => (n <= 0 ? 'neu im Verein'

@@ -22,6 +22,9 @@ const WEISS = '#ffffff';
  * @property {string} stadt
  * @property {'nord'|'sued'} gruppe
  * @property {number} staerke    0..100, the baseline the club's Kader is drawn around
+ * @property {number} uniKm      Straßenkilometer zur nächsten Hochschule, von Hand
+ *   geschätzt; 0 heißt, die Stadt hat selbst eine. Daran hängt, wo die Studenten des
+ *   Vereins wohnen — siehe `ziehEntfernung()` in `commitment.js`
  * @property {Farben} farben
  */
 
@@ -32,18 +35,18 @@ export const GRUPPEN = /** @type {const} */ (['nord', 'sued']);
  * inside the group; the playoffs cross the groups.
  */
 export const TEAMS = /** @type {TeamDef[]} */ ([
-  { id: 'heg', name: 'Hemhofen Gechers',      kurz: 'HEG', stadt: 'Hemhofen',              gruppe: 'nord', staerke: 65, farben: { primaer: '#ee1c27', sekundaer: SCHWARZ,   tertiaer: WEISS } },
-  { id: 'ass', name: 'Aschaffenburg Stallions', kurz: 'ASS', stadt: 'Aschaffenburg',       gruppe: 'nord', staerke: 62, farben: { primaer: '#ea0000', sekundaer: WEISS,     tertiaer: SCHWARZ } },
-  { id: 'gc',  name: 'Gendorf Crusaders',     kurz: 'GC',  stadt: 'Burgkirchen a. d. Alz', gruppe: 'sued', staerke: 60, farben: { primaer: '#030405', sekundaer: WEISS,     tertiaer: '#e2192c' } },
-  { id: 'ers', name: 'Erlangen Sharks',       kurz: 'ERS', stadt: 'Erlangen',              gruppe: 'nord', staerke: 58, farben: { primaer: '#0d2e5e', sekundaer: '#f64536', tertiaer: WEISS } },
-  { id: 'kba', name: 'Königsbrunn Ants',      kurz: 'KBA', stadt: 'Königsbrunn',           gruppe: 'sued', staerke: 58, farben: { primaer: SCHWARZ,   sekundaer: '#f20c06', tertiaer: WEISS } },
-  { id: 'fel', name: 'Feldkirchen Lions',     kurz: 'FEL', stadt: 'Feldkirchen',           gruppe: 'sued', staerke: 57, farben: { primaer: '#d2b982', sekundaer: SCHWARZ,   tertiaer: WEISS } },
-  { id: 'sta', name: 'Starnberg Argonauts',   kurz: 'STA', stadt: 'Starnberg',             gruppe: 'sued', staerke: 56, farben: { primaer: '#0d173b', sekundaer: '#a4cff0', tertiaer: WEISS } },
-  { id: 'hr',  name: 'Herzo Rhinos',          kurz: 'HR',  stadt: 'Herzogenaurach',        gruppe: 'nord', staerke: 50, farben: { primaer: '#858585', sekundaer: '#c10e1a', tertiaer: WEISS } },
-  { id: 'mr',  name: 'München Rangers',       kurz: 'MR',  stadt: 'München',               gruppe: 'sued', staerke: 49, farben: { primaer: '#fc6900', sekundaer: '#96a19b', tertiaer: WEISS } },
-  { id: 'fkk', name: 'Franken Knights',       kurz: 'FKK', stadt: 'Fürth',                 gruppe: 'nord', staerke: 47, farben: { primaer: '#e41a1a', sekundaer: '#bfbab7', tertiaer: WEISS } },
-  { id: 'btc', name: 'Bad Tölz Capricorns',   kurz: 'BTC', stadt: 'Bad Tölz',              gruppe: 'sued', staerke: 46, farben: { primaer: '#23433d', sekundaer: '#f5b32b', tertiaer: WEISS } },
-  { id: 'pp',  name: 'Passau Pirates',        kurz: 'PP',  stadt: 'Passau',                gruppe: 'nord', staerke: 45, farben: { primaer: '#52287e', sekundaer: SCHWARZ,   tertiaer: '#fbcd20' } },
+  { id: 'heg', name: 'Hemhofen Gechers',      kurz: 'HEG', stadt: 'Hemhofen',              gruppe: 'nord', staerke: 65, uniKm: 15, farben: { primaer: '#ee1c27', sekundaer: SCHWARZ,   tertiaer: WEISS } },
+  { id: 'ass', name: 'Aschaffenburg Stallions', kurz: 'ASS', stadt: 'Aschaffenburg',       gruppe: 'nord', staerke: 62, uniKm: 0,  farben: { primaer: '#ea0000', sekundaer: WEISS,     tertiaer: SCHWARZ } },
+  { id: 'gc',  name: 'Gendorf Crusaders',     kurz: 'GC',  stadt: 'Burgkirchen a. d. Alz', gruppe: 'sued', staerke: 60, uniKm: 15, farben: { primaer: '#030405', sekundaer: WEISS,     tertiaer: '#e2192c' } },
+  { id: 'ers', name: 'Erlangen Sharks',       kurz: 'ERS', stadt: 'Erlangen',              gruppe: 'nord', staerke: 58, uniKm: 0,  farben: { primaer: '#0d2e5e', sekundaer: '#f64536', tertiaer: WEISS } },
+  { id: 'kba', name: 'Königsbrunn Ants',      kurz: 'KBA', stadt: 'Königsbrunn',           gruppe: 'sued', staerke: 58, uniKm: 13, farben: { primaer: SCHWARZ,   sekundaer: '#f20c06', tertiaer: WEISS } },
+  { id: 'fel', name: 'Feldkirchen Lions',     kurz: 'FEL', stadt: 'Feldkirchen',           gruppe: 'sued', staerke: 57, uniKm: 12, farben: { primaer: '#d2b982', sekundaer: SCHWARZ,   tertiaer: WEISS } },
+  { id: 'sta', name: 'Starnberg Argonauts',   kurz: 'STA', stadt: 'Starnberg',             gruppe: 'sued', staerke: 56, uniKm: 25, farben: { primaer: '#0d173b', sekundaer: '#a4cff0', tertiaer: WEISS } },
+  { id: 'hr',  name: 'Herzo Rhinos',          kurz: 'HR',  stadt: 'Herzogenaurach',        gruppe: 'nord', staerke: 50, uniKm: 12, farben: { primaer: '#858585', sekundaer: '#c10e1a', tertiaer: WEISS } },
+  { id: 'mr',  name: 'München Rangers',       kurz: 'MR',  stadt: 'München',               gruppe: 'sued', staerke: 49, uniKm: 0,  farben: { primaer: '#fc6900', sekundaer: '#96a19b', tertiaer: WEISS } },
+  { id: 'fkk', name: 'Franken Knights',       kurz: 'FKK', stadt: 'Fürth',                 gruppe: 'nord', staerke: 47, uniKm: 8,  farben: { primaer: '#e41a1a', sekundaer: '#bfbab7', tertiaer: WEISS } },
+  { id: 'btc', name: 'Bad Tölz Capricorns',   kurz: 'BTC', stadt: 'Bad Tölz',              gruppe: 'sued', staerke: 46, uniKm: 50, farben: { primaer: '#23433d', sekundaer: '#f5b32b', tertiaer: WEISS } },
+  { id: 'pp',  name: 'Passau Pirates',        kurz: 'PP',  stadt: 'Passau',                gruppe: 'nord', staerke: 45, uniKm: 0,  farben: { primaer: '#52287e', sekundaer: SCHWARZ,   tertiaer: '#fbcd20' } },
 ]);
 
 /** @param {string} id */

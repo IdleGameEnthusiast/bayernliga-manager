@@ -26,18 +26,22 @@ ergaenzeBindung(s);
 
 // 187 km ist als Wegzug eindeutig: weiter, als je einer ins Training fährt
 // (das oberste Band endet bei 120), also kann die Zeile nicht mit der
-// Entfernung verwechselt werden.
-const plan = () => ({ jahr: s.jahr + 4, dann: 'bleibt', km: 0 });
-const wahrheit = (wissbarAb) => ({ jahr: s.jahr + 4, dann: 'wegzug', km: 187, wissbarAb });
+// Entfernung verwechselt werden. Das Ereignis liegt im nächsten Jahr, weil die
+// Kilometer nur in einem nahen Plan im Satz stehen — ein Wegzug in vier Jahren
+// heißt „denkt über einen Wegzug nach", und dann gäbe es nichts zu finden.
+const plan = () => ({ jahr: s.jahr + 1, dann: 'bleibt', km: 0 });
+const wahrheit = (wissbarAb) => ({ jahr: s.jahr + 1, dann: 'wegzug', km: 187, wissbarAb });
 
 const jetzt = s.kader[s.meinTeam][0];
+jetzt.lebenslage.status = 'arbeiter';
 jetzt.lebenslage.horizont = plan();
 jetzt.lebenslage.horizontWahrheit = wahrheit(s.jahr);
 window.redetName = `${jetzt.vorname} ${jetzt.nachname}`;
 
 const spaeter = s.kader[s.meinTeam][1];
+spaeter.lebenslage.status = 'arbeiter';
 spaeter.lebenslage.horizont = plan();
-spaeter.lebenslage.horizontWahrheit = wahrheit(s.jahr + 3);
+spaeter.lebenslage.horizontWahrheit = wahrheit(s.jahr + 1);
 window.schweigtName = `${spaeter.vorname} ${spaeter.nachname}`;
 
 speichere(s);

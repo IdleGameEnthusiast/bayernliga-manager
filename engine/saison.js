@@ -188,11 +188,26 @@ export function coachesVon(stand, teamId) {
 export function bindungVon(stand, person) {
   if (typeof person.commitment !== 'number' || !person.lebenslage) {
     const rng = makeRng(`${stand.seed}|bindung|${person.id}`);
-    const gezogen = ziehBindung(rng, person.alter, stand.jahr);
+    const verein = vereinVon(stand, person);
+    const gezogen = ziehBindung(rng, person.alter, stand.jahr, verein ? verein.uniKm : 0);
     person.commitment = gezogen.commitment;
     person.lebenslage = gezogen.lebenslage;
   }
   return { commitment: person.commitment, lebenslage: person.lebenslage };
+}
+
+/**
+ * Der Verein, in dessen Kader oder Stab ein Mensch steht. Ein Spieler trägt
+ * seinen Verein nicht bei sich — er steht in `stand.kader[teamId]`, und das
+ * reicht überall sonst. Gesucht wird nur beim Ziehen der Bindung, also einmal
+ * je Mensch; dafür ein Feld in jeden Spieler zu schreiben, das beim Wechsel
+ * mitwandern müsste, lohnt nicht.
+ * @param {SpielStand} stand
+ * @param {{ id: string }} person
+ */
+function vereinVon(stand, person) {
+  return TEAMS.find((t) => (stand.kader[t.id] || []).some((s) => s.id === person.id)
+    || ((stand.coaches || {})[t.id] || []).some((c) => c.id === person.id));
 }
 
 /**
