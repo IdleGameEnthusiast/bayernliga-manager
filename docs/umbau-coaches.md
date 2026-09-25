@@ -417,8 +417,19 @@ Duell hat zwei Zeilen mehr: „Eigener OC" und „DC des Gegners".
 ## 9 — Was noch nicht ist
 
 - **Spielerentwicklung.** Was die Technik eines Coaches mit der Drift und dem
-  Talentwachstum seiner Gruppe macht, und wer eine Gruppe coacht, wenn kein
-  Positionscoach da ist. Gehört ins Entwicklungskonzept aus Block 5.
+  Talentwachstum seiner Gruppe macht. Gehört ins Entwicklungskonzept aus
+  Block 5. **Wer eine Gruppe ohne Positionscoach coacht, ist entschieden**:
+  der Koordinator ihrer Seite, aufgeteilt auf die Gruppen, die er betreuen
+  muss — `gruppenWert()` in `coach.js`. Für die Technik trifft das auf die
+  `aehnlichkeit()`, und beide Abzüge gelten: was er von der Gruppe versteht
+  und wie viel Zeit er für sie hat, sind zwei Schwächen. Heute liest die
+  Betreuung (Empathie, Kommunikation) diese Funktion, siehe `drift.js`.
+- **Positionscoaches im Stab.** Sobald es sie gibt, zählt `gruppenWert()` nur
+  noch die **unbesetzten** Gruppen: ein Koordinator trainiert vor allem dort,
+  wo niemand sonst steht. **Offen** ist, was eine besetzte Gruppe dann noch
+  von ihm bekommt — den vollen Anteil wie heute, oder nur einen kleineren
+  Aufsichtsanteil, weil der Positionscoach die Arbeit macht. Und wie sich die
+  Anteile summieren, wenn alle fünf besetzt sind.
 - **Alter und Rücktritt.** Coaches altern nicht; `alter` ist eine Zahl aus der
   Ziehung. Gehört zum Markt.
 - **Markt.** Einstellen, Entlassen, Rekrutierung der Jüngeren, Verträge — es

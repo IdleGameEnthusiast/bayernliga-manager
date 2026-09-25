@@ -213,6 +213,30 @@ export const DE = {
       ],
     },
 
+    // Die Trend-Nachricht kommt vom Coach selbst und nicht vom Trainerstab:
+    // dass er es bemerkt hat, ist sein Verdienst, und dass er es so oft nicht
+    // bemerkt, der Preis dafür, dass er fünf Gruppen gleichzeitig coacht. Die
+    // Stufen heißen wie im Personalreiter, damit der Manager nachsehen kann.
+    commitmentTrend: {
+      von: (d) => (d.coach ? `${d.coach} (${d.coachRolle})` : 'Trainerstab'),
+      betreff: (d) => (d.nach > d.von
+        ? `${d.name} ist mit mehr dabei`
+        : `${d.name} zieht sich zurück`),
+      text: (d) => (d.nach > d.von
+        ? [
+          `Mir ist bei ${d.name} (${d.position}) etwas aufgefallen: er ist mit mehr dabei als `
+            + `noch vor ein paar Wochen. Sein Commitment würde ich inzwischen „${T.commitment.stufen[d.nach]}“ `
+            + `nennen, vorher war es „${T.commitment.stufen[d.von]}“.`,
+          'Ich wollte es nur gesagt haben — so etwas sieht man sonst erst, wenn es wieder weg ist.',
+        ]
+        : [
+          `Mir ist bei ${d.name} (${d.position}) etwas aufgefallen: er ist mit dem Kopf nicht mehr `
+            + `ganz hier. Sein Commitment würde ich inzwischen „${T.commitment.stufen[d.nach]}“ nennen, `
+            + `vorher war es „${T.commitment.stufen[d.von]}“.`,
+          'Woran es liegt, hat er nicht gesagt. Vielleicht redest du mal mit ihm.',
+        ]),
+    },
+
     spielvorschau: {
       von: 'Trainerstab',
       betreff: (d) => `Morgen: ${d.gegner}`,

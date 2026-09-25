@@ -116,11 +116,21 @@ function istOffen(n) {
  * Fehlt sie, ist die Nachricht aus einer neueren Fassung des Spiels: dann wird
  * die Zeile roh angezeigt statt zu werfen.
  * @param {string} art
- * @returns {{ von: string, betreff: (d: any) => string, text: (d: any) => string[],
- *             antworten?: Record<string, string> } | null}
+ * @returns {{ von: string | ((d: any) => string), betreff: (d: any) => string,
+ *             text: (d: any) => string[], antworten?: Record<string, string> } | null}
  */
 function vorlageVon(art) {
   return /** @type {Record<string, any>} */ (T.post)[art] || null;
+}
+
+/**
+ * Wer schreibt. Meist eine feste Stelle („Trainerstab"), bei der Trend-Nachricht
+ * aber der Coach, der es bemerkt hat — der steht in den Daten.
+ * @param {ReturnType<typeof vorlageVon>} vorlage @param {any} daten
+ */
+function absenderVon(vorlage, daten) {
+  if (!vorlage) return '';
+  return typeof vorlage.von === 'function' ? vorlage.von(daten) : vorlage.von;
 }
 
 /** @param {import('../engine/saison.js').SpielStand} stand */
@@ -438,7 +448,7 @@ function nachrichtZeile(n, aktionen) {
     }),
     el('span', { class: 'postnamen' },
       el('div', { class: 'postbetreff', text: vorlage ? vorlage.betreff(daten) : n.art }),
-      el('div', { class: 'leise klein postvon', text: vorlage ? vorlage.von : '' })),
+      el('div', { class: 'leise klein postvon', text: absenderVon(vorlage, daten) })),
     el('span', {
       class: 'leise klein postdatum',
       text: T.datum.ohneJahr(datum(n.jahr, n.tag)),
@@ -460,7 +470,7 @@ function nachrichtBlatt(n, stand, aktionen) {
       el('h3', { text: vorlage ? vorlage.betreff(daten) : n.art }),
       el('div', {
         class: 'leise klein',
-        text: T.postfach.absender(vorlage ? vorlage.von : n.art,
+        text: T.postfach.absender(vorlage ? absenderVon(vorlage, daten) : n.art,
           T.datum.ohneJahr(datum(n.jahr, n.tag))),
       })),
     el('div', { class: 'posttext' },

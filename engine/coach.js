@@ -537,6 +537,61 @@ export function dcVon(stab) {
   return (stab && stab.find((c) => c.rolle === 'DC')) || null;
 }
 
+// --- Die Gruppe ohne eigenen Coach -----------------------------------------
+// Docs: docs/umbau-coaches.md, Abschnitt 9
+
+/**
+ * Was eine Gruppe von ihrem Coach bekommt, wenn der Koordinator mitcoacht.
+ *
+ * Der Koordinator ist automatisch Positionscoach jeder Gruppe seiner Seite,
+ * aber er muss sich aufteilen: seine Stärke zählt als Prozentsatz, geteilt
+ * durch die Gruppen, die er selbst betreuen muss, und füllt diesen Anteil der
+ * Lücke zwischen dem eigenen Positionscoach und dem Dach. Ein OC mit 60 gibt
+ * einer von fünf Gruppen ohne Positionscoach 99 × 0,12 ≈ 12; hat sie einen mit
+ * 23, werden daraus 23 + 76 × 0,12 ≈ 32. Der Koordinator macht das Coaching
+ * besser, verantwortlich ist der Positionscoach.
+ *
+ * Für jeden Wert gleich — Soft Skills wie Technik. Bei der Technik trifft das
+ * auf eine Größe, die über `aehnlichkeit()` schon kleiner ist, wo der
+ * Koordinator die Gruppe nicht gut kennt. Das ist **keine** Doppelzählung: dort
+ * steht, was er von der Gruppe versteht, hier, wie viel Zeit er für sie hat.
+ * Kennt er sie schlecht und hat sie keinen eigenen Coach, sind das zwei
+ * Schwächen, und beide ziehen ab.
+ *
+ * `anzahl` ist die Zahl der Gruppen, die sich seine Zeit teilen — nicht fest
+ * fünf, sondern das, was der Aufrufer zählt. Heute sind das alle Gruppen
+ * seiner Seite, weil es keinen einzigen Positionscoach gibt.
+ * @param {number} koordinatorWert 0..MAX_RATING
+ * @param {number} anzahl          Gruppen, auf die er sich aufteilt
+ * @param {number} [eigenerWert]   Der eigene Positionscoach; 0, wenn es keinen gibt
+ */
+export function verduennterWert(koordinatorWert, anzahl, eigenerWert = 0) {
+  const anteil = koordinatorWert / 100 / Math.max(1, anzahl);
+  return eigenerWert + (MAX_RATING - eigenerWert) * anteil;
+}
+
+/**
+ * Was eine Coaching-Gruppe an einem Wert ihres Coaches hat.
+ *
+ * Positionscoaches gibt es noch nicht (`ziehStab()` stellt nur OC und DC ein),
+ * also trägt der Koordinator allein, aufgeteilt auf alle Gruppen seiner Seite.
+ * Wenn der Markt Positionscoaches bringt, zählt diese Funktion nur noch die
+ * unbesetzten Gruppen — ein Koordinator trainiert vor allem dort, wo niemand
+ * sonst steht. Was eine **besetzte** Gruppe dann noch von ihm bekommt, ist
+ * offen und gehört in den Umbau des Stabs, nicht hierher.
+ *
+ * Ohne Koordinator auf der Seite ist der Wert 0 — dann coacht dort niemand.
+ * @param {Coach[] | undefined} stab
+ * @param {string} gruppe  Coaching-Gruppe
+ * @param {(c: Coach) => number} wert  welcher Wert, z. B. `(c) => c.soft.empathie`
+ */
+export function gruppenWert(stab, gruppe, wert) {
+  const seite = seiteVon(gruppe);
+  const koordinator = seite === 'offense' ? ocVon(stab) : dcVon(stab);
+  const anzahl = COACHING_GRUPPE_REIHE.filter((g) => seiteVon(g) === seite).length;
+  return verduennterWert(koordinator ? wert(koordinator) : 0, anzahl);
+}
+
 // --- Die Wirkung am Spieltag ------------------------------------------------
 // Docs: docs/umbau-coaches.md, Abschnitt 8
 

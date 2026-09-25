@@ -725,6 +725,76 @@ Reihenfolge und Größenordnung der Strategien sind unverändert.
 
 ---
 
+## 17 — Die Drift: Coach, Verletzung, Erfolg, Vereinsjahre
+
+*„Meine Leute werden einfach so unzufriedener"* oder *„der Coach sagt mir nie
+etwas".* `engine/constants.js`, Modell in `engine/drift.js`, die Verdünnung in
+`gruppenWert()` in `engine/coach.js`. Docs
+[`naechste-schritte.md`](naechste-schritte.md) Block 7, „Was den Wert bewegt".
+Läuft für **alle zwölf Vereine**; nur die Trend-Nachricht ist eigen.
+
+**Der Coach als Faktor**
+
+| Konstante | Wert | Wirkung | Richtung |
+| --- | --- | --- | --- |
+| `BETREUUNG_FAKTOR_OHNE` / `_BESTE` | 1,4 / 0,6 | womit jeder Verlust malgenommen wird — ohne Betreuung bzw. bei `MAX_RATING` | gemessen an `MAX_RATING`, **nicht** an dem, was ein Koordinator dieser Liga erreicht. Heute liegt jeder eigene Spieler bei 1,35–1,37: das ist der Malus ohne Positionscoaches, und er soll erst mit ihnen verschwinden. Kalibriert wird fürs ganze Spiel, nicht für die erste Saison |
+
+Die Betreuung einer Gruppe ist der Schnitt aus Empathie und Kommunikation
+ihres Coaches, verdünnt: `eigener Wert + (99 − eigener Wert) × Koordinator/100/Gruppen`.
+Heute gibt es keinen Positionscoach, also teilt sich der Koordinator auf alle
+fünf Gruppen seiner Seite. Gemessen (acht Seeds): der eigene Verein kommt auf
+**5,1 %** Betreuung je Gruppe, die KI-Vereine auf 6,0 % (höchstens 8,4 %).
+
+**Die Treiber**
+
+| Konstante | Wert | Wirkung | Richtung |
+| --- | --- | --- | --- |
+| `VERLETZUNG_JE_WOCHE` | 1,0 | Abzug je angebrochener verletzter Woche, vor Betreuung | eine Verletzung von w Wochen kostet w Wochenanfänge |
+| `VERLETZUNG_FAKTOR_FAMILIE` / `_ARBEITER` | 1,4 / 1,3 | multiplikativ; nur die **eigene** Familie | sechs Wochen als Arbeiter mit Familie ohne Positionscoach: rund 15 Punkte |
+| `ERFOLG_SERIE_SCHWELLE` / `_ABZUG` | 3 / 2,0 | einmal beim Erreichen von drei Niederlagen in Folge, **ganzer Kader** — auch wer verletzt ist | höher = Pech wird nicht bestraft; bei jedem weiteren Spiel der Serie zu zahlen hieße, einen Verein ohne Boden zu versenken |
+| `VEREINSJAHR_BONUS` | 0,4 | je Jahr im Verein, bis `COMMITMENT_VEREINSJAHRE_MAX` | zehn Jahre sind vier Punkte; ungedämpft, weil es ein Gewinn ist |
+| `TREND_VERSUCHE` | 4 | Würfe des Coaches je Stufenwechsel — gleich nach dem Spiel, dann an jedem Wochenanfang | Chance je Wurf = Betreuung/`MAX_RATING`. Heute 5 % → **19 %** aller Wechsel werden gemeldet, vier von fünf nie. Gewollt |
+
+**Gemessen beim Einbau** (acht Seeds `a`–`h`, drei Saisons, eigener Kader
+Hemhofen, dieselbe Harness wie Abschnitt 12: mittlere Commitment-Änderung
+gegen den Startwert / Spieler auf Stufe 0; dazu der Schnitt der elf KI-Kader
+und die Abgänge der ganzen Liga je Saisonwechsel):
+
+| Strategie | vorher | nachher |
+| --- | --- | --- |
+| **passend** | +6,3 / +13,1 / +20,2 | +4,3 / +9,0 / +13,6 |
+| **alles versprechen** | +1,1 / +3,4 / +9,9 | −4,3 / +1,0 / +5,1 |
+| **keine Rolle** | −2,6 / −5,3 / −7,4 | −5,2 / −11,3 / −15,8 |
+| KI-Schnitt | 57,2 / 57,1 / 57,0 | 55,7 / 54,6 / 53,6 |
+| Abgänge Liga (2./3. Wechsel) | 41 / 37 | 42 / 38 |
+
+Die Reihenfolge der Strategien bleibt, und ihr Abstand wächst: wer gar nicht
+redet, zahlt über drei Saisons doppelt so viel wie vorher, weil der
+Coach-Faktor den Bank-Drift mit 1,36 multipliziert und die Serie dazukommt.
+Trend-Nachrichten kamen
+im Schnitt zwei bis drei je Saison.
+
+**Die Zerlegung** (Strategie „passend", Saison 3): ohne Serie und ohne
+Coach-Faktor landet die Drift bei +21,1 — Verletzung und Vereinsjahre heben
+sich also fast auf. Die Serie kostet rund sieben Punkte über drei Saisons,
+der Coach-Faktor bei passender Rolle kaum etwas; er beißt erst, wo verloren
+wird.
+
+**Verworfen: der Abzug für verpasste Playoffs** (4 Punkte, einmal bei der
+Auslosung). Gemessen: „passend" −1,1 / −1,5 / −2,3 statt +20, der KI-Schnitt
+fiel ohne Boden von 57 auf 45, die Abgänge der Liga stiegen um ein Fünftel.
+Acht von zwölf Vereinen verpassen die Playoffs **jedes** Jahr, und der eigene
+startet als schwächster — der Abzug maß keinen Misserfolg, er besteuerte den
+Normalfall. Die Serie trifft schlechte Phasen, nicht schlechte Vereine.
+
+**Offen:** der KI-Schnitt fällt noch immer um gut einen Punkt je Saison. Die
+KI hat keinen Gewinn außer dem Vereinsjahr — keine Rolle, kein Gespräch. Das
+bremst mit Abgängen und Rookies von selbst ab, gehört aber beobachtet, sobald
+es die Rekrutierung (Block 7, Schritt 3) gibt: ein pauschaler
+Betreuungsfaktor für die KI steht dort ohnehin im Plan.
+
+---
+
 ## Was nicht hier steht
 
 Formeln (`FORMELN`, `PROFIL_BEITRAG`, `KOERPER_KORRIDOR`), die Blockgewichte

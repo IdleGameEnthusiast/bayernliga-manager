@@ -12,10 +12,10 @@ hängen — siehe [`umbau-aufstellung.md`](umbau-aufstellung.md). Aus Block 7
 sind Schritt 1 (Commitment und Lebenslage als Felder) und Schritt 2a (der
 Statusübergangs-Motor: Horizonte, Statuswechsel, Druck gegen Halt) umgesetzt.
 Von Schritt 2b stehen die Kalenderphasen, die Rollen-Kampagne samt
-Gesprächs-Dialog und Wochenkontingent und **alle fünf Gesprächskategorien**.
-**Als Nächstes steht die Drift durch Coach, Verletzung, Erfolg und
-Vereinsjahre**, und mit ihr die generische Trend-Nachricht vom Positionscoach
-mit ihrem Empathie-Gate — das Einzige, was aus Schritt 2b noch offen ist.
+Gesprächs-Dialog und Wochenkontingent, **alle fünf Gesprächskategorien** und
+die Drift durch Coach, Verletzung, Erfolg und Vereinsjahre samt der
+Trend-Nachricht. **Schritt 2b ist damit abgeschlossen.** Als Nächstes steht
+Schritt 3: Abgänge und Rekrutierung.
 
 ---
 
@@ -739,7 +739,23 @@ das Gespräch die Wahrheit **verlässlich** auf, sobald gefragt wird.
 
 ### Nachrichten
 
-Zwei verschiedene Nachrichtentypen, mit unterschiedlicher Gate-Logik:
+*Die Trend-Nachricht ist gebaut (`engine/drift.js`, `SAVE_VERSION` 18), mit
+vier Abweichungen vom Entwurf darunter:*
+
+- *Absender ist der **Koordinator**, der die Gruppe mitcoacht — Positionscoaches
+  gibt es nicht. Seine Empathie und Kommunikation werden verdünnt: der
+  Koordinator teilt sich auf alle fünf Gruppen seiner Seite auf
+  (`gruppenWert()` in `coach.js`, siehe „Drift durch Coach …" in der
+  Baureihenfolge).*
+- *Die Chance ist die Betreuung **als Anteil an `MAX_RATING`**, und es gibt
+  **vier** Würfe statt einem — gleich nach dem Spiel, dann an den drei
+  folgenden Wochenanfängen. Trifft keiner, bleibt der Wechsel für immer
+  ungesagt. Dafür braucht es doch Zustand am Spieler:
+  `commitmentStufeGemeldet` und `commitmentTrendVersuche`.*
+- *Gemeldet wird in **beide** Richtungen. Ein Spieler, der wieder mit mehr
+  dabei ist, ist genauso eine Auskunft.*
+- *Ein Gespräch macht die Stufe bekannt: der Manager saß ihm gegenüber, und
+  eine Meldung über das, was er selbst gesehen hat, wäre Rauschen.*
 
 - **Die generische Trend-Nachricht** (künftige Drift-Quellen wie Verletzung,
   Erfolg): Auslöser ist ein **Stufenwechsel abwärts**, nie „−X in drei
@@ -1258,11 +1274,36 @@ eigenen Platz, es steht als „noch zwei Jahre Schule" ohnehin im Satz.
            weggefallen (der gesperrte Knopf mit „kommt mit dem nächsten
            Schritt"). Wer eine sechste anhängt, baut es wieder ein: erst
            ankündigen, dann liefern.
-     Drift durch Coach, Verletzung, Erfolg, Vereinsjahre bleibt **offen** und
+     ~~Drift durch Coach, Verletzung, Erfolg, Vereinsjahre bleibt **offen** und
      ist nicht Teil dieses Zuschnitts — Rolle deckt nur die Bank ab. Die
      generische Trend-Nachricht mit dem Empathie-Gate des Positionscoaches ist
-     damit ebenfalls noch offen: gebaut ist nur die Rollen-Mismatch-Nachricht,
-     die bewusst **ohne** dieses Gate läuft.
+     damit ebenfalls noch offen.~~ **Gebaut** in `engine/drift.js`,
+     `SAVE_VERSION` 18, für alle zwölf Vereine. Was beim Bauen entschieden
+     wurde:
+     - **Der Koordinator ist Positionscoach jeder Gruppe seiner Seite**, muss
+       sich aber aufteilen: `eigener Wert + (99 − eigener Wert) ×
+       Koordinator/100/Gruppen`. Ein OC mit 60 gibt einer von fünf Gruppen ohne
+       Positionscoach ≈ 12; mit einem Positionscoach von 23 werden daraus ≈ 32.
+       Gilt für jeden Wert — auch für die Technik, wo es auf die
+       `aehnlichkeit()` trifft: kennt er die Gruppe schlecht **und** hat sie
+       keinen eigenen Coach, sind das zwei Schwächen, und beide ziehen ab.
+     - **Der Coach ist ein Faktor, kein Posten**: die Betreuung (Empathie und
+       Kommunikation, verdünnt) nimmt jeden Verlust mal 1,4 bis 0,6 —
+       gemessen an `MAX_RATING`, nicht am Liga-Niveau. Ohne Positionscoaches
+       liegt jeder bei rund 1,36. Das ist der Malus, der erst mit
+       rekrutierten Positionscoaches verschwinden soll; kalibriert wird fürs
+       ganze Spiel. Auch der Bank-Drift aus `rolle.js` läuft durch den
+       Faktor, Boni nie.
+     - **Verletzung** je angebrochener Woche, teurer mit eigener Familie und
+       als Arbeiter. Die Betreuung durch Physio und Arzt fehlt, bis es
+       Finanzen gibt.
+     - **Erfolg ist nur die Niederlagenserie** — drei in Folge, einmal beim
+       Erreichen, für den ganzen Kader, auch die Verletzten. Ein Abzug für
+       verpasste Playoffs war gebaut und ist nach der Messung heraus: acht
+       von zwölf verpassen sie jedes Jahr, und der KI-Schnitt fiel damit ohne
+       Boden. Siehe [`balancing.md`](balancing.md) Abschnitt 17.
+     - **Vereinsjahre** heben jedes Jahr ein wenig, bis zum zehnten, gebucht
+       vor der Waage.
 
      **Offen und dem Depth-Chart-/Rotations-Umbau zugeschlagen** (beim Messen
      nach dem Bau aufgefallen, siehe [`balancing.md`](balancing.md)
@@ -1585,6 +1626,8 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Keine Drift ohne Hebel | Schritt 1 zeigt nur an. Bewegung erst mit dem Gespräch als knappem Kalendertermin; sonst ist es eine unsichtbare Strafe |
 | Positionsverweigerung | als Regel verworfen — Umschulung ist der Kern des Spiels. Höchstens seltener Ausnahmefall; Wünsche (Position, Nummer) dürfen erfüllt heben und verweigert senken |
 | Versprechen | zuletzt, und nur gespeichert und für den Manager einsehbar, mit Frist und Stand |
-| Trend-Nachricht | nur beim Stufenwechsel, vom Positionscoach der Gruppe, früh oder spät je nach seiner Empathie; ohne Coach sagt es niemand |
+| Trend-Nachricht | nur beim Stufenwechsel, in beide Richtungen, vom Coach, der die Gruppe coacht — heute der Koordinator, verdünnt auf fünf Gruppen. Vier Würfe mit der Betreuung als Chance (gleich nach dem Spiel, dann wochenweise); trifft keiner, bleibt es ungesagt. Ohne Coach sagt es niemand |
+| Drift durch Coach | kein eigener Posten, sondern ein Faktor 1,4 … 0,6 auf jeden Verlust, gemessen an `MAX_RATING`. Ohne Positionscoaches ≈ 1,36 — der Malus bleibt, bis es welche gibt |
+| Erfolg | nur die Niederlagenserie (3 in Folge, einmal, ganzer Kader). Verpasste Playoffs verworfen: der Normalfall für acht von zwölf |
 | KI und Abgänge | Abgänge und Rekrutierung im selben Schritt; die KI ersetzt weiter durch Rookies und bekommt einen pauschalen Betreuungsfaktor. Feld und Drift laufen für alle Vereine |
 | Rekrutierungskanäle | Verteilungen über Lebenslagen (Hochschulinfotag, Jugend, Aushang); Ehemalige mit hohem Commitment sind der Pool für Coaches und Orga |

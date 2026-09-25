@@ -74,6 +74,12 @@ import { VORNAMEN, NACHNAMEN } from './content.js';
  *   Überzeugens, 0 bis 1. Kein Eintrag: war nie ein Thema. Unter 1: er sperrt sich. Genau
  *   1: überzeugt, und der Eintrag bleibt stehen, damit die Ablehnung nicht neu entsteht.
  *   Siehe `ueberzeugen.js`
+ * @property {number} [commitmentStufeGemeldet]  Die Commitment-Stufe, die der Manager
+ *   zuletzt kannte — gemeldet, im Gespräch gesehen oder vom Coach verschwiegen, bis keiner
+ *   mehr fragt. Weicht die heutige ab, würfelt der Coach, ob er es sagt. Nur der eigene
+ *   Verein führt es; fehlt es, gilt die heutige als bekannt. Siehe `drift.js`
+ * @property {number} [commitmentTrendVersuche]  Wie oft der Coach seit dem Wechsel schon
+ *   nicht hingesehen hat — nach `TREND_VERSUCHE` bleibt er ungesagt
  */
 
 /** A player who has not been handed a number yet. 0 is a real jersey. */

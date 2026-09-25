@@ -53,10 +53,11 @@ in Millisekunden durchspielen können.
 | `engine/kalender.js` | Die Uhr: Saisonstart, Tagesnummern, Spieltagstermine, Phasen. Der einzige Ort mit `Date` |
 | `engine/positionen.js` | Körperkorridore, Positionsformeln, Plätze, die Eignung |
 | `engine/spieler.js` | Spieler erzeugen, Attribute, Alterskurve, Verletzungen, Saisonwechsel |
-| `engine/coach.js` | Der Stab: Coaching-Gruppen und ihre Ähnlichkeit, die drei Blöcke, der Stärkewert je Rolle, die Ziehung |
+| `engine/coach.js` | Der Stab: Coaching-Gruppen und ihre Ähnlichkeit, die drei Blöcke, der Stärkewert je Rolle, die Ziehung, und was eine Gruppe vom Koordinator bekommt, der sie mitcoachen muss |
 | `engine/commitment.js` | Commitment und Lebenslage: die fünf Stufen, die Ziehung aus Status und Vereinsjahren, das Abschlussalter, der Horizont mit Plan und Grund, und die zweite Wahrheit daneben — für Spieler und Coaches dieselbe |
 | `engine/lebenslauf.js` | Was von Jahr zu Jahr geschieht: Schule, Studium, Ausbildung enden, der Arbeiter-Zyklus, das Kippen des Plans durch das Commitment, die Waage Druck gegen Halt |
 | `engine/rolle.js` | Die Rolle: die fünf Stufen, die Offseason-Kampagne mit ihrem Tempo, die Reaktion beim Setzen aus Perzentil, Vorgeschichte und Alter, der Bank-Drift aus dem rollierenden Einsatzfenster |
+| `engine/drift.js` | Was das Commitment ohne Gespräch bewegt, für jeden Verein: die Betreuung durch den Coach als Faktor auf jeden Verlust, die verletzte Woche, die Niederlagenserie, das Jahr im Verein — und die Trend-Nachricht, mit der der Coach einen Stufenwechsel meldet oder eben nicht |
 | `engine/gespraech.js` | Was allen Gesprächskategorien gemeinsam ist: das Wochenkontingent aus dem Gesprächslog, die Nähe aus dem Abstand zum letzten Termin — und das persönliche Gespräch, das nichts weiter braucht |
 | `engine/wunsch.js` | Was ein Spieler von sich aus möchte: der Anlass zum Positions- und zum Nummernwunsch, das Aussprechen im Gespräch, und was ein Spiel auf dem falschen Platz danach kostet |
 | `engine/ueberzeugen.js` | Die Gegenseite: wogegen ein Spieler sich sperrt, wann das überhaupt entsteht, was ein Spiel auf einer abgelehnten Position kostet, und wie viele Gespräche es braucht, ihn umzustimmen |

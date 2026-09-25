@@ -38,8 +38,10 @@
  * die Auskunft an den Manager, und sie einzulösen ist nicht Sache dieser
  * Datei. Die beiden fallen erst im Gespräch wieder zusammen (`auskunft.js`).
  *
- * Was hier **nicht** passiert, mit Absicht: das Commitment bewegt sich nicht
- * (Bank, Coach, Verletzung kommen in Schritt 2b), und wer geht, wird durch
+ * Was hier **nicht** passiert, mit Absicht: das Commitment bewegt sich nicht —
+ * Bank, Coach, Verletzung, Erfolg und die Jahre im Verein stehen in `rolle.js`
+ * und `drift.js`, und der Saisonwechsel bucht das Vereinsjahr, bevor er diese
+ * Datei ruft. Wer geht, wird durch
  * einen Rookie ersetzt wie der Rücktritt heute — für jeden Verein derselbe
  * Weg, damit die Symmetrie zur KI hält.
  *
@@ -103,8 +105,13 @@ export function halt(commitment, l, jahr) {
     + (JUNG.has(l.status) ? HALT_FAMILIENBONUS_JUNG : 0);
 }
 
-/** @param {Lebenslage} l */
-function eigeneFamilie(l) {
+/**
+ * Ob er eine **eigene** Familie hat. Beim Schüler, Studenten und Azubi meint
+ * `familie` die Eltern — sie wohnen, wo der Verein steht, und machen nichts
+ * teurer. Die Drift liest dieselbe Regel für die Verletzung.
+ * @param {Lebenslage} l
+ */
+export function eigeneFamilie(l) {
   return l.familie && !JUNG.has(l.status);
 }
 

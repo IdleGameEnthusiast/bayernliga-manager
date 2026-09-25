@@ -29,6 +29,7 @@ const SHELL = [
   './engine/commitment.js',
   './engine/lebenslauf.js',
   './engine/rolle.js',
+  './engine/drift.js',
   './engine/gespraech.js',
   './engine/wunsch.js',
   './engine/auskunft.js',

@@ -37,6 +37,22 @@ export const STORAGE_KEY = 'bayernliga.save';
  * @type {Record<number, (roh: any) => any>}
  */
 const MIGRATIONEN = {
+  // 17 → 18: die Trend-Nachricht kam, und mit ihr zwei Felder am Spieler —
+  // `commitmentStufeGemeldet`, die Stufe, die der Manager zuletzt kannte, und
+  // `commitmentTrendVersuche`, wie oft der Coach seither danebengegriffen hat.
+  // Fehlt die Stufe, gilt die heutige als bekannt, sobald der Coach das erste
+  // Mal hinsieht; fehlen die Versuche, sind es null.
+  //
+  // Beides ist für einen alten Stand die Wahrheit. Der Manager sieht die Stufe
+  // im Personalreiter, und bis gestern hat sich niemand verpflichtet gefühlt,
+  // ihm einen Wechsel zu melden. Ein Schritt, der die Stufe hier festschriebe,
+  // müsste obendrein die Bänder von heute kennen — und verschöbe sich stumm mit,
+  // sobald jemand sie anfasst.
+  17: (roh) => {
+    roh.version = 18;
+    return roh;
+  },
+
   // 16 → 17: neben dem Plan in der Lebenslage steht jetzt `horizontWahrheit` —
   // was wirklich kommt, wenn es anders kommt als angekündigt. Fehlt das Feld,
   // hält der Plan, und das ist für einen alten Stand nicht nur die bequeme,

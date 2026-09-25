@@ -905,6 +905,80 @@ export const ROLLE_PERZENTIL_GRENZEN = /** @type {const} */ ([
 ]);
 export const ROLLE_PERZENTIL_POSITION_ANTEIL = 0.75;
 
+// --- Drift — Coach, Verletzung, Erfolg, Vereinsjahre in `drift.js` ----------
+// Docs: docs/naechste-schritte.md, Block 7, „Was den Wert bewegt"
+
+/**
+ * Die Betreuung einer Coaching-Gruppe verstärkt oder mildert jeden Verlust an
+ * Commitment: 1,4-fach ohne jede Betreuung, 0,6-fach bei der bestmöglichen.
+ * Linear dazwischen, gemessen an `MAX_RATING` — **nicht** an dem, was ein
+ * Koordinator dieser Liga erreicht.
+ *
+ * Das ist gewollt und durchgerechnet: ein Koordinator mit Empathie um 22 gibt
+ * einer von fünf Gruppen verdünnt nur gut 4 Punkte Betreuung, und der Faktor
+ * liegt dann bei 1,36 — für jeden Verein fast gleich schlecht. Das ist der
+ * Malus dafür, keine Positionscoaches zu haben, und er soll erst verschwinden,
+ * wenn es welche gibt. Kalibriert wird für das ganze Spiel mit rekrutierten
+ * Positionscoaches, nicht für die erste Saison. Gegen einen realistischen
+ * Deckel von 20 zu rechnen war vorgeschlagen und ist verworfen: dann hätte ein
+ * Verein ohne einen einzigen Positionscoach schon fast die volle Betreuung.
+ *
+ * Nur Verluste, nie Gewinne: ein guter Coach hält die Leute, er verdoppelt
+ * nicht den Lohn einer erfüllten Rolle.
+ */
+export const BETREUUNG_FAKTOR_OHNE = 1.4;
+export const BETREUUNG_FAKTOR_BESTE = 0.6;
+
+/**
+ * Was eine Woche verletzt am Commitment kostet, vor Betreuung und Lebenslage.
+ * Dieselbe Größenordnung wie ein Spiel auf der Bank ohne Rolle
+ * (`ROLLE_OHNE_JE_SPIEL`) — verletzt zu sein ist nicht schlimmer, als
+ * übergangen zu werden, aber es summiert sich: sechs Wochen mit Familie als
+ * Arbeiter ohne Positionscoach sind rund fünfzehn Punkte, gut eine
+ * Dreiviertelstufe.
+ */
+export const VERLETZUNG_JE_WOCHE = 1.0;
+/**
+ * Wer eine eigene Familie hat, rechnet schneller nach, ob sich das noch lohnt.
+ * Multiplikativ mit dem Arbeiter, wie die Faktoren der Waage auch.
+ */
+export const VERLETZUNG_FAKTOR_FAMILIE = 1.4;
+/** Wer arbeiten muss, trägt die Verletzung in den Job — „lohnt sich das noch". */
+export const VERLETZUNG_FAKTOR_ARBEITER = 1.3;
+
+/**
+ * Ab wie vielen Niederlagen in Folge die Serie am Kader nagt, und was sie
+ * einmalig kostet. Einmal beim **Erreichen** der Schwelle, nicht bei jedem
+ * weiteren Spiel der Serie — sonst liefe der Abzug bei einem Verein, der
+ * ohnehin untergeht, ohne Boden weiter.
+ */
+export const ERFOLG_SERIE_SCHWELLE = 3;
+export const ERFOLG_SERIE_ABZUG = 2.0;
+// Verworfen, nach Messung: ein Abzug für verpasste Playoffs (4 Punkte, einmal
+// bei der Auslosung). Acht von zwölf Vereinen verpassen sie **jedes** Jahr,
+// der eigene startet als schwächster — der Abzug war kein Signal für
+// Misserfolg, sondern eine Steuer auf den Normalfall, ohne Boden. Über drei
+// Saisons fiel der KI-Schnitt von 57 auf 45, und ein Manager, der jedem die
+// passende Rolle gibt, stand bei −2 statt +20. Siehe balancing.md, Abschnitt 17.
+
+/**
+ * Was ein Jahr im Verein am Wert hebt, jedes Jahr bis `COMMITMENT_VEREINSJAHRE_MAX`.
+ * Klein: zehn Jahre sind vier Punkte. Die Jahre stehen außerdem in der Waage
+ * (`HALT_JE_VEREINSJAHR`) — das ist keine Doppelzählung, denn dort sind sie
+ * eine Rechengröße beim Abgang, hier eine Bewegung des Werts, die jeder andere
+ * Treiber wieder aufzehren kann.
+ */
+export const VEREINSJAHR_BONUS = 0.4;
+
+/**
+ * Wie oft der Coach die Chance bekommt, einen Stufenwechsel zu bemerken, bevor
+ * er für immer ungesagt bleibt — je Wochenanfang eine. Die Chance je Versuch
+ * ist die Betreuung selbst, als Anteil an `MAX_RATING`. Ohne Positionscoach
+ * sind das beim eigenen Verein rund 5 %, über vier Versuche also etwa jeder
+ * fünfte Wechsel (gemessen: 19 %).
+ */
+export const TREND_VERSUCHE = 4;
+
 /** Match simulation. */
 export const BASE_POINTS = 20;        // what an evenly matched offence scores
 export const RATING_TO_POINTS = 0.42; // points gained per point of unit advantage

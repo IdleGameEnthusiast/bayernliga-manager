@@ -408,15 +408,19 @@ export function mismatch(sp) {
  * dasselbe sagt, wäre Nörgeln statt Information. Sichtbar ist es trotzdem, im
  * Personalreiter steht der Strich in der Rollenspalte neben der fallenden
  * Bindung.
- * @param {Spieler} sp @param {number} tag
+ *
+ * `verlustFaktor` ist die Betreuung seiner Gruppe (`drift.js`): sie gewichtet
+ * jeden Abzug, nie den Bonus. Ohne Angabe 1 — die Rechnung, wie sie vor dem
+ * Coach war.
+ * @param {Spieler} sp @param {number} tag @param {number} [verlustFaktor]
  * @returns {Drift | null} null, solange nichts zu rechnen ist
  */
-export function drift(sp, tag) {
+export function drift(sp, tag, verlustFaktor = 1) {
   const uebergangen = vernachlaessigung(sp);
   if (uebergangen !== null) {
     // Die Fallunterscheidung statt `-x * k` wegen der negativen Null: `-0`
     // landet sonst im Speicherstand und stolpert über jeden strikten Vergleich.
-    const delta = uebergangen > 0 ? -uebergangen * ROLLE_OHNE_JE_SPIEL : 0;
+    const delta = uebergangen > 0 ? -uebergangen * ROLLE_OHNE_JE_SPIEL * verlustFaktor : 0;
     if (delta !== 0 && typeof sp.commitment === 'number') {
       sp.commitment = clamp(sp.commitment + delta, 0, 99);
     }
@@ -433,7 +437,7 @@ export function drift(sp, tag) {
     return { delta: ROLLE_ERFUELLT_BONUS, beschwerde: false };
   }
 
-  const delta = -fehlt * ROLLE_MISMATCH_JE_ANTEIL;
+  const delta = -fehlt * ROLLE_MISMATCH_JE_ANTEIL * verlustFaktor;
   if (typeof sp.commitment === 'number') {
     sp.commitment = clamp(sp.commitment + delta, 0, 99);
   }

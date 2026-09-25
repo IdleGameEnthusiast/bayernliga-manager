@@ -39,7 +39,11 @@ import {
 } from './aufstellung.js';
 import { berechneTabelle } from './tabelle.js';
 import { teamStaerken } from './team.js';
-import { ziehStab, ocVon, lerneTag, lerneSpiel } from './coach.js';
+import { ziehStab, ocVon, dcVon, seiteVon, lerneTag, lerneSpiel } from './coach.js';
+import {
+  gruppeVon, verlustFaktor, verletzungsDrift, serienDrift, vereinsjahr,
+  trendVersuch, stufeBekannt,
+} from './drift.js';
 import { ziehBindung } from './commitment.js';
 import { lebensjahr } from './lebenslauf.js';
 import {
@@ -61,7 +65,7 @@ import { frageNachLebenslage } from './auskunft.js';
  * der vorigen Nummer auf diese hebt. Ohne diesen Schritt wird ein solcher Stand
  * beim Laden weggeworfen — der Sprung ist billig, der Verlust nicht.
  */
-export const SAVE_VERSION = 17;
+export const SAVE_VERSION = 18;
 
 /**
  * @typedef {object} SpielStand
@@ -793,6 +797,7 @@ function spielDrift(stand, meine, tag) {
   }
   /** @type {{ art: string, daten?: Record<string, any> }[]} */
   const eintraege = [];
+  const stab = coachesVon(stand, stand.meinTeam);
 
   for (const sp of stand.kader[stand.meinTeam] || []) {
     if (!istFit(sp, tag)) continue;
@@ -816,7 +821,7 @@ function spielDrift(stand, meine, tag) {
       });
     }
 
-    const bewegt = drift(sp, tag);
+    const bewegt = drift(sp, tag, verlustFaktor(stab, sp));
     if (!bewegt || !bewegt.beschwerde) continue;
     eintraege.push({
       art: 'rollenmismatch',
@@ -829,6 +834,77 @@ function spielDrift(stand, meine, tag) {
     });
   }
   return eintraege;
+}
+
+/**
+ * Der Kader eines Vereins, jeder mit Bindung. Die Drift trifft alle zwölf
+ * Vereine, und in einem Stand von vor Block 7 hängt die Bindung eines
+ * KI-Spielers noch im Saatgut.
+ * @param {SpielStand} stand @param {string} teamId
+ */
+function kaderMitBindung(stand, teamId) {
+  const kader = stand.kader[teamId] || [];
+  for (const sp of kader) bindungVon(stand, sp);
+  return kader;
+}
+
+/**
+ * Ein Versuch des Coaches, für jeden im eigenen Kader, dessen Stufe sich
+ * verschoben hat. `anlass` trennt die Würfe am selben Tag — der Wochenanfang
+ * und das Spiel danach sind zwei Gelegenheiten, es zu bemerken.
+ *
+ * Nur der eigene Verein: die Nachricht geht an den Manager, und ein Feld, das
+ * bei den KI-Vereinen niemand liest, wäre Ballast im Speicherstand.
+ * @param {SpielStand} stand @param {number} tag @param {'woche'|'spiel'} anlass
+ * @returns {{ art: string, daten?: Record<string, any> }[]}
+ */
+function trendEintraege(stand, tag, anlass) {
+  const stab = coachesVon(stand, stand.meinTeam);
+  /** @type {{ art: string, daten?: Record<string, any> }[]} */
+  const eintraege = [];
+  for (const sp of kaderMitBindung(stand, stand.meinTeam)) {
+    const rng = makeRng(`${stand.seed}|trend|${stand.jahr}|${tag}|${anlass}|${sp.id}`);
+    const trend = trendVersuch(sp, stab, rng);
+    if (!trend) continue;
+    // Wer es sagt, ist der, der die Gruppe coacht. Ohne Koordinator auf der
+    // Seite ist die Betreuung null, und der Wurf trifft nie — hier steht also
+    // immer einer.
+    const seite = seiteVon(gruppeVon(sp));
+    const coach = seite === 'offense' ? ocVon(stab) : dcVon(stab);
+    eintraege.push({
+      art: 'commitmentTrend',
+      daten: {
+        spielerId: sp.id,
+        name: `${sp.vorname} ${sp.nachname}`,
+        position: sp.position,
+        von: trend.von,
+        nach: trend.nach,
+        coach: coach ? `${coach.vorname} ${coach.nachname}` : '',
+        coachRolle: coach ? coach.rolle : '',
+      },
+    });
+  }
+  return eintraege;
+}
+
+/**
+ * Was ein Wochenanfang am Commitment bewegt: die verletzte Woche, für jeden
+ * Verein — und danach die Chance des Coaches, beim eigenen etwas zu bemerken.
+ *
+ * Der Wochenanfang und nicht jeder Tag, weil die Verletzung in Wochen
+ * gezogen wird und die Spieltage im Wochentakt liegen. Er fällt auf den
+ * Spieltag selbst, **vor** das Spiel: der Wurf am Morgen ist der zweite,
+ * dritte oder vierte Versuch für den Wechsel aus dem Spiel davor.
+ * @param {SpielStand} stand @param {number} tag
+ * @returns {{ art: string, daten?: Record<string, any> }[]}
+ */
+function wochenDrift(stand, tag) {
+  if (!wochenBeginn(tag)) return [];
+  for (const t of TEAMS) {
+    const stab = coachesVon(stand, t.id);
+    for (const sp of kaderMitBindung(stand, t.id)) verletzungsDrift(sp, stab, tag);
+  }
+  return trendEintraege(stand, tag, 'woche');
 }
 
 /**
@@ -852,6 +928,15 @@ function spieleTag(stand, tag) {
       rng, alsGegner(stand, p.heim), alsGegner(stand, p.gast), tag,
     );
     p.ergebnis = ergebnis;
+
+    // Die Serie zählt auch eine gewertete Niederlage — verloren ist verloren,
+    // und am Tisch entschieden fühlt es sich nicht besser an. Deshalb vor dem
+    // `continue`, und für beide Vereine: der Verlierer ist der, dessen Serie
+    // wachsen kann, aber welcher das ist, weiß `serienDrift()` selbst.
+    for (const teamId of [p.heim, p.gast]) {
+      serienDrift(kaderMitBindung(stand, teamId), coachesVon(stand, teamId),
+        stand.spielplan, teamId);
+    }
 
     // Ein gewertetes Spiel hat nicht stattgefunden: niemand sammelt Einsätze,
     // niemand verletzt sich, auch der Gegner nicht. Er verliert seinen
@@ -940,6 +1025,11 @@ function spieleTag(stand, tag) {
       daten: { paarungen: halbfinale.map((p) => [p.heim, p.gast]) },
     });
   }
+
+  // Der erste Versuch des Coaches kommt gleich nach dem Spiel — nach der Bank
+  // und nach der Serie, damit er sieht, was der ganze Nachmittag angerichtet
+  // hat.
+  if (meins && meins.ergebnis) eintraege.push(...trendEintraege(stand, tag, 'spiel'));
 
   const champion = meister(stand);
   if (champion && partienDerRunde(stand.spielplan, 'finale').some((p) => p.tag === tag)) {
@@ -1108,7 +1198,11 @@ export function weiter(stand, zielTag = null) {
     // ohne Spiel. Vor der Post, damit ein späteres Tagesereignis, das den
     // Stab liest, schon den heutigen Stand sieht.
     coachesLernenTag(stand);
-    nachrichten.push(...sende(stand, stand.tag, eintraegeAmTag(stand, stand.tag)));
+    // Die Drift des Wochenanfangs ändert den Stand und steht deshalb hier und
+    // nicht in `eintraegeAmTag()`, das nur liest — `ereignisseAmTag()` fragt
+    // es für die Vorschau, und eine Vorschau darf niemanden verletzt machen.
+    const wochenPost = wochenDrift(stand, stand.tag);
+    nachrichten.push(...sende(stand, stand.tag, [...eintraegeAmTag(stand, stand.tag), ...wochenPost]));
 
     if (offeneAntworten(stand).length > 0) return halt('antwort');
     // Das eigene Spiel geht dem Phasenbeginn vor: Tag 183 ist beides, und was
@@ -1158,6 +1252,17 @@ export function gespraecheFrei(stand) {
 }
 
 /**
+ * Einen geführten Termin ins Log schreiben — und festhalten, dass der Manager
+ * jetzt weiß, wo der Mann steht. Er saß ihm gegenüber; ein Coach, der ihm eine
+ * Woche später meldet, was er selbst gesehen hat, wäre Rauschen.
+ * @param {SpielStand} stand @param {import('./spieler.js').Spieler} sp
+ */
+function verbucheGespraech(stand, sp) {
+  stand.gespraeche.push({ tag: stand.tag, spielerId: sp.id });
+  stufeBekannt(sp);
+}
+
+/**
  * Ob mit diesem Spieler heute über seine Rolle gesprochen werden kann — und
  * wenn nicht, woran es liegt.
  *
@@ -1199,7 +1304,7 @@ export function fuehreRollenGespraech(stand, spielerId, rolle) {
 
   bindungVon(stand, sp);
   const reaktion = setzeRolle(kader, sp, rolle, stand.tag);
-  stand.gespraeche.push({ tag: stand.tag, spielerId });
+  verbucheGespraech(stand, sp);
 
   for (const n of stand.post) {
     if (n.art === 'rollenanfrage' && n.antwort === null && n.daten.spielerId === spielerId) {
@@ -1227,7 +1332,7 @@ export function fuehrePersoenlichesGespraech(stand, spielerId) {
 
   bindungVon(stand, sp);
   const zuwendung = persoenlichesGespraech(sp, stand.gespraeche, stand.tag);
-  stand.gespraeche.push({ tag: stand.tag, spielerId });
+  verbucheGespraech(stand, sp);
   return zuwendung;
 }
 
@@ -1263,7 +1368,7 @@ export function fuehreWunschGespraech(stand, spielerId) {
 
   bindungVon(stand, sp);
   const auskunft = frageNachWunsch(kader, sp, stand.gespraeche, stand.tag);
-  stand.gespraeche.push({ tag: stand.tag, spielerId });
+  verbucheGespraech(stand, sp);
   return auskunft;
 }
 
@@ -1283,7 +1388,11 @@ export function erfuelleNummernwunsch(stand, spielerId) {
   if (!sp) return 0;
 
   bindungVon(stand, sp);
-  return gibNummer(kader, sp);
+  const delta = gibNummer(kader, sp);
+  // Kein Termin, aber er hat ihm die Nummer selbst in die Hand gedrückt und
+  // gesehen, was sie ihm bedeutet.
+  stufeBekannt(sp);
+  return delta;
 }
 
 /**
@@ -1320,7 +1429,7 @@ export function fuehreLebenslageGespraech(stand, spielerId) {
 
   bindungVon(stand, sp);
   const auskunft = frageNachLebenslage(sp, stand.jahr);
-  stand.gespraeche.push({ tag: stand.tag, spielerId });
+  verbucheGespraech(stand, sp);
   return auskunft;
 }
 
@@ -1341,7 +1450,7 @@ export function fuehreUeberzeugenGespraech(stand, spielerId, position) {
 
   bindungVon(stand, sp);
   const zureden = ueberzeuge(sp, position);
-  if (zureden) stand.gespraeche.push({ tag: stand.tag, spielerId });
+  if (zureden) verbucheGespraech(stand, sp);
   return zureden;
 }
 
@@ -1423,6 +1532,12 @@ function lebensjahrKader(stand, teamId) {
   const abgaenge = new Map();
   for (const s of stand.kader[teamId] || []) {
     const rng = makeRng(`${stand.seed}|lebenslauf|${neuesJahr}|${s.id}`);
+    // Das Jahr im Verein zählt vor der Waage: wer lange da ist, hält mehr aus,
+    // und das soll er schon in diesem Wechsel tun. `bindungVon()` davor, weil
+    // der Bonus einen Wert braucht, an dem er ziehen kann — und danach noch
+    // einmal, weil es eine Kopie der Zahl zurückgibt, keinen Verweis.
+    bindungVon(stand, s);
+    vereinsjahr(s, neuesJahr);
     const ereignis = lebensjahr(rng, bindungVon(stand, s), s.alter + 1, neuesJahr);
     if (ereignis && ereignis.art === 'abgang') abgaenge.set(s.id, ereignis.grund);
   }

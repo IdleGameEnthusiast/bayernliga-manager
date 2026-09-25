@@ -15,10 +15,11 @@
  * Hier stehen die **Ziehungen**: der Wert und die Lebenslage, wie ein Mensch
  * ins Spiel kommt. Was danach mit ihm geschieht — der Horizont, der erreicht
  * wird, der Statuswechsel, die Waage Druck gegen Halt — steht in
- * `lebenslauf.js`. Der Wert selbst **bewegt sich noch nicht**: Drift ohne
- * Hebel wäre eine unsichtbare Strafe — fünf Textstufen, die leise fallen, und
- * nichts, was der Manager dagegen tun kann. Erst Anzeige, dann Bewegung, dann
- * Hebel.
+ * `lebenslauf.js`. Was den Wert danach bewegt, steht woanders: die Bank in
+ * `rolle.js`, die Gespräche in ihren eigenen Dateien, Coach, Verletzung,
+ * Erfolg und Vereinsjahre in `drift.js`. Die Reihenfolge war Absicht — erst
+ * Anzeige, dann Hebel, dann Bewegung: Drift ohne Hebel wäre eine unsichtbare
+ * Strafe gewesen, fünf Textstufen, die leise fallen.
  *
  * Verworfen: das Commitment über das Alter zu ziehen („wer mit 30 noch
  * Bayernliga spielt, will es"). Jeder kann die Lust verlieren, wenn er auf der
