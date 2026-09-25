@@ -89,6 +89,37 @@ export function tagVonDatum(jahr, j, m, t) {
   return Math.round((Date.UTC(j, m - 1, t) - zeit(saisonStart(jahr))) / MS_PRO_TAG) + 1;
 }
 
+/**
+ * Der erste Samstag eines Monats, als Tagesnummer der Saison `jahr`.
+ * @param {number} jahr Saisonlabel @param {number} j Kalenderjahr @param {number} m 1..12
+ */
+function ersterSamstag(jahr, j, m) {
+  const erster = new Date(Date.UTC(j, m - 1, 1));
+  return tagVonDatum(jahr, j, m, 1 + (SAMSTAG - erster.getUTCDay() + 7) % 7);
+}
+
+/**
+ * Die beiden Tryouts einer Saison: der erste Samstag im November und der erste
+ * im April. Beide liegen fern jedes Spieltags — der November in der Offseason,
+ * Tag 15 oder 22; der April in der Preseason, fast immer Tag 169, vierzehn Tage
+ * vor dem ersten Spieltag. Viermal im Jahrhundert ist es Tag 176 (zuerst 2040):
+ * beginnt die Saison am frühestmöglichen 15. Oktober und hat der Februar einen
+ * Schalttag, fällt der Samstag nach 24 Wochen auf den 31. März, und der erste
+ * im April ist eine Woche später. Dann bleibt eine Woche bis zum ersten
+ * Spieltag — knapp, aber es kollidiert mit nichts.
+ *
+ * Hier steht nur der Termin, weil nur er ein Datum braucht. Die Erinnerung
+ * einen Monat vorher ist Tagesrechnung und steht in `recruiting.js`.
+ * @param {number} jahr
+ * @returns {{ herbst: number, fruehling: number }}
+ */
+export function tryoutTage(jahr) {
+  return {
+    herbst: ersterSamstag(jahr, jahr - 1, 11),
+    fruehling: ersterSamstag(jahr, jahr, 4),
+  };
+}
+
 /** Wie viele Tage ein Monat hat. @param {number} j @param {number} m 1..12 */
 export function tageImMonat(j, m) {
   return new Date(Date.UTC(j, m, 0)).getUTCDate();

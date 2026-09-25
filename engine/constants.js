@@ -988,6 +988,133 @@ export const KI_AUSGLEICH_JE_SAISON = 25;
  */
 export const TREND_VERSUCHE = 4;
 
+// --- Rekrutierung: die Tryouts -----------------------------------------------
+// Docs: docs/naechste-schritte.md, Block 7, Schritt 3; balancing.md Abschnitt 18.
+
+/**
+ * Wer zum Tryout kommt: ein Sockel, der immer da ist, und eine Spanne, die
+ * Verein, Liga und Werbung füllen.
+ *
+ * `zulauf = SOCKEL + SPANNE × vereinsFaktor × ligaFaktor × aktivierterAnteil`.
+ * Der Sockel ist Mundpropaganda — Freunde von Spielern, der Nachbar, der es
+ * mal ausprobieren will — und hängt deshalb an nichts, auch nicht an der Liga.
+ * Ein starker Bayernligist mit jeder Maßnahme kommt auf 15. Mehr wäre für diese
+ * Liga zu viel: zehn Neue sind für einen Bayernligisten schon ein Jahrgang,
+ * und eine Liste mit dreißig Namen, von denen fünfundzwanzig absagen, zeigt dem
+ * Manager vor allem, wen er nicht bekommt.
+ */
+export const TRYOUT_SOCKEL = 5;
+export const TRYOUT_SPANNE = 10;
+
+/**
+ * Was die Vereinsstärke am Zulauf ausmacht: der schwächste Verein der Liga
+ * bekommt diesen Anteil der Spanne, der stärkste die volle.
+ */
+export const TRYOUT_VEREINSFAKTOR_MIN = 0.4;
+
+/**
+ * Die Liga am Zulauf. Heute gibt es nur die Bayernliga, und sie ist die
+ * Referenz — deshalb 1. Die Tabelle für GFL bis Landesliga steht in
+ * `naechste-schritte.md` und kommt mit den anderen Ligen in den Code, nicht
+ * vorher: ein Feld für eine Liga, die es nicht gibt, wäre ungeprüfter Ballast.
+ */
+export const TRYOUT_LIGA_FAKTOR = 1;
+
+/**
+ * Die Werbemaßnahmen und ihr Anteil an der Spanne. Summiert auf 1: wer alle
+ * nimmt, holt die volle Spanne. Wen eine Maßnahme bringt, steht in
+ * `recruiting.js` — das ist ein Modell, keine Stellschraube.
+ *
+ * Kosten gibt es noch keine. Sie kommen mit den Finanzen und sind im Fahrplan
+ * notiert; bis dahin nimmt jeder alles, und das ist in Ordnung — die
+ * Entscheidung wird erst mit einem Preis eine.
+ * @type {Record<string, number>}
+ */
+export const WERBUNG_ANTEIL = {
+  hochschulinfotag: 0.30,
+  socialMedia: 0.25,
+  plakate: 0.15,
+  fitnessstudio: 0.10,
+  schule: 0.05,
+  zeitung: 0.05,
+  supermarkt: 0.05,
+  radio: 0.05,
+};
+
+/**
+ * Wie stark ein Kandidat ist, wenn er ausgebildet ist: überwiegend Ligamitte,
+ * ein Stück Verein — ein guter Verein zieht bessere Leute an, aber wer zu einem
+ * Tryout kommt, kommt aus der Gegend und nicht aus einer Scoutingliste. Davon
+ * geht der Rookie-Abschlag ab, gleichverteilt in der Spanne.
+ */
+export const TRYOUT_LIGA_ANTEIL = 0.7;
+export const TRYOUT_ROOKIE_ABSCHLAG = /** @type {[number, number]} */ ([5, 10]);
+export const TRYOUT_STAERKE_STREUUNG = 5;
+
+/**
+ * Wie roh ein Kandidat ist. Körper und Athletik bringt er mit, das Handwerk
+ * nur zu diesem Anteil, und Technik praktisch gar nicht — die kommt aus dem
+ * Training auf einer Position, und eine Position hat er noch nicht.
+ */
+export const TRYOUT_HANDWERK_ANTEIL = 0.5;
+export const TRYOUT_TECHNIK = /** @type {[number, number]} */ ([1, 6]);
+
+/** Mit wie vielen der Manager am Tryout selbst reden kann. Eigenes Kontingent, nicht das der Woche. */
+export const TRYOUT_GESPRAECHE = 5;
+/** Wie viele Tage die Kandidaten nach dem Tryout überlegen, bevor sie zu- oder absagen. */
+export const TRYOUT_BEDENKZEIT = 3;
+/** Wie viele Tage vorher die Frage nach der Werbung kommt. */
+export const TRYOUT_VORLAUF = 30;
+
+/**
+ * Das Interesse im Herbst, in Prozent: die Chance, dass einer zusagt. Breit
+ * gestreut — ein paar wollen unbedingt, ein paar waren nur neugierig.
+ * Kalibriert auf Ø 5,9 Zusagen bei vollem Zulauf (15), mit fünf Gesprächen.
+ */
+export const INTERESSE_HERBST = { mittel: 30, streuung: 18 };
+
+/**
+ * Das Interesse im Frühling: fast niemand — außer ein paar Studenten, die im
+ * Sommersemester etwas suchen. Zweigipflig statt flach abgesenkt: wer im April
+ * kommt, will es entweder wirklich oder hat sich nur mal umgesehen.
+ * Kalibriert auf Ø 3 Zusagen bei vollem Zulauf. Die Frühlings-Rookies sind zum
+ * ersten Spieltag ohnehin nicht fertig, und das ist gewollt.
+ */
+export const INTERESSE_FRUEHLING = {
+  hochChance: 0.10,
+  hoch: { mittel: 55, streuung: 15 },
+  niedrig: { mittel: 3, streuung: 8 },
+};
+
+/**
+ * Darunter fällt der eigene Kader nach einem Tryout nie: so viele, wie der
+ * Verein beim Amtsantritt hatte. Wer nachrückt, um die Zahl zu halten, liegt
+ * unter dem Ligaschnitt, in Stärke **und** Talent — ein dünner Kader darf nicht
+ * belohnt werden.
+ */
+export const KADER_MINIMUM = KADER_GROESSE_EIGEN;
+
+/**
+ * Das Rookie-Training: so viele Wochen nach der Positionszuweisung, mit diesem
+ * Zug je Wochenanfang aufs Sollprofil der Position, mal `LERNRATE`. Nach sechs
+ * Wochen ist das Handwerk zu rund neun Zehnteln da, das Werfen zur Hälfte, und
+ * das Tempo bleibt, wie er gekommen ist.
+ *
+ * Ein Platzhalter, bewusst schlicht: wie Training wirklich wirkt, entscheidet
+ * der Umbau der Spielerentwicklung. Ohne ihn blieben die Neuen bis zum ersten
+ * Einsatz so roh, wie sie kamen — und die aus dem Herbst hätten vor April
+ * keinen.
+ */
+export const ROOKIE_TRAINING_WOCHEN = 6;
+export const ROOKIE_TRAINING_JE_WOCHE = 0.25;
+
+/**
+ * Was ein Gespräch mit einem, der gehen will, am Commitment hebt. Danach wird
+ * die Waage neu gelesen — reicht es, bleibt er. Den Körper redet niemand weg;
+ * wer aus diesem Grund geht, bekommt kein Gespräch angeboten.
+ */
+export const ABGANG_GESPRAECH_BONUS = 15;
+
 /** Match simulation. */
 export const BASE_POINTS = 20;        // what an evenly matched offence scores
 export const RATING_TO_POINTS = 0.42; // points gained per point of unit advantage

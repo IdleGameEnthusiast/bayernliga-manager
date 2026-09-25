@@ -62,6 +62,7 @@ in Millisekunden durchspielen können.
 | `engine/wunsch.js` | Was ein Spieler von sich aus möchte: der Anlass zum Positions- und zum Nummernwunsch, das Aussprechen im Gespräch, und was ein Spiel auf dem falschen Platz danach kostet |
 | `engine/ueberzeugen.js` | Die Gegenseite: wogegen ein Spieler sich sperrt, wann das überhaupt entsteht, was ein Spiel auf einer abgelehnten Position kostet, und wie viele Gespräche es braucht, ihn umzustimmen |
 | `engine/auskunft.js` | Nach der Lebenslage fragen: ab wann ein Spieler selbst weiß, dass sein Plan nicht hält, und wann die Wahrheit an dessen Stelle in die Akte rückt |
+| `engine/recruiting.js` | Die Rekrutierung des eigenen Vereins: zwei Tryouts im Jahr, die Werbung davor und wen sie bringt, Kandidaten ohne Position, die Prognose je Position, fünf Gespräche am Platz, die Zusagen, das Sicherheitsnetz auf 30 und das Rookie-Training |
 | `engine/aufstellung.js` | Personnel, die zweiundzwanzig Plätze, der Doppeleinsatz, die drei Special-Teams-Plätze, die Vorgabe des Managers |
 | `engine/team.js` | Aus einer Aufstellung werden Lauf- und Passwerte je Einheit |
 | `engine/spielplan.js` | Gruppenrunde nach dem Kreisverfahren, dazu das Bracket |
@@ -166,7 +167,14 @@ weicht in Wahrheit davon ab, und erfahren kann man das nur im Gespräch
 Spielplan,
 Spielbericht mit Box Score, Halbfinale und Finale als Bracket — das seine vier
 Plätze schon während der Gruppenrunde benennt und sagt, wer sie gerade hält —,
-Saisonwechsel mit Alterung und Rücktritten, Export und Import. Ganz unten im
+Saisonwechsel mit Alterung und Rücktritten — wer gehen will, sagt es nach dem
+Finale selbst, mit Grund, und lässt sich mit einem Gespräch manchmal halten —,
+**Rekrutierung über zwei Tryouts** im November und April: vorher die Werbung
+ankreuzen (der Hochschulinfotag bringt Studenten, das Fitnessstudio
+Berufstätige), am Tag selbst rohe Kandidaten mit Körper, Athletik in Stufen,
+Lebenslage und der Einschätzung des Stabs, mit fünf von ihnen reden, drei Tage
+später die Zusagen, jedem eine Position geben und sechs Wochen Rookie-Training
+— Export und Import. Ganz unten im
 Postfach steht ein Feld **Redeem Code**: `playtester` zeigt die Zahlen, die
 das Spiel sonst versteckt — Commitment, Rücktrittsalter, den Druck der
 Lebenslage und die zweite Wahrheit hinter dem Plan.

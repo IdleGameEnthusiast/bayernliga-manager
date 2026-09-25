@@ -37,6 +37,24 @@ export const STORAGE_KEY = 'bayernliga.save';
  * @type {Record<number, (roh: any) => any>}
  */
 const MIGRATIONEN = {
+  // 18 → 19: die Tryouts kamen, und mit ihnen `recruiting` am Stand — die
+  // Werbung fürs nächste Tryout, das laufende, die Neuen vor ihrer Position und
+  // die Ehemaligen. Angelegt wird der leere Behälter, wie das Gesprächslog in
+  // 12 → 13: ein Stand soll nach der Migration vollständig sein.
+  //
+  // Leer ist hier auch die Wahrheit. Die Werbung fehlt, weil die Frage nie
+  // kam — das nächste Tryout läuft dann mit allen Maßnahmen, siehe
+  // `massnahmenFuer()`. Ehemalige gibt es keine, weil bis gestern niemand
+  // aufgeschrieben hat, wer ging; sie nachträglich aus der Post zu lesen hieße,
+  // Commitment-Werte zu erfinden, die niemand mehr kennt. Die beiden neuen
+  // Felder am Spieler (`rookieTrainingBis`, `rookieZiel`) fehlen und heißen
+  // dann: kein Rookie-Training — was für jeden Mann eines alten Standes stimmt.
+  18: (roh) => {
+    roh.recruiting = { werbung: null, tryout: null, neue: [], ehemalige: [] };
+    roh.version = 19;
+    return roh;
+  },
+
   // 17 → 18: die Trend-Nachricht kam, und mit ihr zwei Felder am Spieler —
   // `commitmentStufeGemeldet`, die Stufe, die der Manager zuletzt kannte, und
   // `commitmentTrendVersuche`, wie oft der Coach seither danebengegriffen hat.

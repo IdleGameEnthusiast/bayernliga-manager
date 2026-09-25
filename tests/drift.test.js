@@ -19,7 +19,7 @@ import {
 import {
   neuesSpiel, weiter, fuehrePersoenlichesGespraech, beantworteNachricht, meister,
 } from '../engine/saison.js';
-import { offeneAntworten } from '../engine/postfach.js';
+import { offeneAntworten, antwortenZu } from '../engine/postfach.js';
 import { stufe } from '../engine/commitment.js';
 
 /**
@@ -267,10 +267,18 @@ test('wer auf die bekannte Stufe zurückfällt, fängt mit den Versuchen von vor
 
 // --- Im Spiel --------------------------------------------------------------
 
-/** @param {any} s */
+/**
+ * Alles beantworten, was den Kalender festhält — so, dass am Commitment nichts
+ * bewegt wird, was die Drift nicht selbst bewegt: „Später" bei der Rolle,
+ * „Gehen lassen" beim Abgang (die jeweils letzte Antwort), die Automatik bei
+ * der Aufstellung. Die Tryout-Stationen haben nur eine Antwort.
+ * @param {any} s
+ */
 function raeume(s) {
   for (const n of offeneAntworten(s)) {
-    beantworteNachricht(s, n.id, n.art === 'aufstellungUngueltig' ? 'automatisch' : 'spaeter');
+    const antworten = antwortenZu(n.art);
+    beantworteNachricht(s, n.id,
+      n.art === 'aufstellungUngueltig' ? 'automatisch' : antworten[antworten.length - 1]);
   }
 }
 

@@ -818,6 +818,83 @@ nur die gespielten Wochen, ein wöchentlicher Ausgleich das ganze Jahr — das
 verschöbe die Kalibrierung mit jeder Änderung an der Offseason-Länge, ohne
 dass die Zahl selbst falsch würde.
 
+## 18 — Rekrutierung: wie viele kommen, wie gut sie sind, wer bleibt
+
+*„Beim Tryout sagen alle ab"*, *„mein Kader platzt aus allen Nähten"* oder
+*„die Rookies sind nutzlos".* Alle in `engine/constants.js`, das Modell in
+`engine/recruiting.js` (wen ein Kanal bringt: `STATUS_JE_KANAL`, wie alt:
+`ALTER_JE_STATUS`). Docs [`naechste-schritte.md`](naechste-schritte.md)
+Block 7, Schritt 3. Nur der eigene Verein — die KI ersetzt weiter jeden Abgang
+durch einen Rookie gleicher Position.
+
+**Der Zulauf**
+
+`zulauf = SOCKEL + SPANNE × vereinsFaktor × ligaFaktor × Anteil der Werbung`,
+der Vereinsfaktor linear aus der Katalogstärke (45 → 0,4, 65 → 1,0).
+
+| Konstante | Wert | Wirkung | Richtung |
+| --- | --- | --- | --- |
+| `TRYOUT_SOCKEL` | 5 | Mundpropaganda — kommt immer, hängt an nichts | höher = auch ohne Werbung ein Tryout, das sich lohnt |
+| `TRYOUT_SPANNE` | 10 | was Verein und Werbung obendrauf legen; HEG mit allem 15, PP mit allem 9 | bei 12 kämen 17 und Ø 6,4–7,1 Zusagen, bei 15 schon 20 und Ø 7–8 — für die Bayernliga zu viel |
+| `TRYOUT_VEREINSFAKTOR_MIN` | 0,4 | der schwächste Verein bekommt diesen Anteil der Spanne | |
+| `TRYOUT_LIGA_FAKTOR` | 1 | Bayernliga ist die Referenz; die Tabelle für die anderen Ligen steht im Fahrplan | |
+| `WERBUNG_ANTEIL` | 30/25/15/10/5/5/5/5 % | Hochschulinfotag, Social Media, Plakate, Fitnessstudio, Schule, Zeitung, Supermarkt, Radio | Kosten kommen mit den Finanzen |
+
+**Das Interesse** — die Chance, dass einer zusagt. Ein Gespräch am Tryout
+halbiert den Abstand zu 100 (`TRYOUT_GESPRAECHE` = 5 je Tryout).
+
+| Konstante | Wert | Wirkung |
+| --- | --- | --- |
+| `INTERESSE_HERBST` | Ø 30, Streuung 18 | breit — ein paar wollen unbedingt, ein paar schauen nur |
+| `INTERESSE_FRUEHLING` | 10 % der Studenten bei Ø 55 (15), alle anderen Ø 3 (8) | zweigipflig: fast niemand, außer ein paar Studenten fürs Sommersemester |
+
+Gemessen (3000 Seeds, fünf Gespräche mit den Interessiertesten, alle
+Maßnahmen): HEG Herbst **Ø 5,8** (p10/50/90: 4/6/8), Frühling **Ø 3,2**
+(2/3/5); PP Herbst Ø 4,2 (3/4/6), Frühling Ø 2,8 (1/3/4). Unterwegs zur Zahl
+für den Frühling: das erste Modell (35 % der Studenten bei Ø 70, der Rest
+Ø 12) gab Ø 4,4 — zu viel für eine Jahreszeit, in der die Leute ihren Verein
+längst haben.
+
+**Wie gut die Neuen sind**
+
+| Konstante | Wert | Wirkung | Richtung |
+| --- | --- | --- | --- |
+| `TRYOUT_LIGA_ANTEIL` | 0,7 | Ziel = 70 % Ligaschnitt + 30 % eigener Kaderschnitt | höher = der eigene Kader zieht weniger mit |
+| `TRYOUT_ROOKIE_ABSCHLAG` | 5–10 | gleichverteilt vom Ziel ab | |
+| `TRYOUT_STAERKE_STREUUNG` | 5 | Streuung ums Ziel | |
+| `TRYOUT_HANDWERK_ANTEIL` | 0,5 | Handwerk kommt zur Hälfte mit, Athletik ganz | |
+| `TRYOUT_TECHNIK` | 1–6 | Technik fast null — die kommt erst auf einer Position | |
+| `ROOKIE_TRAINING_WOCHEN` / `_JE_WOCHE` | 6 / 0,25 | Zug je Wochenanfang aufs Sollprofil, mal `LERNRATE`, nur nach oben. Nach sechs Wochen ist das Handwerk zu ~90 % da, Werfen zu ~60 %, Tempo kaum | ein **Platzhalter** bis zur Spielerentwicklung |
+
+Die Prognose, die der Manager in Stufen sieht, **ist** das Training: sechs
+Wochen auf einer Kopie gerechnet, keine zweite Formel. Dazu die Körperpassung:
+je Kilo und Zentimeter außerhalb des Positionskorridors 0,4 % vom Ziel, höchstens
+20 % (dieselben Zahlen wie der Körpermalus einer Umstellung). Ohne sie war der
+Tackle bei 57 % aller Kandidaten die beste Position — beim Tackle trägt das
+lernbare Handwerk fast zwei Drittel. Mit ihr: T 27 %, WR 19 %, SL 9 %, FB 8 %,
+CB 7 % …; von den Schweren über 120 kg landen mehr als neun von zehn in der
+Line, von den Leichten unter 85 kg keiner.
+
+**Das Sicherheitsnetz** — `KADER_MINIMUM` = 30 (die Kadergröße beim
+Amtsantritt). Fällt der Kader nach den Zusagen darunter, rücken zuerst
+Kandidaten nach, die knapp abgesagt haben, dann frisch gezogene aus der
+Ligamitte ohne Vereinsanteil — in beiden Fällen nur, wer in Stärke **und**
+Talent unter dem Ligaschnitt liegt. In acht Karrieren über drei Saisons hat es
+kein einziges Mal gegriffen.
+
+**Wer geht, und wer sich halten lässt** — `ABGANG_GESPRAECH_BONUS` = 15. Am Tag
+nach dem Finale sagt jeder Abgang es selbst; das Gespräch hebt das Commitment
+um 15, danach wird die Waage neu gelesen. Gemessen: rund jedes fünfte Gespräch
+hält den Mann (HEG 10 von 48, PP 11 von 65). Höher = der Abgang wird zur
+Formsache.
+
+**Offen: der Kader wächst.** Der eigene Verein verliert im Schnitt drei Mann
+je Saison und holt acht bis neun — HEG steht nach drei Saisons bei rund 47,
+PP bei rund 41 (acht Seeds). Nichts bremst das bisher: keine Kadergrenze, kein
+Interesse, das bei vollem Kader sinkt, keine Bank, die neue Leute abschreckt.
+Die Stellschraube wäre eine davon, nicht die Zulaufzahlen — die sind für einen
+Kader von 30 richtig.
+
 ---
 
 ## Was nicht hier steht

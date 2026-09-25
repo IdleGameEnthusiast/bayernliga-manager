@@ -34,6 +34,8 @@ import { ROLLEN, rolleVon, mismatch, vernachlaessigung } from '../engine/rolle.j
 import { druck, halt } from '../engine/lebenslauf.js';
 import { ausgesprochenerWunsch } from '../engine/wunsch.js';
 import { offeneAblehnungen } from '../engine/ueberzeugen.js';
+import { imRookieTraining } from '../engine/recruiting.js';
+import { datum } from '../engine/kalender.js';
 
 /**
  * Was die Ansicht zeigt, das der Manager sonst nicht sieht. Kommt aus
@@ -508,6 +510,17 @@ function zeile(sp, stand, male, trenner, plaetze, einblick = { playtester: false
           class: 'marke starter',
           title: T.aufstellung.starterTitel(plaetze.join(' · ')),
           text: plaetze.join(' · '),
+        })
+        : null,
+      // Wer noch im Rookie-Training steht, ist heute weniger wert, als er in
+      // ein paar Wochen sein wird — die Marke sagt, dass die Zahl daneben noch
+      // wächst.
+      imRookieTraining(sp, tag)
+        ? el('span', {
+          class: 'marke',
+          title: T.tryout.rookieTitel(
+            T.datum.ohneJahr(datum(stand.jahr, /** @type {number} */ (sp.rookieTrainingBis)))),
+          text: T.tryout.rookie,
         })
         : null),
     el('td', { text: positionsKuerzel(sp) }),

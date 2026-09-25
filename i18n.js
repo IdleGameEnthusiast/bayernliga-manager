@@ -66,6 +66,9 @@ export const DE = {
     // kein Fußball — dieselbe Sportart wie im Rest des Spiels.
     zeichenSpiel: '🏈',
     legendeSpiel: 'Spiel',
+    zeichenTryout: '📋',
+    legendeTryout: 'Tryout',
+    tryout: 'Tryout',
     // Ein Tipp auf einen Tag wählt ihn nur aus; die Uhr bewegt erst der Knopf
     // darunter. Ein Tipp, der sofort simuliert, ist für einen Fehlgriff zu
     // teuer — er ist nicht zurückzunehmen.
@@ -296,6 +299,100 @@ export const DE = {
       text: (d) => [
         `${d.meister} gewinnt das Finale und ist Meister.`,
         `Du hast die Gruppenrunde auf Platz ${d.meinPlatz} beendet.`,
+      ],
+    },
+
+    // Die Stationen eines Tryouts. `d.datum` ergänzt die Ansicht aus Jahr und
+    // Tag, weil `i18n.js` keinen Kalender kennt. Die Liste der Maßnahmen, der
+    // Kandidaten und der Neuen steht nicht im Text — die baut `ui/tryout.js`
+    // unter den Absätzen, weil sie Häkchen und Knöpfe trägt.
+    tryoutWerbung: {
+      von: 'Der Vorstand',
+      betreff: (d) => `${d.art === 'herbst' ? 'Herbst' : 'Frühjahrs'}-Tryout am ${d.datum}: `
+        + 'Wo werben wir?',
+      text: (d) => [
+        `Am ${d.datum} ist unser ${d.art === 'herbst' ? 'Herbst' : 'Frühjahrs'}-Tryout. `
+          + 'Wer kommen soll, muss vorher davon erfahren.',
+        d.art === 'herbst'
+          ? 'Der Herbst ist die Zeit dafür: das Semester fängt an, die Leute suchen etwas '
+            + 'für den Winter, und bis zum ersten Spieltag ist reichlich Zeit.'
+          : 'Im Frühjahr ist wenig los. Die meisten haben ihren Verein gefunden, und wer '
+            + 'jetzt kommt, ist zum ersten Spieltag nicht fertig. Ein paar Studenten suchen '
+            + 'fürs Sommersemester aber immer.',
+        'Kreuz an, wo wir werben. Jede Maßnahme bringt ihre eigenen Leute.',
+      ],
+      antworten: { festlegen: 'So machen wir es' },
+    },
+
+    tryout: {
+      von: 'Trainerstab',
+      betreff: (d) => `Tryout: ${d.anzahl} ${d.anzahl === 1 ? 'Kandidat' : 'Kandidaten'} auf dem Platz`,
+      text: (d) => [
+        `Heute ist Tryout, und ${d.anzahl === 1 ? 'einer ist' : `${d.anzahl} sind`} gekommen. `
+          + 'Was man an einem Vormittag sehen kann, steht unten — Körper, ein bisschen '
+          + 'Athletik, wo wir sie uns vorstellen könnten, und wie ernst es ihnen ist.',
+        `Mit ${d.gespraeche} von ihnen kannst du heute reden. Ein Gespräch macht aus einem `
+          + 'Vielleicht öfter ein Ja.',
+        'In drei Tagen wissen wir, wer kommt.',
+      ],
+      antworten: { abschliessen: 'Tryout beenden' },
+    },
+
+    tryoutZusagen: {
+      von: 'Trainerstab',
+      betreff: (d) => (d.namen.length === 1 ? 'Ein Neuer vom Tryout' : `${d.namen.length} Neue vom Tryout`),
+      text: (d) => [
+        d.zusagen === 0
+          ? `Von den ${d.kandidaten} Leuten beim Tryout hat keiner zugesagt.`
+          : `Von den ${d.kandidaten} Leuten beim Tryout ${d.zusagen === 1 ? 'hat einer' : `haben ${d.zusagen}`} `
+            + 'zugesagt.',
+        d.nachgerueckt > 0
+          ? `Damit der Kader nicht unter die Mindestgröße fällt, ${d.nachgerueckt === 1 ? 'ist einer' : `sind ${d.nachgerueckt}`} `
+            + 'dazugekommen, die der Stab noch überreden konnte — keine großen Namen, aber sie '
+            + 'füllen die Lücken.'
+          : '',
+        'Gib jedem eine Position. Danach haben sie sechs Wochen Rookie-Training — was der Stab '
+          + 'vorschlägt, steht daneben, und es ist nur ein Vorschlag.',
+      ].filter((absatz) => absatz),
+      antworten: { uebernehmen: 'Positionen übernehmen' },
+    },
+
+    tryoutAbsagen: {
+      von: 'Trainerstab',
+      betreff: () => 'Vom Tryout kommt niemand',
+      text: (d) => [
+        `Von den ${d.kandidaten} Leuten beim Tryout hat keiner zugesagt. Das kommt vor — `
+          + 'das nächste Tryout ist eine neue Chance.',
+      ],
+    },
+
+    // Einer, der gehen will, und der Grund, den er nennt. Das Ergebnis des
+    // Gesprächs steht hinterher in derselben Nachricht, als letzter Absatz —
+    // dort, wo der Manager gefragt hat.
+    abgang: {
+      von: 'Trainerstab',
+      betreff: (d) => `${d.name} will aufhören`,
+      text: (d) => [
+        `${d.name} (${d.position}, ${d.alter}) hat nach dem letzten Spiel gesagt, dass er `
+          + 'nächste Saison nicht mehr dabei ist.',
+        T.abgang.gruende[d.grund] || '',
+        d.ergebnis === 'bleibt'
+          ? `Ihr habt lange geredet, und ${d.name} hat es sich anders überlegt. Stand heute `
+            + 'bleibt er.'
+          : d.ergebnis === 'geht'
+            ? `Ihr habt geredet, aber ${d.name} bleibt dabei. Er hört auf.`
+            : 'Noch ist er nicht weg. Du kannst mit ihm reden — oder ihn gehen lassen.',
+      ].filter((absatz) => absatz),
+      antworten: { gespraech: 'Mit ihm reden', ziehenLassen: 'Gehen lassen' },
+    },
+
+    abgangKoerper: {
+      von: 'Trainerstab',
+      betreff: (d) => `${d.name} hört auf`,
+      text: (d) => [
+        `${d.name} (${d.position}, ${d.alter}) hängt die Schuhe an den Nagel. Der Körper `
+          + 'macht nicht mehr mit.',
+        'Da gibt es nichts zu bereden — aber einen Handschlag ist er wert.',
       ],
     },
 
@@ -662,6 +759,108 @@ export const DE = {
     },
     vereinsjahre: (n) => (n <= 0 ? 'neu im Verein'
       : n === 1 ? 'seit einem Jahr im Verein' : `seit ${n} Jahren im Verein`),
+    // Dieselben Stichworte ohne die Vereinsjahre — für einen, der noch gar
+    // nicht im Verein ist. „Neu im Verein" stünde sonst beim Tryout hinter
+    // jedem Namen, und das stimmt erst, wenn er zusagt.
+    satzGast: (l, jahr) => {
+      const teile = [T.lebenslage.status[l.status]];
+      if (l.entfernung <= 5) teile.push('wohnt um die Ecke');
+      else teile.push(`${l.entfernung} km Anfahrt`);
+      teile.push(l.auto ? 'mit dem Auto' : 'ohne Auto');
+      if (l.familie) teile.push('Familie');
+      teile.push(T.lebenslage.horizont(l, jahr));
+      return teile.join(' · ');
+    },
+  },
+
+  // Warum einer geht, wie er es selbst sagt — in der Nachricht am Tag nach dem
+  // Finale. Der Körper steht nicht hier: wer aus diesem Grund geht, bekommt
+  // eine eigene Nachricht ohne Frage.
+  abgang: {
+    gruende: {
+      lust: 'Die Lust ist raus, sagt er. Es ist nichts passiert — es ist einfach weg.',
+      beruf: 'Der Job lässt es nicht mehr zu, sagt er. Training, Anfahrt, Spieltage — '
+        + 'irgendwas muss weg.',
+      familie: 'Die Familie geht vor, sagt er. Jedes zweite Wochenende auf dem Platz geht '
+        + 'nicht mehr.',
+    },
+  },
+
+  // Was unter den Tryout-Nachrichten steht: die Werbung zum Ankreuzen, die
+  // Kandidaten auf dem Platz, die Neuen mit ihrer Position. Alles in Stufen —
+  // wie beim Commitment sieht der Manager nie eine Zahl, nur wie einer wirkt.
+  tryout: {
+    massnahmen: {
+      mundpropaganda: 'Mundpropaganda',
+      hochschulinfotag: 'Hochschulinfotag',
+      socialMedia: 'Social Media',
+      plakate: 'Plakate in der Stadt',
+      fitnessstudio: 'Aushänge in Fitnessstudios',
+      schule: 'Aushänge an Schulen',
+      zeitung: 'Anzeige in der Lokalzeitung',
+      supermarkt: 'Aushänge in Supermärkten',
+      radio: 'Spot im Lokalradio',
+    },
+    // Wen eine Maßnahme bringt. Das ist die eigentliche Entscheidung, sobald
+    // Werbung Geld kostet — und schon heute der Grund, warum der Kader nach
+    // einem Hochschulinfotag anders aussieht als nach einer Zeitungsanzeige.
+    wen: {
+      hochschulinfotag: 'Studenten',
+      socialMedia: 'jung und gemischt',
+      plakate: 'von allem etwas',
+      fitnessstudio: 'vor allem Berufstätige',
+      schule: 'Schüler der Abschlussklassen',
+      zeitung: 'Berufstätige',
+      supermarkt: 'vor allem Berufstätige',
+      radio: 'breit gestreut, wenige',
+    },
+    kostenlos: 'Kostet im Moment nichts.',
+    andrang: (n) => `Erwarteter Andrang: etwa ${n} Leute`,
+    beschlossen: 'Beschlossen.',
+    keineWerbung: 'Ohne Werbung kommt nur, wer davon gehört hat.',
+    // Die Tabelle der Kandidaten.
+    name: 'Name',
+    alter: 'Alter',
+    koerper: 'Körper',
+    athletik: 'Athletik',
+    lebenslage: 'Lebenslage',
+    interesse: 'Interesse',
+    positionen: 'Der Stab sieht ihn als',
+    gespraech: 'Gespräch',
+    ansprechen: 'Ansprechen',
+    angesprochen: 'Gesprochen',
+    herkunft: (wo) => `kam über: ${wo}`,
+    gespraecheFrei: (frei) => (frei === 0
+      ? 'Du hast mit fünf geredet. Mehr geht heute nicht.'
+      : `Noch ${frei} ${frei === 1 ? 'Gespräch' : 'Gespräche'} heute.`),
+    abgeschlossen: 'Das Tryout ist vorbei. In drei Tagen kommen die Antworten.',
+    vorbei: 'Dieses Tryout ist abgeschlossen.',
+    // Die fünf Werte, die man an einem Vormittag sieht — kurz, weil fünf Spalten
+    // in eine Zelle müssen. Der ganze Name steht im Titel.
+    athletikKurz: {
+      schnelligkeit: 'Tempo',
+      ausdauer: 'Ausdauer',
+      beweglichkeit: 'Beweglich',
+      robustheit: 'Robust',
+      kraft: 'Kraft',
+    },
+    punktVoll: '●',
+    punktLeer: '○',
+    athletikStufen: ['sehr schwach', 'schwach', 'mittel', 'gut', 'sehr gut'],
+    athletikTitel: (name, stufe) => `${name}: ${stufe}`,
+    // Gegen den Ligaschnitt, nach dem Rookie-Training. Die unterste Stufe sagt
+    // bewusst nicht „schlecht": es ist ein Anfänger, und er ist es heute.
+    prognoseStufen: ['noch weit weg', 'ausbaufähig', 'Ligaschnitt', 'über dem Schnitt'],
+    prognose: (position, stufe) => `${position} (${stufe})`,
+    interesseStufen: ['kaum', 'zurückhaltend', 'offen', 'interessiert', 'Feuer und Flamme'],
+    // Die Neuen nach den Zusagen.
+    position: 'Position',
+    vorschlag: 'Vorschlag des Stabs',
+    nachgerueckt: 'nachgerückt',
+    nachgeruecktTitel: 'Kam dazu, damit der Kader nicht unter die Mindestgröße fällt',
+    uebernommen: 'Übernommen — sie sind im Kader und im Rookie-Training.',
+    rookie: 'Rookie',
+    rookieTitel: (datum) => `Im Rookie-Training bis ${datum}`,
   },
 
   // Die Namen der drei Bereiche stehen schon unter `kader` — Offense, Defense

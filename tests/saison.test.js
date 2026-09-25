@@ -19,7 +19,7 @@ import {
 import {
   offeneAntworten, antwortenZu, sende, markiereGelesen, loescheNachricht,
 } from '../engine/postfach.js';
-import { tagVonSpieltag, PHASEN } from '../engine/kalender.js';
+import { tagVonSpieltag, PHASEN, tryoutTage } from '../engine/kalender.js';
 import { PERSONNEL } from '../engine/aufstellung.js';
 import { teamStaerken } from '../engine/team.js';
 import { partienDerRunde, sieger } from '../engine/spielplan.js';
@@ -262,7 +262,8 @@ test('der Saisonwechsel setzt zurück und schreibt Historie', () => {
   bisSaisonende(s);
 
   const finale = partienDerRunde(s.spielplan, 'finale')[0];
-  const { meister: champion } = naechsteSaison(s);
+  const eigeneVorher = s.kader[s.meinTeam].length;
+  const { meister: champion, ruecktritte } = naechsteSaison(s);
   assert.equal(champion, sieger(finale), 'Meister ist der Finalsieger');
   assert.equal(s.jahr, 2027);
   assert.equal(s.tag, 1);
@@ -273,8 +274,10 @@ test('der Saisonwechsel setzt zurück und schreibt Historie', () => {
   assert.ok(s.historie[0].meinPlatz >= 1 && s.historie[0].meinPlatz <= 6,
     'der eigene Platz zählt in der eigenen Gruppe');
   for (const t of TEAMS) {
-    const soll = t.id === s.meinTeam ? KADER_GROESSE_EIGEN : KADER_GROESSE_FREMD;
-    assert.equal(s.kader[t.id].length, soll, `${t.id} bleibt vollzählig`);
+    // Die KI ersetzt jeden Abgang, der eigene Verein nicht — er rekrutiert über
+    // die Tryouts, und bis zum November bleibt die Lücke.
+    const soll = t.id === s.meinTeam ? eigeneVorher - ruecktritte.length : KADER_GROESSE_FREMD;
+    assert.equal(s.kader[t.id].length, soll, `${t.id} hat die falsche Größe`);
     assert.ok(s.kader[t.id].every((sp) => sp.verletztBis === 0), 'alle sind wieder fit');
   }
 });
@@ -283,13 +286,16 @@ test('mehrere Saisons hintereinander bleiben stabil', () => {
   const s = neuesSpiel('btc', 'seed-5');
   for (let i = 0; i < 5; i++) {
     bisSaisonende(s);
+    // Nach dem Finale ist das Frühjahrs-Tryout vorbei: der Kader steht über
+    // der Mindestgröße, was auch immer seit dem Herbst gegangen ist.
+    assert.ok(s.kader[s.meinTeam].length >= KADER_GROESSE_EIGEN,
+      `${s.jahr}: ${s.kader[s.meinTeam].length} Mann`);
     naechsteSaison(s);
   }
   assert.equal(s.jahr, 2031);
   assert.equal(s.historie.length, 5);
   for (const t of TEAMS) {
-    const soll = t.id === s.meinTeam ? KADER_GROESSE_EIGEN : KADER_GROESSE_FREMD;
-    assert.equal(s.kader[t.id].length, soll);
+    if (t.id !== s.meinTeam) assert.equal(s.kader[t.id].length, KADER_GROESSE_FREMD);
   }
 });
 
@@ -380,8 +386,10 @@ test('ein Zwangsstopp hält ein Ziel auf', () => {
 
 test('eine offene Antwort blockiert die Uhr', () => {
   const s = neuesSpiel('heg', 'blockade');
-  assert.equal(offeneAntworten(s).length, 0,
-    'das Wort des Vorstands hält niemanden mehr auf');
+  // Das Wort des Vorstands hält niemanden mehr auf; was an Tag 1 hält, ist
+  // allein die Werbung fürs erste Tryout.
+  assert.deepEqual(offeneAntworten(s).map((n) => n.art), ['tryoutWerbung']);
+  raeumeAntworten(s);
 
   // Die Antwortpflicht von Hand ins Postfach legen. Der Fall, der sie im Spiel
   // auslöst — ein Ausfall in der eigenen Vorgabe —, hängt an einem Wurf, den
@@ -418,9 +426,11 @@ test('die Kennungen der Nachrichten hängen am Saatgut, nicht an der Uhrzeit', (
 
 test('naechsterStopp sagt nur, was käme, und ändert nichts', () => {
   const s = neuesSpiel('heg', 'vorschau');
+  assert.deepEqual(naechsterStopp(s), { tag: 1, grund: 'antwort' }, 'die Werbung fürs Tryout');
+  raeumeAntworten(s);
 
   const frei = JSON.stringify(s);
-  assert.deepEqual(naechsterStopp(s), { tag: PRESEASON_BEGINN, grund: 'phase' });
+  assert.deepEqual(naechsterStopp(s), { tag: tryoutTage(s.jahr).herbst, grund: 'tryout' });
   assert.equal(JSON.stringify(s), frei, 'die Vorschau hat den Stand angefasst');
 
   sende(s, s.tag, [{ art: 'aufstellungUngueltig', daten: { namen: ['Wer auch immer'] } }]);
@@ -435,8 +445,9 @@ test('am letzten Tag rollt der Kalender von selbst in die nächste Saison', () =
 
   const ende = letzterTag(s);
   assert.equal(ende, 364, 'eine Saison ist volle Wochen lang');
-  raeumeAntworten(s);
-  weiter(s, ende);
+  // Auf dem Weg halten die Abgänge nach dem Finale und die Werbung fürs
+  // November-Tryout der nächsten Saison — beides räumt `bisHalt()` ab.
+  bisHalt(s, ende, ende);
   assert.equal(s.tag, ende, 'der letzte Tag der Sommerpause');
   assert.equal(s.jahr, 2026, 'und noch dieselbe Saison');
 
@@ -879,6 +890,7 @@ test('ein Systemwechsel lässt den OC ab sofort das neue System lernen', () => {
   const oc = coachesVon(s, 'heg')[0];
   setzeTaktik(s, { personnel: neu });
   const vorher = { ...oc.personnel };
+  raeumeAntworten(s);
   weiter(s, s.tag + 30);
   assert.ok(oc.personnel[neu] > vorher[neu], 'das neue System wächst nicht');
   assert.ok(oc.personnel[alt] < vorher[alt], 'das alte System verblasst nicht');

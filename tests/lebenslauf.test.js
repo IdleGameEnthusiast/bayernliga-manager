@@ -262,7 +262,7 @@ test('der Wegzug ist log-normal: die meisten nah, die Ferne kommt vor', () => {
 
 // --- Im Saisonwechsel ------------------------------------------------------
 
-test('der Saisonwechsel lässt den Lebenslauf laufen und ersetzt, wer geht — mit Grund in der Post', () => {
+test('der Saisonwechsel lässt den Lebenslauf laufen und ersetzt bei der KI, wer geht — mit Grund in der Post', () => {
   const stand = neuesSpiel('heg', 'lebenslauf');
   const groessen = Object.fromEntries(TEAMS.map((t) => [t.id, stand.kader[t.id].length]));
   const vorher = new Set(Object.values(stand.kader).flat().map((s) => s.id));
@@ -270,7 +270,11 @@ test('der Saisonwechsel lässt den Lebenslauf laufen und ersetzt, wer geht — m
 
   for (let saison = 0; saison < 4; saison++) {
     bisSaisonende(stand);
+    // Der eigene Verein bekommt seit den Tryouts keinen Ersatz mehr: er
+    // schrumpft beim Wechsel um genau die, die gehen, und wächst im November.
+    groessen[stand.meinTeam] = stand.kader[stand.meinTeam].length;
     const { ruecktritte, nachrichten } = naechsteSaison(stand);
+    groessen[stand.meinTeam] -= ruecktritte.length;
     for (const t of TEAMS) {
       assert.equal(stand.kader[t.id].length, groessen[t.id], `${t.id} hat die Kadergröße verändert`);
       for (const s of stand.kader[t.id]) {

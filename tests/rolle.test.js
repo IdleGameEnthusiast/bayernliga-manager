@@ -323,18 +323,32 @@ test('ein neues Rollengespräch nimmt die Beschwerde zurück', () => {
 
 // --- Im Spiel --------------------------------------------------------------
 
+/**
+ * Die Frage nach der Werbung beantworten, die mit dem Amtsantritt kommt. Sie
+ * ist die einzige Antwortpflicht an Tag 1 und hat mit den Rollen nichts zu
+ * tun — die Tests darunter sollen beim ersten Wochenanfang ankommen.
+ * @param {any} s
+ */
+function werbungBeschliessen(s) {
+  for (const n of offeneAntworten(s)) {
+    if (n.art === 'tryoutWerbung') beantworteNachricht(s, n.id, 'festlegen');
+  }
+}
+
 test('eine frische Karriere fängt ohne Rollen an und bekommt die Erinnerung', () => {
   const s = neuesSpiel('heg', 'rollen');
   assert.equal(rollenlose(s.kader[s.meinTeam]).length, s.kader[s.meinTeam].length);
   assert.ok(s.post.some((n) => n.art === 'rollenerinnerung'));
   // An Tag 1 fragt noch niemand einzeln: der Vorstand spricht, und der Kader
-  // ist noch nicht einmal angesehen.
-  assert.equal(offeneAntworten(s).length, 0);
+  // ist noch nicht einmal angesehen. Was hält, ist allein die Werbung fürs
+  // erste Tryout.
+  assert.deepEqual(offeneAntworten(s).map((n) => n.art), ['tryoutWerbung']);
   assert.deepEqual(s.gespraeche, []);
 });
 
 test('ab der zweiten Woche hält jede Anfrage den Kalender an', () => {
   const s = neuesSpiel('heg', 'anfragen');
+  werbungBeschliessen(s);
   const f = weiter(s, 200);
   assert.equal(f.grund, 'antwort');
   assert.equal(s.tag, 8);
@@ -355,6 +369,7 @@ test('ab der zweiten Woche hält jede Anfrage den Kalender an', () => {
 
 test('ein Gespräch setzt die Rolle, verbucht den Termin und beantwortet die Anfrage', () => {
   const s = neuesSpiel('heg', 'gespraech');
+  werbungBeschliessen(s);
   weiter(s, 200);
   const anfrage = offeneAntworten(s)[0];
   const id = anfrage.daten.spielerId;
@@ -369,6 +384,7 @@ test('ein Gespräch setzt die Rolle, verbucht den Termin und beantwortet die Anf
 
 test('das Kontingent ist die Grenze, und der Cooldown die zweite', () => {
   const s = neuesSpiel('heg', 'grenze');
+  werbungBeschliessen(s);
   weiter(s, 200);
   for (const n of offeneAntworten(s)) beantworteNachricht(s, n.id, 'spaeter');
 

@@ -14,8 +14,12 @@ Statusübergangs-Motor: Horizonte, Statuswechsel, Druck gegen Halt) umgesetzt.
 Von Schritt 2b stehen die Kalenderphasen, die Rollen-Kampagne samt
 Gesprächs-Dialog und Wochenkontingent, **alle fünf Gesprächskategorien** und
 die Drift durch Coach, Verletzung, Erfolg und Vereinsjahre samt der
-Trend-Nachricht. **Schritt 2b ist damit abgeschlossen.** Als Nächstes steht
-Schritt 3: Abgänge und Rekrutierung.
+Trend-Nachricht. **Schritt 2b ist damit abgeschlossen.** Von Schritt 3 steht
+der erste Teil: die Abgänge mit Grund und Gespräch nach dem Finale, die
+Rekrutierung über zwei Tryouts im Jahr samt Werbung, Sicherheitsnetz und
+Rookie-Training, und der Ehemaligen-Pool als Aufzeichnung (siehe „Schritt 3 —
+was gebaut ist" unten). Offen daraus: Abwerben, Jugend, und was den wachsenden
+Kader bremst.
 
 ---
 
@@ -1334,19 +1338,90 @@ eigenen Platz, es steht als „noch zwei Jahre Schule" ohnehin im Satz.
 3. **Abgänge und Rekrutierung**, zusammen: der Grund beim Abgang wird
    sichtbar gemacht, Kanäle, Ehemaligen-Pool, Abwerben als externes Ereignis
    mit derselben Waage; `ruecktrittAlter` geht in der Waage auf.
+   **Der erste Teil ist gebaut**, siehe „Schritt 3 — was gebaut ist" gleich
+   darunter. Offen: Abwerben, Jugend, `ruecktrittAlter` in der Waage, und
+   eine Bremse für den wachsenden Kader.
 4. **Mit den Finanzen:** Spritgeld, Betreuung bei Verletzung, bezahlte
    Coaches, die gehen, wenn sie nicht bezahlt werden. Versprechen und Freunde
    zum Schluss.
+
+### Schritt 3 — was gebaut ist
+
+[`engine/recruiting.js`](../engine/recruiting.js), die Verdrahtung in
+`saison.js`, [`ui/tryout.js`](../ui/tryout.js), Migration 18→19. Die Zahlen
+und die Messungen stehen in [`balancing.md`](balancing.md), Abschnitt 18.
+
+**Zwei Tryouts im Jahr**, am ersten Samstag im November (Tag 15 oder 22) und
+im April (Tag 169, viermal im Jahrhundert 176). Der Hochschulinfotag ist kein
+Termin mehr, sondern eine Werbemaßnahme.
+
+1. **Einen Monat vorher** kommt die Werbung als Nachricht mit Antwortpflicht:
+   acht Maßnahmen zum Ankreuzen, jede mit ihrem Anteil an der Spanne und mit
+   den Leuten, die sie bringt (Hochschulinfotag 100 % Studenten, Fitnessstudio
+   vor allem Arbeiter …). Vorgeschlagen sind alle, weil sie nichts kosten; die
+   Kosten kommen mit den Finanzen. Die Frage zum November liegt **in der alten
+   Saison**, 30 Tage vor dem Tryout über die Jahresgrenze gerechnet — beim
+   Amtsantritt gibt es keine alte Saison, dort kommt sie an Tag 1.
+2. **Am Tryout** stehen `5 + 10 × Vereinsfaktor × Ligafaktor × Werbung`
+   Kandidaten auf dem Platz, roh und **ohne Position**: Körper, Athletik in
+   fünf Stufen gegen den Ligaschnitt, die Lebenslage, das Interesse als Stufe,
+   und wo der Stab sie sich vorstellen kann. Fünf Gespräche, jedes halbiert den
+   Abstand zum Ja.
+3. **Drei Tage später** die Zusagen. Wer kommt, bekommt vom Manager eine
+   Position (vorgeschlagen: die beste Prognose) und danach sechs Wochen
+   Rookie-Training.
+
+**Das Sicherheitsnetz**: unter 30 rücken erst Knapp-Absager aus dem Tryout nach,
+dann frisch gezogene aus der Ligamitte ohne Vereinsanteil — beide nur unter dem
+Ligaschnitt in Stärke **und** Talent. Ein dünner Kader darf sich nicht lohnen.
+
+**Die Abgänge** sagen es am Tag nach dem Finale selbst, jeder in einer eigenen
+Nachricht mit Grund. Die Vorschau rechnet den Saisonwechsel auf Kopien mit
+denselben Strömen, sagt also genau, was passiert, solange sich nichts ändert.
+Wer nicht aus Körpergründen geht, lässt sich auf ein Gespräch ein (+15
+Commitment, dann wird die Waage neu gelesen); das Spritgeld kommt als zweiter
+Hebel mit den Finanzen. Der eigene Verein bekommt **keinen** Rookie-Ersatz mehr;
+die KI weiter, unverändert, samt `kiAusgleich()`.
+
+**Die Ehemaligen** werden aufgeschrieben — Name, Position, Alter, Jahr, Grund,
+Commitment —, aber noch von niemandem gelesen. Sie sind der spätere Pool für
+Coaches und Orga, und was heute nicht aufgeschrieben wird, lässt sich
+hinterher nicht rekonstruieren.
+
+Abweichungen vom Plan, die beim Bau gefallen sind:
+
+- **Die Körperpassung.** Die Prognose ist das Rookie-Training selbst, sechs
+  Wochen auf einer Kopie. Ohne Abschlag für einen Körper außerhalb des
+  Positionskorridors war der Tackle bei 57 % aller Kandidaten die beste
+  Position, weil sich sein Handwerk am leichtesten lernt. Jetzt kostet jeder
+  Kilo und Zentimeter daneben 0,4 % des Trainingsziels, bis 20 %.
+- **Die Stärke eines Rookies wächst mit.** `staerke` ist, was er heute auf
+  seiner Position wert ist; das Ziel steht daneben in `rookieZiel`. Stünde das
+  Ziel in `staerke`, zeigte der Roster eine Zahl, die auf dem Feld nicht
+  ankommt.
+- **Das Rookie-Training ist ein Platzhalter** — ein Zug je Wochenanfang aufs
+  Sollprofil, nur nach oben. Wie Training wirklich wirkt, entscheidet die
+  Spielerentwicklung.
+- **Das Tryout kommt zuerst.** Fällt es auf einen Wochenanfang, stehen die
+  Rollen-Anfragen in der Post dahinter; die Tageskarte führt zur ersten offenen
+  Nachricht.
+
+**Offen: der Kader wächst.** Rund drei Abgänge gegen acht bis neun Zugänge je
+Saison — nach drei Saisons steht ein starker Verein bei ~47 Mann. Eine
+Kadergrenze, ein Interesse, das bei vollem Kader sinkt, oder die Bank als
+Argument beim Tryout wären die Bremse; die Zulaufzahlen sind es nicht.
+
+Für die Ligen später, festgehalten statt gebaut: Prestige GFL 100, GFL2 65,
+Regionalliga Süd 40, Bayernliga 22, Landesliga 10; der Ligafaktor ist Prestige
+geteilt durch das der Bayernliga.
 
 ---
 
 ## Block 5 und später — was im Gespräch fiel, aber noch keinen Platz hat
 
-- **Rekrutierung.** Neue Spieler zwischen den Saisons. Solange es die nicht
-  gibt, ist der 30er-Kader des eigenen Vereins eine **dauerhafte** Strafe und
-  nicht bloß eine schwere Startsituation — das war so nicht gemeint.
-  **Geplant in Block 7**, Schritt 3, zusammen mit den Abgängen — nie vorher,
-  wegen der Symmetrie zur KI.
+- ~~**Rekrutierung.** Neue Spieler zwischen den Saisons.~~ **Gebaut** in
+  Block 7, Schritt 3, zusammen mit den Abgängen — die KI ersetzt weiter durch
+  Rookies. Der 30er-Kader ist damit keine dauerhafte Strafe mehr.
 - **Spielerentwicklung als Gesamtkonzept.** Performance fließt in die
   Entwicklung ein. **Der nächste Schritt** — und er hat jetzt eine Vorarbeit:
   `talent` steht seit dem Talentumbau in halben Sternen (1–10) und sagt nur

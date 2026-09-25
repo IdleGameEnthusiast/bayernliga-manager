@@ -547,15 +547,21 @@ export function echterHorizont(l) {
  * jedem Stand, der seine Bindung erst noch nachzieht, zu einem anderen
  * gemacht. Wer `ziehLebenslage()` direkt ruft, bekommt deshalb eine Lage ohne
  * Wahrheit — im Spiel führt kein Weg daran vorbei.
+ *
+ * Mit `status` steht der Status schon fest — beim Tryout, wo ihn der Kanal
+ * bestimmt hat, über den einer gekommen ist. Dann fällt genau der erste Wurf
+ * weg; ohne `status` läuft die Reihenfolge unverändert, und jede nachgezogene
+ * Lebenslage eines alten Standes bleibt, wie sie war.
  * @param {() => number} rng
  * @param {number} alter
  * @param {number} jahr
  * @param {number} [uniKm]  wie weit der Verein von der nächsten Hochschule liegt; ohne
  *   Angabe hat er eine im Ort
+ * @param {Status} [status]  vorgegeben statt aus dem Alter gezogen
  * @returns {Lebenslage}
  */
-export function ziehLebenslage(rng, alter, jahr, uniKm = 0) {
-  const status = pickWeighted(rng, nachAlter(STATUS_JE_ALTER, alter));
+export function ziehLebenslage(rng, alter, jahr, uniKm = 0, status) {
+  if (!status) status = pickWeighted(rng, nachAlter(STATUS_JE_ALTER, alter));
   const entfernung = ziehEntfernung(rng, status, uniKm);
   const auto = rng() < AUTO_JE_STATUS[status];
   const familie = rng() < nachAlter(FAMILIE_JE_ALTER, alter);

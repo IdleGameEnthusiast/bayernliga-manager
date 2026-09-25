@@ -14,7 +14,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { neuesSpiel, SAVE_VERSION, coachesVon, bindungVon } from '../engine/saison.js';
+import {
+  neuesSpiel, SAVE_VERSION, coachesVon, bindungVon, weiter, beantworteNachricht,
+} from '../engine/saison.js';
+import { offeneAntworten, antwortenZu } from '../engine/postfach.js';
+import { recruitingVon, zulauf, MASSNAHMEN } from '../engine/recruiting.js';
 import { ausgesprochenerWunsch } from '../engine/wunsch.js';
 import { offeneAblehnungen } from '../engine/ueberzeugen.js';
 import { rolleVon, rollenlose, mismatch } from '../engine/rolle.js';
@@ -204,6 +208,29 @@ test('ein Stand aus Version 15 hat sich noch gegen nichts gesperrt', () => {
   for (const s of neu.kader.heg) {
     assert.deepEqual(offeneAblehnungen(s), [], `${s.nachname} sperrt sich aus dem Nichts`);
   }
+});
+
+test('ein Stand aus Version 18 bekommt die Rekrutierung und läuft ins nächste Tryout', () => {
+  // Version 18 kannte keine Tryouts: kein `recruiting` am Stand, keine
+  // Werbung, die je beschlossen worden wäre. Der Schritt legt den leeren
+  // Behälter an; das nächste Tryout läuft dann mit allen Maßnahmen.
+  const alt = abzug('achtzehn');
+  alt.version = 18;
+  delete alt.recruiting;
+  alt.post = alt.post.filter((/** @type {{ art: string }} */ n) => n.art !== 'tryoutWerbung');
+
+  const neu = importiere(JSON.stringify(alt));
+  assert.equal(neu.version, SAVE_VERSION);
+  assert.deepEqual(neu.recruiting, { werbung: null, tryout: null, neue: [], ehemalige: [] });
+
+  // Und das Tryout kommt trotzdem: am Tag selbst, mit vollem Zulauf.
+  for (let i = 0; i < 40 && !recruitingVon(neu).tryout; i++) {
+    for (const n of offeneAntworten(neu)) beantworteNachricht(neu, n.id, antwortenZu(n.art).at(-1));
+    weiter(neu);
+  }
+  const tryout = recruitingVon(neu).tryout;
+  assert.ok(tryout, 'kein Tryout nach der Migration');
+  assert.equal(tryout.kandidaten.length, zulauf('heg', MASSNAHMEN));
 });
 
 test('ein Stand aus der Zukunft wird abgelehnt', () => {

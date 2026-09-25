@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<title>Tryout: Kandidaten, fünf Gespräche, Zusagen und Positionen</title>
+<link rel="stylesheet" href="../../app.css">
+<link rel="stylesheet" href="melder.css">
+<script src="./melder.js"></script>
+</head>
+<body><div id="app" class="app"></div><div id="bericht"></div>
+
+<!-- Erst den Stand bis an den Tryout-Tag bringen, dann die App laden — sie
+     liest ihn beim Start. Die Werbung ist beschlossen, die Rollen-Anfragen
+     unterwegs sind vertagt; geprüft wird ab dem Moment, in dem die Kandidaten
+     auf dem Platz stehen. -->
+<script type="module">
+import { neuesSpiel, weiter, beantworteNachricht } from '../../engine/saison.js';
+import { offeneAntworten, antwortenZu } from '../../engine/postfach.js';
+import { tryoutTage } from '../../engine/kalender.js';
+import { speichere } from '../../engine/save.js';
+
+localStorage.clear();
+
+const s = neuesSpiel('heg', 'tryout-smoke');
+const tag = tryoutTage(s.jahr).herbst;
+for (let i = 0; i < 20 && s.tag < tag; i++) {
+  for (const n of offeneAntworten(s)) beantworteNachricht(s, n.id, antwortenZu(n.art).at(-1));
+  weiter(s, tag + 1);
+}
+window.tryoutTag = s.tag === tag;
+speichere(s);
+</script>
+
+<script type="module">
+import '../../app.js';
+
+const knopf = () => txt('.tageskarte button.haupt');
+const leseKnopf = (name) => alle('.postlese button').find((b) => b.textContent === name);
+const reiterKnopf = (name) => alle('.reiter button').find((b) => b.textContent === name);
+
+try {
+  pruefe('der Stand steht am Tryout-Tag', tryoutTag);
+
+  // 1 — Das Tryout hält den Kalender an und schlägt die Kandidaten auf
+  gleich('die Tageskarte führt zur Nachricht', knopf(), 'Zur Nachricht ›');
+  q('.tageskarte button.haupt').click();
+  enthaelt('das Tryout ist aufgeschlagen', txt('.postlese h3'), 'auf dem Platz');
+  const anzahl = alle('.tryoutteil .kandidat').length;
+  pruefe('jeder Kandidat steht auf einer Karte', anzahl >= 5, anzahl);
+  enthaelt('die Betreffzeile zählt sie', txt('.postlese h3'), `${anzahl} Kandidaten`);
+  gleich('je fünf Athletikwerte', alle('.tryoutteil .athletikwert').length, anzahl * 5);
+  pruefe('als Punkte, nicht als Zahlen',
+    alle('.tryoutteil .punkte').every((p) => /^[●○]{5}$/.test(p.textContent)));
+  enthaelt('die Lebenslage steht ohne Vereinsjahre da', txt('.kandidaten'), 'Anfahrt');
+  pruefe('und nicht „neu im Verein"', !txt('.kandidaten').includes('neu im Verein'));
+  enthaelt('der Stab schlägt Positionen vor', txt('.kandidaten'), 'Der Stab sieht ihn als');
+  enthaelt('fünf Gespräche sind frei', txt('.tryoutteil'), 'Noch 5 Gespräche heute.');
+
+  // 2 — Fünf Gespräche, dann ist Schluss
+  for (let i = 0; i < 5; i++) {
+    const frei = alle('.tryoutteil button').find((b) => b.textContent === 'Ansprechen' && !b.disabled);
+    frei.click();
+  }
+  gleich('fünf sind angesprochen',
+    alle('.tryoutteil .marke').filter((m) => m.textContent === 'Gesprochen').length, 5);
+  pruefe('der Rest ist gesperrt',
+    alle('.tryoutteil button').filter((b) => b.textContent === 'Ansprechen').every((b) => b.disabled));
+  enthaelt('und das steht auch da', txt('.tryoutteil'), 'Mehr geht heute nicht');
+
+  // 3 — Beenden, drei Tage warten, die Zusagen
+  leseKnopf('Tryout beenden').click();
+  enthaelt('danach steht, wann die Antworten kommen', txt('.tryoutteil'), 'In drei Tagen');
+  // Der Tryout-Tag ist ein Wochenanfang: hinter dem Tryout warten noch die
+  // Rollen-Anfragen dieser Woche. Sie werden vertagt.
+  for (let i = 0; i < 5 && knopf() === 'Zur Nachricht ›'; i++) {
+    q('.tageskarte button.haupt').click();
+    leseKnopf('Später').click();
+  }
+  gleich('die Uhr läuft wieder', knopf(), 'Bis dahin');
+  q('.tageskarte button.haupt').click();
+  gleich('sie hält bei den Zusagen', knopf(), 'Zur Nachricht ›');
+  q('.tageskarte button.haupt').click();
+  enthaelt('die Zusagen sind aufgeschlagen', txt('.postlese h3'), 'vom Tryout');
+  const auswahl = () => alle('.tryoutteil select');
+  const neue = auswahl().length;
+  pruefe('jeder Neue hat eine Positionsauswahl', neue > 0, neue);
+  gleich('mit allen achtzehn Positionen', auswahl()[0].options.length, 18);
+  const ziel = auswahl()[0].value === 'SS' ? 'FS' : 'SS';
+  auswahl()[0].value = ziel;
+  auswahl()[0].dispatchEvent(new Event('change'));
+  gleich('die Wahl steht nach dem Neuzeichnen noch', auswahl()[0].value, ziel);
+  leseKnopf('Positionen übernehmen').click();
+  enthaelt('danach sind sie übernommen', txt('.tryoutteil'), 'Übernommen');
+  gleich('und keine Auswahl steht mehr da', auswahl().length, 0);
+
+  // 4 — Im Personalreiter tragen sie die Marke des Rookie-Trainings
+  reiterKnopf('Personal').click();
+  gleich('die Neuen stehen mit ihrer Marke im Kader',
+    alle('.spielerzeile .marke').filter((m) => m.textContent === 'Rookie').length, neue);
+  pruefe('und einer davon auf der gewählten Position',
+    alle('.spielerzeile').some((z) => z.textContent.includes('Rookie')
+      && [...z.children][2].textContent === ziel));
+} catch (e) { merkeFehler(e); }
+melde();
+</script></body></html>

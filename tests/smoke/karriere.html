@@ -24,22 +24,24 @@ const leseKnopf = (name) => alle('.postlese button').find((b) => b.textContent =
 const zeileMit = (text) => alle('.postzeile').find((z) => z.textContent.includes(text));
 
 /**
- * Durch die Rollen-Kampagne hindurch bis zu einem Datum.
+ * Durch die Rollen-Kampagne und die Tryouts hindurch bis zu einem Datum.
  *
  * Seit der Kampagne ist die Offseason nicht mehr leer: an jedem Wochenanfang
- * fragt jemand nach seiner Rolle, und jede Anfrage hält den Kalender an. Wer
- * nur durch den Kalender will, tippt auf „Später" — genau das tut dieser
- * Helfer, Woche für Woche.
+ * fragt jemand nach seiner Rolle, und jede Anfrage hält den Kalender an. Dazu
+ * kommen die Stationen der Tryouts. Wer nur durch den Kalender will, tippt
+ * auf die Antwort, die nichts entscheidet — „Später", „Tryout beenden",
+ * „Positionen übernehmen", „So machen wir es".
  */
+const DURCHWINKEN = ['Später', 'So machen wir es', 'Tryout beenden', 'Positionen übernehmen'];
 function weiterBis(datum) {
-  for (let i = 0; i < 90 && txt('.kopf-datum') !== datum; i++) {
+  for (let i = 0; i < 120 && txt('.kopf-datum') !== datum; i++) {
     const k = q('.tageskarte button.haupt');
     if (!k) break;
     if (k.textContent.trim() !== 'Zur Nachricht ›') { k.click(); continue; }
     k.click();
-    const spaeter = leseKnopf('Später');
-    if (!spaeter) break;
-    spaeter.click();
+    const antwort = DURCHWINKEN.map(leseKnopf).find((b) => b);
+    if (!antwort) break;
+    antwort.click();
   }
 }
 
@@ -67,9 +69,10 @@ try {
 
   // 3 — Der Vorstand meldet sich und der Trainerstab dazu, aufhalten tut
   // keiner von beiden. Die Erinnerung eröffnet die Rollen-Kampagne; die
-  // einzelnen Anfragen kommen erst ab der nächsten Woche.
-  gleich('zwei Nachrichten liegen im Eingang', alle('.postzeile').length, 2);
-  gleich('und beide sind ungelesen', alle('.postzeile.neu').length, 2);
+  // einzelnen Anfragen kommen erst ab der nächsten Woche. Was an Tag 1 hält,
+  // ist die Frage nach der Werbung fürs erste Tryout.
+  gleich('drei Nachrichten liegen im Eingang', alle('.postzeile').length, 3);
+  gleich('und alle sind ungelesen', alle('.postzeile.neu').length, 3);
   // Der Punkt oben am Reiter ist der einzige Hinweis, den man von den anderen
   // Ansichten aus sieht. Er zählt nicht sichtbar mit — die Zahl steht am
   // Ordnerknopf —, aber sein Titel tut es, und daran ist er zu prüfen.
@@ -77,31 +80,53 @@ try {
   gleich('der Reiter oben trägt einen Punkt', punkte(), 1);
   gleich('und zwar der Posteingang',
     q('.reiterpunkt').closest('button').textContent, 'Posteingang');
-  gleich('er weiß, wie viel da liegt', q('.reiterpunkt').title, '2 ungelesen');
+  gleich('er weiß, wie viel da liegt', q('.reiterpunkt').title, '3 ungelesen');
   pruefe('der Trainerstab eröffnet die Rollen-Kampagne', !!zeileMit('woran sie ist'),
     alle('.postbetreff').map((e) => e.textContent).join(' | '));
-  gleich('sie verlangt keine Antwort', alle('.postzeichen.antwort').length, 0);
-  gleich('der Weg zum ersten Spieltag ist frei', knopf(), 'Bis dahin');
+  gleich('eine davon verlangt eine Antwort', alle('.postzeichen.antwort').length, 1);
+  pruefe('und zwar die Werbung fürs Tryout', !!zeileMit('Wo werben wir?'),
+    alle('.postbetreff').map((e) => e.textContent).join(' | '));
+  gleich('die Tageskarte führt zu ihr', knopf(), 'Zur Nachricht ›');
+
+  // 3a — Die Werbung: Häkchen, der Andrang, und der Knopf, der sie beschließt
+  q('.tageskarte button.haupt').click();
+  enthaelt('die Werbung schlägt auf', txt('.postlese h3'), 'Wo werben wir?');
+  const haekchen = () => alle('.werbungzeile input');
+  gleich('acht Maßnahmen', haekchen().length, 8);
+  gleich('alle vorgeschlagen', haekchen().filter((h) => h.checked).length, 8);
+  const andrang = () => alle('.tryoutteil p').map((p) => p.textContent)
+    .find((t) => t.startsWith('Erwarteter Andrang')) || '';
+  const vollerAndrang = andrang();
+  enthaelt('darunter steht, wie viele das bringt', vollerAndrang, 'Erwarteter Andrang');
+  const hochschule = alle('.werbungzeile').find((z) => z.textContent.includes('Hochschulinfotag'));
+  hochschule.querySelector('input').click();
+  gleich('ein Häkchen weniger', haekchen().filter((h) => h.checked).length, 7);
+  pruefe('und der Andrang sinkt', andrang() !== vollerAndrang, `${vollerAndrang} → ${andrang()}`);
+  alle('.werbungzeile').find((z) => z.textContent.includes('Hochschulinfotag'))
+    .querySelector('input').click();
+  gleich('zurück auf alle', haekchen().filter((h) => h.checked).length, 8);
+  leseKnopf('So machen wir es').click();
+  pruefe('danach ist sie beschlossen', haekchen().every((h) => h.disabled));
+  gleich('der Weg ist frei', knopf(), 'Bis dahin');
   enthaelt('nächster Termin', tageskarte(), 'Nächster Termin');
-  // Der nächste Zwangsstopp ist nicht der erste Spieltag, sondern der Beginn
-  // der Preseason vier Wochen davor — die Offseason endet mit einem Halt.
-  enthaelt('am 21. März', tageskarte(), 'Sa 21. Mär');
-  enthaelt('zur Preseason', tageskarte(), 'Preseason');
+  // Der nächste Zwangsstopp ist das Tryout am ersten Novembersamstag — es steht
+  // auch im Raster.
+  enthaelt('am 1. November', tageskarte(), 'Sa 1. Nov');
+  enthaelt('zum Tryout', tageskarte(), 'Tryout');
 
   // Lesen heißt lesen: die Nachricht schlägt rechts auf und bleibt links stehen.
-  enthaelt('rechts steht noch nichts', txt('.postlese'), 'Wähle eine Nachricht');
   zeileMit('Willkommen bei').click();
   enthaelt('die Nachricht schlägt rechts auf', txt('.postlese'), 'Willkommen bei');
   gleich('sie ist jetzt gelesen', alle('.postzeile.neu').length, 1);
   gleich('der Punkt oben zählt mit', q('.reiterpunkt').title, '1 ungelesen');
-  gleich('und liegt weiter im Posteingang', alle('.postzeile').length, 2);
+  gleich('und liegt weiter im Posteingang', alle('.postzeile').length, 3);
   pruefe('unten steht das Löschen', leseKnoepfe().includes('Löschen'), leseKnoepfe().join(' | '));
   gleich('und sonst nichts', leseKnoepfe().length, 1);
 
   // 4 — Der Ordner „Gelöscht" und der Weg zurück
   gleich('zwei Ordner', alle('.postordner-knopf').length, 2);
   leseKnopf('Löschen').click();
-  gleich('die gelöschte ist aus dem Eingang weg', alle('.postzeile').length, 1);
+  gleich('die gelöschte ist aus dem Eingang weg', alle('.postzeile').length, 2);
   pruefe('die andere bleibt stehen', !!zeileMit('woran sie ist'));
   alle('.postordner-knopf')[1].click();
   gleich('im Gelöscht liegt sie', alle('.postzeile').length, 1);
@@ -109,7 +134,7 @@ try {
   leseKnopf('Wiederherstellen').click();
   gleich('der Posteingang steht wieder offen',
     txt('.postordner-knopf.aktiv .postordner-name'), 'Posteingang');
-  gleich('und beide Nachrichten darin', alle('.postzeile').length, 2);
+  gleich('und alle Nachrichten darin', alle('.postzeile').length, 3);
   zeileMit('woran sie ist').click();
   gleich('nichts Ungelesenes mehr, kein Punkt', punkte(), 0);
 

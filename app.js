@@ -22,6 +22,7 @@ import {
   fuehreLebenslageGespraech,
 } from './engine/saison.js';
 import { WERTUNG_PUNKTE } from './engine/constants.js';
+import { setzeWerbung, sprichKandidat, setzeRookiePosition } from './engine/recruiting.js';
 import { partienDerRunde } from './engine/spielplan.js';
 import {
   speichere, lade, gibtEsSpeicherstand, exportiere, importiere, dateiName,
@@ -323,6 +324,12 @@ const postfachAktionen = {
   loeseCode: beiCode,
   istPlaytester: () => playtester,
   playtesterAus: () => setzePlaytester(false),
+  // Die drei Handgriffe am Tryout. Ob sie gehen — die Werbung noch offen, ein
+  // Gespräch noch frei, die Position eine echte —, entscheidet die Engine;
+  // hier wird nur gespeichert und neu gezeichnet.
+  setzeWerbung: (massnahme, an) => schreibe((s) => setzeWerbung(s, massnahme, an)),
+  sprichKandidat: (id) => schreibe((s) => sprichKandidat(s, id)),
+  setzeRookiePosition: (id, position) => schreibe((s) => setzeRookiePosition(s, id, position)),
 };
 
 /**

@@ -80,6 +80,12 @@ import { VORNAMEN, NACHNAMEN } from './content.js';
  *   Verein führt es; fehlt es, gilt die heutige als bekannt. Siehe `drift.js`
  * @property {number} [commitmentTrendVersuche]  Wie oft der Coach seit dem Wechsel schon
  *   nicht hingesehen hat — nach `TREND_VERSUCHE` bleibt er ungesagt
+ * @property {number | null} [rookieTrainingBis]  Tag dieser Saison, bis zu dem er im
+ *   Rookie-Training steht — nur, wer über ein Tryout kam. Fehlt oder `null`: keins. Siehe
+ *   `recruiting.js`
+ * @property {number | null} [rookieZiel]  Die Stärke, auf die das Rookie-Training ihn
+ *   zieht. `staerke` ist bei einem Rookie, was er **heute** wert ist, und wächst im
+ *   Training mit — sonst stünde im Roster eine Zahl, die auf dem Feld nicht ankommt
  */
 
 /** A player who has not been handed a number yet. 0 is a real jersey. */
@@ -650,8 +656,15 @@ export function vergebeNummern(rng, kader, neuVerteilen = false) {
     // 0-9 sind vergeben oder bleiben frei: sie gehören den Besten und werden
     // oben verteilt. Das QB-Band reicht bis 1 hinunter, der zweite Mann darf
     // sich daraus trotzdem nicht bedienen.
-    const frei = zahlenIn(NUMMERN_BAND[s.position] || [[1, 99]], belegt)
+    let frei = zahlenIn(NUMMERN_BAND[s.position] || [[1, 99]], belegt)
       .filter((n) => n > 9);
+    // Ein volles Band kam nicht vor, solange jeder Kader seine feste Form
+    // hatte. Seit der eigene Verein selbst rekrutiert, kann er zwölf Linemen
+    // haben — dann trägt der dreizehnte eben eine Nummer außerhalb, statt dass
+    // der Saisonwechsel wirft. Ein Schönheitsfehler, kein Regelbruch: wer im
+    // Angriff mit der falschen Nummer aufläuft, versucht sich ohnehin eine zu
+    // borgen (`borgeNummer()`), und ist das Band voll, spielt er mit seiner.
+    if (frei.length === 0) frei = zahlenIn([[10, 99]], belegt);
     if (frei.length === 0) {
       throw new Error(`Keine freie Trikotnummer für ${s.position} — die Kaderform passt nicht ins Nummernband`);
     }
@@ -749,13 +762,19 @@ export function verfalleEinsaetze(einsaetze) {
  * nehmen denselben Weg wie der Rücktritt, für jeden Verein gleich, damit die
  * Symmetrie zur KI hält. Wer sie ausrechnet, ist `naechsteSaison()`; hier
  * werden sie nur ersetzt.
+ *
+ * Mit `ersetzen = false` bleibt die Lücke offen: das ist der eigene Verein, der
+ * seit Schritt 3 selbst rekrutiert (`recruiting.js`). Die KI ersetzt weiter —
+ * sie spielt das Metaspiel nicht, und der Rookie gleicher Position **ist** ihre
+ * Rekrutierung.
  * @param {() => number} rng
  * @param {Spieler[]} kader
  * @param {number} teamStaerke
  * @param {Set<string>} [abgaenge] Ids derer, die aus dem Lebenslauf heraus gehen
+ * @param {boolean} [ersetzen]
  * @returns {{ kader: Spieler[], ruecktritte: Spieler[] }}
  */
-export function saisonWechsel(rng, kader, teamStaerke, abgaenge = new Set()) {
+export function saisonWechsel(rng, kader, teamStaerke, abgaenge = new Set(), ersetzen = true) {
   /** @type {Spieler[]} */
   const neu = [];
   /** @type {Spieler[]} */
@@ -768,6 +787,7 @@ export function saisonWechsel(rng, kader, teamStaerke, abgaenge = new Set()) {
     if (alter > (s.ruecktrittAlter || RUECKTRITT_ALTER) || abgaenge.has(s.id)) {
       ruecktritte.push(s);
       belegteNamen.delete(s.vorname + ' ' + s.nachname);
+      if (!ersetzen) continue;
       neu.push(macheSpieler(rng, s.position, teamStaerke, {
         alter: randInt(rng, MIN_AGE, 21),
         belegteNamen,

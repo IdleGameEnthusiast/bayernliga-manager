@@ -34,6 +34,7 @@ const SHELL = [
   './engine/wunsch.js',
   './engine/auskunft.js',
   './engine/ueberzeugen.js',
+  './engine/recruiting.js',
   './engine/aufstellung.js',
   './engine/team.js',
   './engine/spielplan.js',
@@ -55,6 +56,7 @@ const SHELL = [
   './ui/taktik.js',
   './ui/spielplan.js',
   './ui/spielbericht.js',
+  './ui/tryout.js',
   './ui/postfach.js',
 ];
 

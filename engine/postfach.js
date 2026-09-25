@@ -50,6 +50,16 @@ export const ANTWORTEN = {
   // eine vollgültige Antwort: sie lässt den Kalender weiterlaufen und schiebt
   // den Mann zurück in die Warteschlange, ohne die Frist zu verlängern.
   rollenanfrage: ['gespraech', 'spaeter'],
+  // Die drei Stationen eines Tryouts. Jede hat genau eine Antwort, und das ist
+  // Absicht: die Entscheidung steckt nicht im Knopf, sondern in dem, was
+  // darüber steht — den Häkchen bei der Werbung, den fünf Gesprächen, den
+  // Positionen. Der Knopf sagt nur „fertig", und bis dahin steht die Uhr.
+  tryoutWerbung: ['festlegen'],
+  tryout: ['abschliessen'],
+  tryoutZusagen: ['uebernehmen'],
+  // Einer, der gehen will. Reden ist der Versuch, ihn zu halten; ihn gehen zu
+  // lassen ist genauso eine Antwort. Wer aus Körpergründen geht, fragt nicht.
+  abgang: ['gespraech', 'ziehenLassen'],
 };
 
 /**

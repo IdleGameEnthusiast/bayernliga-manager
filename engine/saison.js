@@ -16,12 +16,14 @@
  */
 
 import {
-  SEASON_START_YEAR, ZUSATZ_SPIELER, EIGENE_VEREINSBASIS,
+  SEASON_START_YEAR, ZUSATZ_SPIELER, EIGENE_VEREINSBASIS, ABGANG_GESPRAECH_BONUS,
+  RUECKTRITT_ALTER, TRYOUT_GESPRAECHE,
   makeRng, pick, clamp,
 } from './constants.js';
 import { TEAMS, GRUPPEN, teamById, teamsDerGruppe } from './content.js';
 import {
-  saisonLaenge, spieltagAmTag, phaseAmTag, phasenBeginn, wochenBeginn, woche,
+  saisonLaenge, spieltagAmTag, phaseAmTag, phasenBeginn, wochenBeginn, woche, tryoutTage,
+  SPIELTAG_TAGE,
 } from './kalender.js';
 import {
   sende, baueNachrichten, offeneAntworten, beantworte, stutzePost,
@@ -56,6 +58,10 @@ import {
 } from './wunsch.js';
 import { ueberzeugungsDrift, ueberzeuge, offeneAblehnungen } from './ueberzeugen.js';
 import { frageNachLebenslage } from './auskunft.js';
+import {
+  recruitingVon, planeWerbung, erinnerungAmTag, tryoutAmTag, richteTryoutAus, schliesseTryout,
+  entscheidungFaellig, entscheide, uebernimmNeue, rookieTraining,
+} from './recruiting.js';
 
 /**
  * Der Stempel auf einem Speicherstand.
@@ -65,7 +71,7 @@ import { frageNachLebenslage } from './auskunft.js';
  * der vorigen Nummer auf diese hebt. Ohne diesen Schritt wird ein solcher Stand
  * beim Laden weggeworfen — der Sprung ist billig, der Verlust nicht.
  */
-export const SAVE_VERSION = 18;
+export const SAVE_VERSION = 19;
 
 /**
  * @typedef {object} SpielStand
@@ -87,6 +93,8 @@ export const SAVE_VERSION = 18;
  *   Es **ist** das Wochenkontingent: was diese Woche noch geht, wird gezählt und nicht
  *   heruntergezählt, und das Fenster verschiebt sich mit dem Tag von selbst. Der
  *   Saisonwechsel leert es, wie der Papierkorb der Post geleert wird
+ * @property {import('./recruiting.js').Recruiting} [recruiting]  Werbung, laufendes
+ *   Tryout, die Neuen vor ihrer Position und die Ehemaligen — siehe `recruitingVon()`
  */
 
 /**
@@ -542,6 +550,7 @@ export function neuesSpiel(meinTeam, seed) {
     post: [],
     historie: [],
     gespraeche: [],
+    recruiting: { werbung: null, tryout: null, neue: [], ehemalige: [] },
   };
 
   // Der Stab wird gleich gezogen, nicht erst beim ersten Blick darauf — ein
@@ -596,6 +605,16 @@ function saisonEroeffnung(stand, ruecktritte, gruende, antritt) {
     art: 'rollenerinnerung',
     daten: { offen: rollenlose(stand.kader[stand.meinTeam]).length },
   });
+  // Die Frage nach der Werbung fürs November-Tryout kommt sonst einen Monat
+  // vorher, also noch in der alten Saison. Beim Amtsantritt gibt es keine alte
+  // Saison — also kommt sie heute, mit zwei bis drei Wochen Vorlauf statt vier.
+  // Das ist die einzige blockierende Nachricht an Tag 1, und sie passt: der
+  // Vorstand hat eben gesagt, dass das Team neu aufgebaut werden muss.
+  if (antritt) {
+    const tag = tryoutTage(stand.jahr).herbst;
+    planeWerbung(stand, stand.jahr, tag);
+    eintraege.push({ art: 'tryoutWerbung', daten: { jahr: stand.jahr, tag, art: 'herbst' } });
+  }
   return sende(stand, 1, eintraege);
 }
 
@@ -908,6 +927,64 @@ function wochenDrift(stand, tag) {
 }
 
 /**
+ * Was die Rekrutierung an einem Tag tut: das Rookie-Training am Wochenanfang,
+ * die Frage nach der Werbung einen Monat vor einem Tryout, das Tryout selbst
+ * und drei Tage später die Antworten der Kandidaten.
+ *
+ * Steht neben `wochenDrift()` und nicht in `eintraegeAmTag()`, weil es den
+ * Stand ändert — es zieht Kandidaten und würfelt Zusagen, und eine Vorschau
+ * darf das nicht. Die Nachrichten mit Antwortpflicht, die dabei entstehen,
+ * halten den Kalender von selbst an.
+ * @param {SpielStand} stand @param {number} tag
+ * @returns {{ art: string, daten?: Record<string, any> }[]}
+ */
+function rekrutierungsTag(stand, tag) {
+  /** @type {{ art: string, daten?: Record<string, any> }[]} */
+  const eintraege = [];
+
+  if (wochenBeginn(tag)) {
+    for (const sp of stand.kader[stand.meinTeam] || []) rookieTraining(sp, tag);
+  }
+
+  const erinnerung = erinnerungAmTag(stand.jahr, tag);
+  if (erinnerung) {
+    planeWerbung(stand, erinnerung.jahr, erinnerung.tag);
+    eintraege.push({ art: 'tryoutWerbung', daten: erinnerung });
+  }
+
+  const art = tryoutAmTag(stand.jahr, tag);
+  if (art) {
+    const tryout = richteTryoutAus(stand, tag, art);
+    eintraege.push({
+      art: 'tryout',
+      daten: {
+        jahr: stand.jahr, tag, art, anzahl: tryout.kandidaten.length, gespraeche: TRYOUT_GESPRAECHE,
+      },
+    });
+  }
+
+  if (entscheidungFaellig(stand, tag)) {
+    const tryout = /** @type {import('./recruiting.js').Tryout} */ (recruitingVon(stand).tryout);
+    const ergebnis = /** @type {NonNullable<ReturnType<typeof entscheide>>} */ (entscheide(stand, tag));
+    const neue = recruitingVon(stand).neue;
+    eintraege.push({
+      art: neue.length > 0 ? 'tryoutZusagen' : 'tryoutAbsagen',
+      daten: {
+        jahr: tryout.jahr,
+        tag: tryout.tag,
+        art: tryout.art,
+        kandidaten: ergebnis.kandidaten,
+        zusagen: ergebnis.zusagen,
+        nachgerueckt: ergebnis.nachgerueckt.length,
+        nachgeruecktIds: ergebnis.nachgerueckt,
+        namen: neue.map((s) => `${s.vorname} ${s.nachname}`),
+      },
+    });
+  }
+  return eintraege;
+}
+
+/**
  * Einen Kalendertag ausspielen: alle Partien, die an ihm stehen und noch kein
  * Ergebnis haben. Intern — nach außen führt der Weg über `weiter()`.
  * @param {SpielStand} stand @param {number} tag
@@ -1117,13 +1194,102 @@ function eintraegeAmTag(stand, tag) {
   // Wochenanfang kostet nichts.
   eintraege.push(...rollenEintraege(stand, tag));
 
+  // Am Tag nach dem Finale sagen die, die gehen werden, es dem Manager — jeder
+  // in einer eigenen Nachricht, mit Grund. Gegangen wird erst beim
+  // Saisonwechsel; bis dahin ist Zeit, einen umzustimmen.
+  if (tag === SPIELTAG_TAGE[SPIELTAG_TAGE.length - 1] + 1 && meister(stand)) {
+    eintraege.push(...abgangsEintraege(stand));
+  }
+
   return eintraege;
+}
+
+/**
+ * Wer beim nächsten Saisonwechsel aus dem eigenen Kader geht, und warum —
+ * ohne dass jemand geht.
+ *
+ * Gerechnet wird der Wechsel selbst, auf Kopien und mit **denselben** Strömen
+ * wie in `lebensjahrKader()`. Solange sich bis dahin nichts am Mann ändert,
+ * sagt die Vorschau also genau, was passiert. Ändert sich etwas — ein Gespräch,
+ * eine Rolle, eine Verletzung in der Offseason —, entscheidet am Ende der
+ * Saisonwechsel, und die Rücktrittsnachricht an Tag 1 nennt, wer wirklich
+ * gegangen ist.
+ * @param {SpielStand} stand
+ * @returns {Map<string, import('./commitment.js').Grund>}
+ */
+export function abgangsVorschau(stand) {
+  /** @type {Map<string, import('./commitment.js').Grund>} */
+  const gehen = new Map();
+  for (const s of kaderMitBindung(stand, stand.meinTeam)) {
+    const grund = vorschauFuer(stand, s);
+    if (grund) gehen.set(s.id, grund);
+  }
+  return gehen;
+}
+
+/**
+ * Die Vorschau für einen einzelnen Mann.
+ * @param {SpielStand} stand @param {import('./spieler.js').Spieler} s
+ * @returns {import('./commitment.js').Grund | null}
+ */
+function vorschauFuer(stand, s) {
+  const grund = lebensjahrSpieler(stand, structuredClone(s), stand.meinTeam);
+  // Über dem Rücktrittsalter hört er auf, egal was der Lebenslauf sagt — so
+  // steht es in `saisonWechsel()`, und der Grund ist dann der Körper.
+  if (s.alter + 1 > (s.ruecktrittAlter || RUECKTRITT_ALTER)) return 'koerper';
+  return grund;
+}
+
+/**
+ * Eine Nachricht je Abgang. Wer aus Körpergründen geht, bekommt keine Frage —
+ * den Körper redet niemand weg. Alle anderen stellen den Manager vor die
+ * Wahl: reden oder gehen lassen.
+ * @param {SpielStand} stand
+ * @returns {{ art: string, daten?: Record<string, any> }[]}
+ */
+function abgangsEintraege(stand) {
+  const gehen = abgangsVorschau(stand);
+  return (stand.kader[stand.meinTeam] || []).filter((s) => gehen.has(s.id)).map((s) => {
+    const grund = /** @type {import('./commitment.js').Grund} */ (gehen.get(s.id));
+    return {
+      art: grund === 'koerper' ? 'abgangKoerper' : 'abgang',
+      daten: {
+        spielerId: s.id,
+        name: `${s.vorname} ${s.nachname}`,
+        position: s.position,
+        alter: s.alter,
+        grund,
+      },
+    };
+  });
+}
+
+/**
+ * Das Gespräch mit einem, der gehen will. Es hebt das Commitment um
+ * `ABGANG_GESPRAECH_BONUS`, und danach wird die Waage neu gelesen: reicht es,
+ * bleibt er.
+ *
+ * Es kostet keinen Termin aus dem Wochenkontingent. Es ist der eine Moment, in
+ * dem es um alles geht, und eine Nachricht mit Antwortpflicht, die sich nur mit
+ * einem freien Termin beantworten ließe, könnte den Kalender für eine Woche
+ * festhalten. Später kommt hier das Spritgeld dazu, als zweiter Hebel neben dem
+ * Gespräch.
+ * @param {SpielStand} stand @param {string} spielerId
+ * @returns {'bleibt' | 'geht' | null} null, wenn es ihn nicht mehr gibt
+ */
+export function fuehreAbgangsGespraech(stand, spielerId) {
+  const sp = (stand.kader[stand.meinTeam] || []).find((x) => x.id === spielerId);
+  if (!sp) return null;
+  bindungVon(stand, sp);
+  sp.commitment = Math.min(99, /** @type {number} */ (sp.commitment) + ABGANG_GESPRAECH_BONUS);
+  stufeBekannt(sp);
+  return vorschauFuer(stand, sp) ? 'geht' : 'bleibt';
 }
 
 /**
  * @typedef {object} Stopp
  * @property {number} tag
- * @property {'spiel'|'antwort'|'phase'|'ziel'} grund
+ * @property {'spiel'|'antwort'|'phase'|'ziel'|'tryout'} grund
  */
 
 /**
@@ -1131,7 +1297,9 @@ function eintraegeAmTag(stand, tag) {
  *
  * Für die Anzeige „Nächster Termin". Eine Nachricht mit Antwortpflicht, die
  * unterwegs erst entsteht, kann den Termin vorverlegen; was wirklich passiert
- * ist, sagt `weiter()` mit seinem `grund`.
+ * ist, sagt `weiter()` mit seinem `grund`. Das Tryout steht hier als eigener
+ * Grund, obwohl es über seine Nachricht anhält: es ist ein Termin, und der
+ * Manager soll ihn kommen sehen.
  * @param {SpielStand} stand
  * @returns {Stopp}
  */
@@ -1142,6 +1310,7 @@ export function naechsterStopp(stand) {
   const ende = letzterTag(stand);
   for (let tag = stand.tag + 1; tag <= ende; tag++) {
     if (eigenePartieAmTag(stand, tag)) return { tag, grund: 'spiel' };
+    if (tryoutAmTag(stand.jahr, tag)) return { tag, grund: 'tryout' };
     if (phasenBeginn(tag)) return { tag, grund: 'phase' };
   }
   // Hinter dem letzten Tag steht der Saisonwechsel — Tag 1 des nächsten Jahres,
@@ -1202,7 +1371,12 @@ export function weiter(stand, zielTag = null) {
     // nicht in `eintraegeAmTag()`, das nur liest — `ereignisseAmTag()` fragt
     // es für die Vorschau, und eine Vorschau darf niemanden verletzt machen.
     const wochenPost = wochenDrift(stand, stand.tag);
-    nachrichten.push(...sende(stand, stand.tag, [...eintraegeAmTag(stand, stand.tag), ...wochenPost]));
+    // Die Rekrutierung steht vorn: fällt ein Tryout auf einen Wochenanfang,
+    // ist es das Ereignis des Tages, und die Tageskarte führt zur ersten
+    // offenen Nachricht — die Rollen-Anfragen warten dahinter.
+    const rekrutierung = rekrutierungsTag(stand, stand.tag);
+    nachrichten.push(...sende(stand, stand.tag,
+      [...rekrutierung, ...eintraegeAmTag(stand, stand.tag), ...wochenPost]));
 
     if (offeneAntworten(stand).length > 0) return halt('antwort');
     // Das eigene Spiel geht dem Phasenbeginn vor: Tag 183 ist beides, und was
@@ -1231,6 +1405,13 @@ export function beantworteNachricht(stand, id, antwort) {
   if (!n) return null;
   if (n.art === 'aufstellungUngueltig' && antwort === 'automatisch') {
     automatischAufstellen(stand);
+  }
+  if (n.art === 'tryout') schliesseTryout(stand);
+  if (n.art === 'tryoutZusagen') uebernimmNeue(stand, stand.tag);
+  // Das Ergebnis steht in der Nachricht selbst, nicht in einer zweiten: der
+  // Manager hat an genau dieser Stelle gefragt und liest dort die Antwort.
+  if (n.art === 'abgang' && antwort === 'gespraech') {
+    n.daten.ergebnis = fuehreAbgangsGespraech(stand, n.daten.spielerId);
   }
   return n;
 }
@@ -1476,18 +1657,39 @@ export function naechsteSaison(stand) {
   const gruende = [];
 
   const basen = vereinsBasen(stand.meinTeam);
+  const recruiting = recruitingVon(stand);
   for (const t of TEAMS) {
+    const eigen = t.id === stand.meinTeam;
     const abgaenge = lebensjahrKader(stand, t.id);
+    // Der eigene Verein bekommt keinen Ersatz mehr geschenkt: er rekrutiert
+    // über die Tryouts, und die Lücke bleibt bis zum November offen.
     const { kader, ruecktritte } = saisonWechsel(rng, stand.kader[t.id], basen[t.id],
-      new Set(abgaenge.keys()));
+      new Set(abgaenge.keys()), !eigen);
     stand.kader[t.id] = kader;
-    if (t.id === stand.meinTeam) {
+    if (eigen) {
       alleRuecktritte.push(...ruecktritte);
       // Wer über das Alter geht, geht aus Körpergründen — das ist, was
       // `ruecktrittAlter` bis Schritt 3 bedeutet.
       gruende.push(...ruecktritte.map((s) => abgaenge.get(s.id) || 'koerper'));
+      recruiting.ehemalige.push(...ruecktritte.map((s, i) => ({
+        id: s.id,
+        name: `${s.vorname} ${s.nachname}`,
+        position: s.position,
+        alter: s.alter + 1,
+        jahr: stand.jahr,
+        grund: gruende[gruende.length - ruecktritte.length + i],
+        commitment: /** @type {number} */ (s.commitment),
+      })));
     }
   }
+  // Das Rookie-Training rechnet in Tagen der Saison und endet lange vor ihrem
+  // Ende. Stehen bliebe es trotzdem — und der Tag 20 des Vorjahres läge im
+  // neuen Jahr wieder vor Tag 42.
+  for (const sp of stand.kader[stand.meinTeam]) {
+    sp.rookieTrainingBis = null;
+    sp.rookieZiel = null;
+  }
+  recruiting.tryout = null;
 
   stand.aufstellung = ohneAbgaenge(stand.aufstellung, stand.kader[stand.meinTeam]);
   stand.jahr++;
@@ -1527,25 +1729,39 @@ export function naechsteSaison(stand) {
  * @returns {Map<string, import('./commitment.js').Grund>}
  */
 function lebensjahrKader(stand, teamId) {
-  const neuesJahr = stand.jahr + 1;
   /** @type {Map<string, import('./commitment.js').Grund>} */
   const abgaenge = new Map();
   for (const s of stand.kader[teamId] || []) {
-    const rng = makeRng(`${stand.seed}|lebenslauf|${neuesJahr}|${s.id}`);
-    // Das Jahr im Verein zählt vor der Waage: wer lange da ist, hält mehr aus,
-    // und das soll er schon in diesem Wechsel tun. `bindungVon()` davor, weil
-    // der Bonus einen Wert braucht, an dem er ziehen kann — und danach noch
-    // einmal, weil es eine Kopie der Zahl zurückgibt, keinen Verweis.
-    bindungVon(stand, s);
-    vereinsjahr(s, neuesJahr);
-    // Nur die KI: der eigene Verein hat Gespräche und Rolle als Gegengewicht
-    // zu Verletzung und Serie, ein KI-Verein hat keins von beidem. Ohne
-    // diesen Ersatz sänke der Ligaschnitt jede Saison weiter, ohne Boden.
-    if (teamId !== stand.meinTeam) kiAusgleich(s, coachesVon(stand, teamId));
-    const ereignis = lebensjahr(rng, bindungVon(stand, s), s.alter + 1, neuesJahr);
-    if (ereignis && ereignis.art === 'abgang') abgaenge.set(s.id, ereignis.grund);
+    const grund = lebensjahrSpieler(stand, s, teamId);
+    if (grund) abgaenge.set(s.id, grund);
   }
   return abgaenge;
+}
+
+/**
+ * Ein Jahr Lebenslauf für einen einzelnen Mann. Ändert ihn — die Vorschau am
+ * Tag nach dem Finale gibt deshalb eine Kopie hinein, und weil der Strom an
+ * seiner Id hängt, rechnet die Kopie genau das, was der Wechsel später rechnet.
+ * @param {SpielStand} stand
+ * @param {import('./spieler.js').Spieler} s
+ * @param {string} teamId
+ * @returns {import('./commitment.js').Grund | null} der Grund, wenn er geht
+ */
+function lebensjahrSpieler(stand, s, teamId) {
+  const neuesJahr = stand.jahr + 1;
+  const rng = makeRng(`${stand.seed}|lebenslauf|${neuesJahr}|${s.id}`);
+  // Das Jahr im Verein zählt vor der Waage: wer lange da ist, hält mehr aus,
+  // und das soll er schon in diesem Wechsel tun. `bindungVon()` davor, weil
+  // der Bonus einen Wert braucht, an dem er ziehen kann — und danach noch
+  // einmal, weil es eine Kopie der Zahl zurückgibt, keinen Verweis.
+  bindungVon(stand, s);
+  vereinsjahr(s, neuesJahr);
+  // Nur die KI: der eigene Verein hat Gespräche und Rolle als Gegengewicht
+  // zu Verletzung und Serie, ein KI-Verein hat keins von beidem. Ohne
+  // diesen Ersatz sänke der Ligaschnitt jede Saison weiter, ohne Boden.
+  if (teamId !== stand.meinTeam) kiAusgleich(s, coachesVon(stand, teamId));
+  const ereignis = lebensjahr(rng, bindungVon(stand, s), s.alter + 1, neuesJahr);
+  return ereignis && ereignis.art === 'abgang' ? ereignis.grund : null;
 }
 
 export { anzahlSpieltage };

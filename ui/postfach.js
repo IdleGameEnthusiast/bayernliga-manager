@@ -30,6 +30,8 @@ import {
 } from '../engine/kalender.js';
 import { brauchtAntwort, antwortenZu, ungeleseneAnzahl } from '../engine/postfach.js';
 import { naechsterStopp, eigenePartieAmTag } from '../engine/saison.js';
+import { tryoutAmTag } from '../engine/recruiting.js';
+import { tryoutTeil } from './tryout.js';
 
 /**
  * Welcher Monat gerade im Raster steht. Lebt im Modul, damit das Blättern einen
@@ -81,6 +83,9 @@ let gewaehlteId = null;
  * @property {(code: string) => boolean} loeseCode  Ob der Code etwas freigeschaltet hat
  * @property {() => boolean} istPlaytester
  * @property {() => void} playtesterAus
+ * @property {(massnahme: string, an: boolean) => void} setzeWerbung
+ * @property {(kandidatId: string) => void} sprichKandidat
+ * @property {(spielerId: string, position: string) => void} setzeRookiePosition
  */
 
 /**
@@ -178,7 +183,8 @@ function kalenderKarte(stand, aktionen) {
     el('div', { class: 'kalraster' }, zellen),
     auswahlLeiste(stand, aktionen),
     el('div', { class: 'kallegende klein leise' },
-      legende(T.postfach.zeichenSpiel, T.postfach.legendeSpiel)));
+      legende(T.postfach.zeichenSpiel, T.postfach.legendeSpiel),
+      legende(T.postfach.zeichenTryout, T.postfach.legendeTryout)));
 }
 
 /** @param {string} zeichen @param {string} text */
@@ -224,6 +230,9 @@ function tagesZelle(stand, aktionen, tag, imMonat, ende) {
   const spiel = drin && stand.spielplan.some(
     (p) => p.tag === tag && (p.heim === stand.meinTeam || p.gast === stand.meinTeam));
   const waehlbar = drin && tag > stand.tag;
+  // Das Tryout ist ein Termin wie ein Spiel und steht deshalb im Raster. Die
+  // Frage nach der Werbung davor steht nicht darin — die ist Post.
+  const tryout = drin && tryoutAmTag(stand.jahr, tag);
 
   const klassen = ['kaltag'];
   if (!drin) klassen.push('aussen');
@@ -253,7 +262,8 @@ function tagesZelle(stand, aktionen, tag, imMonat, ende) {
   },
     el('div', { class: 'kalzahl', text: String(imMonat) }),
     el('div', { class: 'kalzeichen' },
-      spiel ? el('span', { text: T.postfach.zeichenSpiel }) : null));
+      spiel ? el('span', { text: T.postfach.zeichenSpiel }) : null,
+      tryout ? el('span', { text: T.postfach.zeichenTryout }) : null));
 }
 
 /**
@@ -312,9 +322,11 @@ function tagesKarte(stand, aktionen) {
   const ende = saisonLaenge(stand.jahr);
   const wohin = stopp.tag > ende
     ? T.postfach.saisonwechsel
-    : (stopp.grund === 'spiel'
+    : stopp.grund === 'spiel'
       ? terminName(stopp.tag, rundeAmTag(stand, stopp.tag))
-      : T.phase[phaseAmTag(stopp.tag)]);
+      : stopp.grund === 'tryout'
+        ? T.postfach.tryout
+        : T.phase[phaseAmTag(stopp.tag)];
 
   return karte(
     nachDemFinale(stand.tag) ? T.postfach.saisonEnde : T.postfach.spielfrei,
@@ -475,6 +487,7 @@ function nachrichtBlatt(n, stand, aktionen) {
       })),
     el('div', { class: 'posttext' },
       vorlage ? vorlage.text(daten).map((absatz) => el('p', { text: absatz })) : null),
+    tryoutTeil(n, stand, aktionen),
     knoepfe(n, stand, aktionen));
 }
 
@@ -562,6 +575,11 @@ function angereichert(daten) {
   // macht hier den Namen daraus.
   if (typeof d.rolle === 'string') {
     d.rolle = /** @type {Record<string, string>} */ (T.rolle.namen)[d.rolle] || d.rolle;
+  }
+  // Ein Termin in den Daten — das Tryout, an das eine Nachricht erinnert.
+  // Die Engine legt Jahr und Tag ab, `i18n.js` kennt keinen Kalender.
+  if (typeof d.jahr === 'number' && typeof d.tag === 'number') {
+    d.datum = T.datum.ohneJahr(datum(d.jahr, d.tag));
   }
   if (Array.isArray(d.paarungen)) {
     d.paarungen = d.paarungen.map((/** @type {string[]} */ paar) =>

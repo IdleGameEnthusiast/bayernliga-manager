@@ -954,6 +954,46 @@ tr.coachzeile.offen td:nth-child(2) { font-weight: inherit; }
 
 .marke.postmarke { background: rgba(255, 255, 255, .08); color: var(--text-leise); }
 
+/* Die Tryout-Nachrichten tragen unter dem Text eine Liste oder eine Tabelle.
+   Die Lesespalte darf dafür schmaler werden als ihr Inhalt — sonst schöbe eine
+   Kandidatentabelle das ganze Postfach aus dem Bild, statt in sich zu
+   scrollen. */
+.postlese { min-width: 0; }
+.tryoutteil { margin: 4px 0 12px; }
+.tryoutteil p { margin: 6px 0; }
+.werbungliste { display: flex; flex-direction: column; }
+.werbungzeile {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  min-height: var(--tap); padding: 4px 0;
+  border-top: 1px solid var(--rand);
+  cursor: pointer;
+}
+.werbungzeile:first-child { border-top: none; }
+.werbungzeile.gesperrt { cursor: default; }
+.werbungzeile input { width: 20px; height: 20px; margin: 0; accent-color: var(--akzent); }
+.werbungname { font-weight: 600; }
+/* Ein Kandidat je Karte: Kopf mit Name, Interesse und Knopf, darunter die
+   Lebenslage, die Athletik und wo der Stab ihn sieht. Bricht auf dem Telefon
+   um, statt quer zu scrollen. */
+.kandidaten { display: flex; flex-direction: column; gap: 8px; }
+.kandidat {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 8px 10px;
+  background: var(--bg-zeile); border: 1px solid var(--rand); border-radius: var(--radius);
+}
+.kandidatkopf { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.kandidatname { flex: 1 1 180px; display: flex; flex-direction: column; min-width: 0; }
+.marke.interesse { background: rgba(233, 180, 76, .15); color: var(--gelb); }
+.athletik { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.athletikwert { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.punkte { letter-spacing: 1px; color: var(--gelb); font-size: 11px; }
+.kandidat select { max-width: 100%; min-height: 36px; }
+/* Eine Tryout-Nachricht darf länger sein als die Lesespalte sonst: fünfzehn
+   Karten in 460 Pixeln wären ein Schlüsselloch. */
+@media (min-width: 860px) {
+  .postlese:has(.tryoutteil) { max-height: none; }
+}
+
 @media (min-width: 860px) {
   .postfach { grid-template-columns: 170px minmax(220px, 300px) 1fr; }
   .postordner {
