@@ -15,16 +15,19 @@
  * die Lesespalte, und ein eigener Bildschirm dafür wäre ein Umweg für eine
  * Entscheidung, die in zehn Sekunden getroffen ist.
  *
- * Gezeigt wird in Stufen und Korridoren, nie in nackten Zahlen: die Athletik
- * gegen den Ligaschnitt je Attribut, Talent und Prognose als Spanne, die sich
- * mit der Scouting-Qualität des Stabs verengt, das Interesse als Stufe. Was
- * das bedeutet, entscheidet `engine/recruiting.js`; hier wird nur benannt.
+ * Gezeigt wird in Stufen, nie in nackten Zahlen: die Athletik gegen den
+ * Ligaschnitt je Attribut, das Interesse als Stufe. Das Talent bleibt eine
+ * Spanne, die sich mit der Scouting-Qualität des Stabs verengt — dort ist die
+ * Spanne die einzige Aussage, es gibt keine zweite Zahl daneben. Die Prognose
+ * je Position dagegen zeigt nur noch eine Stufe, keine Spanne aus zweien: eine
+ * Stufe ist selbst schon eine Bandbreite, und „WR (noch weit weg –
+ * ausbaufähig)" war eine Bandbreite über einer Bandbreite. Was das alles
+ * bedeutet, entscheidet `engine/recruiting.js`; hier wird nur benannt.
  */
 
-import { el, tabelle } from './dom.js';
+import { el } from './dom.js';
+import { spielerTabelle } from './personal.js';
 import { T } from '../i18n.js';
-import { POSITIONS } from '../engine/constants.js';
-import { hauptPosition } from '../engine/positionen.js';
 import { coachesVon } from '../engine/saison.js';
 import {
   recruitingVon, MASSNAHMEN, ATHLETIK, zulauf, werbungOffen, ligaSchnitt,
@@ -137,9 +140,10 @@ function offeneTryoutNachricht(stand, art) {
  * Der Tryout-Bildschirm: der eigene Kader zum Vergleich, und je nachdem, wo
  * das laufende Tryout gerade steht, die Kandidaten oder die Zusagen.
  * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {import('./personal.js').Einblick} einblick
  * @param {Aktionen} aktionen
  */
-export function zeigeTryoutScreen(stand, aktionen) {
+export function zeigeTryoutScreen(stand, einblick, aktionen) {
   const r = recruitingVon(stand);
   const stab = coachesVon(stand, stand.meinTeam);
 
@@ -148,36 +152,27 @@ export function zeigeTryoutScreen(stand, aktionen) {
       : el('p', { class: 'leise klein', text: T.tryout.nichtsMehr });
 
   return el('div', { class: 'tryoutscreen' },
-    eigenerKaderTeil(stand),
+    eigenerKaderTeil(stand, einblick),
     inhalt,
     el('div', { class: 'fuss' },
       el('button', { class: 'neben', onclick: aktionen.zurueck }, T.tryout.zurueckKnopf)));
 }
 
 /**
- * Der eigene Kader, je Position: wie viele stehen da, wie stark sind sie im
- * Schnitt, und wer ist der Beste. Zum Vergleich neben den Kandidaten — eine
- * Lücke in der Line fällt hier auf, bevor der erste Name gelesen ist.
+ * Der eigene Kader, vollständig, mit denselben Werten wie im Personal-Reiter
+ * — dieselbe Zeile, dasselbe Aufklappen. Vorher stand hier nur eine
+ * Übersicht je Position (Anzahl, Schnitt, Bester); das beantwortete nicht,
+ * *wer* auf einer Position steht, nur dass jemand da ist. Zum Vergleich neben
+ * den Kandidaten reicht das nicht — der Manager will die Namen und Zahlen
+ * sehen, gegen die ein Kandidat antritt.
  * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {import('./personal.js').Einblick} einblick
  */
-function eigenerKaderTeil(stand) {
-  const kader = stand.kader[stand.meinTeam] || [];
-  const zeilen = POSITIONS.map((position) => {
-    const hier = kader.filter((sp) => hauptPosition(sp) === position);
-    const leer = hier.length === 0;
-    const schnitt = leer ? null : hier.reduce((a, sp) => a + sp.staerke, 0) / hier.length;
-    const bester = leer ? null : Math.max(...hier.map((sp) => sp.staerke));
-    return el('tr', { class: leer ? 'tryout-luecke' : '' },
-      el('td', { text: position }),
-      el('td', { class: 'leise', text: String(hier.length) }),
-      el('td', { class: 'leise', text: schnitt === null ? T.roster.ohneZahl : String(Math.round(schnitt)) }),
-      el('td', { class: 'leise', text: bester === null ? T.roster.ohneZahl : String(bester) }));
-  });
+function eigenerKaderTeil(stand, einblick) {
   return el('div', { class: 'karte tryout-kader' },
     el('h2', { text: T.tryout.eigenerKader }),
     el('p', { class: 'leise klein', text: T.tryout.eigenerKaderHinweis }),
-    tabelle([T.tryout.spalte.position, T.tryout.spalte.anzahl, T.tryout.spalte.schnitt, T.tryout.spalte.bester],
-      zeilen));
+    spielerTabelle(stand, einblick));
 }
 
 // --- Die Kandidaten ----------------------------------------------------------
@@ -196,11 +191,13 @@ function kandidatenTeil(stand, aktionen, stab) {
   const frei = tryoutGespraecheFrei(tryout);
 
   return el('div', { class: 'karte tryoutteil' },
-    el('h2', { text: T.tryout.kandidatenTitel(tryout.kandidaten.length) }),
-    el('p', {
-      class: 'klein',
-      text: tryout.abgeschlossen ? T.tryout.abgeschlossen : T.tryout.gespraecheFrei(frei),
-    }),
+    el('div', { class: 'kartenkopf' },
+      el('h2', { text: T.tryout.kandidatenTitel(tryout.kandidaten.length) }),
+      tryout.abgeschlossen ? null : el('span', {
+        class: 'marke gespraeche' + (frei === 0 ? ' leer' : ''),
+        text: T.tryout.gespraecheFrei(frei),
+      })),
+    tryout.abgeschlossen ? el('p', { class: 'klein', text: T.tryout.abgeschlossen }) : null,
     el('div', { class: 'kandidaten' },
       tryout.kandidaten.map((k) => kandidatKarte(k, stand, aktionen, stab, liga, frei))),
     tryout.abgeschlossen ? null : el('button', {
@@ -250,7 +247,7 @@ function kandidatKarte(k, stand, aktionen, stab, liga, frei) {
       T.tryout.talentKorridor(...e.talentKorridor)),
     el('div', { class: 'klein' },
       el('span', { class: 'leise', text: `${T.tryout.positionen}: ` }),
-      prognoseKorridorText(e.positionen, liga.staerke)),
+      prognoseListe(e.positionen, liga.staerke)),
     el('div', {
       class: 'leise klein', text: T.tryout.herkunft(T.tryout.massnahmen[k.herkunft]),
     }));
@@ -278,16 +275,19 @@ function athletik(attribute, schnittJeAttribut) {
 }
 
 /**
- * Die drei besten Positionen, jede mit der Spanne, in der die Prognose liegen
- * könnte — schmal bei gutem Scouting, breit ohne.
- * @param {{ position: string, korridor: [number, number] }[]} liste @param {number} liga
+ * Die drei besten Positionen, jede mit ihrer Stufe gegen den Ligaschnitt.
+ *
+ * Keine Spanne mehr — die stand hier einmal als „WR (noch weit weg –
+ * ausbaufähig)": die untere und die obere Grenze des Scouting-Korridors,
+ * jede für sich in eine Stufe übersetzt. Das war eine Bandbreite über einer
+ * Bandbreite, denn jede Stufe ist selbst schon eine („Ligaschnitt" heißt
+ * ±3, nicht eine Zahl). Hier zählt nur noch die Mitte.
+ * @param {{ position: string, wert: number }[]} liste @param {number} liga
  */
-function prognoseKorridorText(liste, liga) {
-  return liste.slice(0, 3).map((p) => {
-    const von = T.tryout.prognoseStufen[prognoseStufe(p.korridor[0], liga)];
-    const bis = T.tryout.prognoseStufen[prognoseStufe(p.korridor[1], liga)];
-    return T.tryout.prognoseSpanne(p.position, von, bis);
-  }).join(' · ');
+function prognoseListe(liste, liga) {
+  return liste.slice(0, 3)
+    .map((p) => T.tryout.prognose(p.position, T.tryout.prognoseStufen[prognoseStufe(p.wert, liga)]))
+    .join(' · ');
 }
 
 // --- Die Neuen ---------------------------------------------------------------
@@ -320,7 +320,37 @@ function neueTeil(stand, aktionen, stab) {
 }
 
 /**
+ * Wie viele Positionen in die ersten drei Empfehlungsstufen fallen — der Rest
+ * gilt als nicht empfohlen. Eine Anzeigefrage, keine Regel: die Formeln in
+ * `positionen.js` liefern eine Rangfolge, keine Schwellen, also entscheidet
+ * hier, wie viele Plätze davon als welche Empfehlung zählen.
+ */
+const EMPFEHLUNG_TOP = 3;
+const EMPFEHLUNG_POTENZIAL = 3;
+const EMPFEHLUNG_UMSCHULUNG = 6;
+
+/**
+ * In welche der vier Empfehlungsstufen ein Rang fällt. `rang` ist 0-basiert,
+ * 0 die beste Position.
+ * @param {number} rang @returns {0|1|2|3}
+ */
+function empfehlungsstufe(rang) {
+  if (rang < EMPFEHLUNG_TOP) return 0;
+  if (rang < EMPFEHLUNG_TOP + EMPFEHLUNG_POTENZIAL) return 1;
+  if (rang < EMPFEHLUNG_TOP + EMPFEHLUNG_POTENZIAL + EMPFEHLUNG_UMSCHULUNG) return 2;
+  return 3;
+}
+
+/**
  * Eine Karte für einen Neuen: Positionsauswahl statt Gesprächsknopf.
+ *
+ * Hier wird tatsächlich entschieden, nicht nur begutachtet wie am Tryout —
+ * deshalb keine Stufen mehr wie „noch weit weg", die für einen Kandidaten auf
+ * dem Platz taugen, aber am Punkt der Entscheidung nur sagen, wie schlecht er
+ * überall aussieht. Was hier zählt, ist die Rangfolge: die drei Positionen,
+ * die der Stab tatsächlich empfehlen würde, die nächsten drei mit Potenzial,
+ * der Rest als nicht empfohlen — in der Auswahl selbst als Gruppen, darunter
+ * als kurze Merksätze.
  * @param {import('../engine/spieler.js').Spieler} sp
  * @param {import('../engine/saison.js').SpielStand} stand
  * @param {Aktionen} aktionen
@@ -330,8 +360,12 @@ function neueTeil(stand, aktionen, stab) {
  */
 function neuerKarte(sp, stand, aktionen, stab, liga, nachgerueckt) {
   const k = { ...sp, ziel: sp.rookieZiel || sp.staerke };
+  // `kandidatEinschaetzung()` liefert die Positionen schon absteigend nach
+  // Prognose sortiert — Rang und Reihenfolge in der Liste sind also dasselbe.
   const e = kandidatEinschaetzung(stab, k);
-  const wertJePosition = Object.fromEntries(e.positionen.map((p) => [p.position, p.wert]));
+  /** @type {string[][]} */
+  const gruppen = [[], [], [], []];
+  e.positionen.forEach((p, rang) => gruppen[empfehlungsstufe(rang)].push(p.position));
 
   return el('div', { class: 'kandidat' },
     el('div', { class: 'kandidatkopf' },
@@ -350,14 +384,15 @@ function neuerKarte(sp, stand, aktionen, stab, liga, nachgerueckt) {
         'aria-label': T.tryout.position,
         onchange: (/** @type {Event} */ e2) => aktionen.setzeRookiePosition(
           sp.id, /** @type {HTMLSelectElement} */ (e2.target).value),
-      }, POSITIONS.map((p) => el('option', {
-        value: p,
-        selected: p === sp.position,
-        text: T.tryout.prognose(p, T.tryout.prognoseStufen[prognoseStufe(wertJePosition[p], liga.staerke)]),
-      })))),
+      }, gruppen.map((positionen, stufe) => (positionen.length === 0 ? null : el('optgroup', {
+        label: T.tryout.empfehlungsstufen[stufe],
+      }, positionen.map((p) => el('option', { value: p, selected: p === sp.position, text: p }))))))),
     el('div', { class: 'klein', text: T.lebenslage.satzGast(sp.lebenslage, stand.jahr) }),
     athletik(sp.attribute, liga.athletik),
     el('div', { class: 'klein' },
-      el('span', { class: 'leise', text: `${T.tryout.vorschlag}: ` }),
-      prognoseKorridorText(e.positionen, liga.staerke)));
+      el('span', { class: 'leise', text: `${T.tryout.empfehlungsstufen[0]}: ` }),
+      gruppen[0].join(' · ')),
+    gruppen[1].length === 0 ? null : el('div', { class: 'klein leise' },
+      el('span', { text: `${T.tryout.empfehlungsstufen[1]}: ` }),
+      gruppen[1].join(' · ')));
 }

@@ -54,7 +54,6 @@ import {
 } from './spieler.js';
 import {
   generierungsProfil, bewerte, SEITEN_POSITIONEN, KOERPER_KORRIDOR, KOERPERMALUS_JE_KILO,
-  KOERPERMALUS_DECKEL,
 } from './positionen.js';
 import { ziehLebenslage, ziehCommitment, ziehWahrheit } from './commitment.js';
 import { gruppenWert, COACHING_GRUPPE_JE_POSITION } from './coach.js';
@@ -591,9 +590,16 @@ function trainiere(werte, soll) {
  * Körper am wenigsten braucht. Der 82-Kilo-Mann soll als Receiver vorgeschlagen
  * werden, nicht als Tackle.
  *
- * Es sind dieselben Zahlen wie beim Körpermalus einer Umstellung
- * (`KOERPERMALUS_JE_KILO`, `KOERPERMALUS_DECKEL`), weil es dieselbe Aussage
- * ist: der falsche Körper kostet auf dem Platz.
+ * Dieselbe Rate wie beim Körpermalus einer Umstellung (`KOERPERMALUS_JE_KILO`)
+ * — dieselbe Aussage, der falsche Körper kostet auf dem Platz —, aber ohne
+ * deren Deckel (`KOERPERMALUS_DECKEL`). Der Deckel ist dort richtig: er
+ * verhindert, dass eine Umstellung für einen etablierten Spieler unmöglich
+ * wird, der ohnehin auf seinem angestammten Platz bleiben könnte. Hier gibt es
+ * diesen Spieler nicht — der Kandidat hat noch gar keine Position —, und ein
+ * gedeckelter Abstand ließ einen 150-Kilo-Mann als Receiver kaum schlechter
+ * aussehen als ein 40 Kilo leichteres Leichtgewicht. Nach unten bleibt der
+ * Faktor trotzdem bei null stehen: negativ gäbe es nichts mehr zu passen, nur
+ * noch ein Vorzeichen, das die Trainings-Rechnung darunter verdrehte.
  * @param {string} position @param {number} groesse @param {number} gewicht
  */
 export function koerperPassung(position, groesse, gewicht) {
@@ -601,7 +607,7 @@ export function koerperPassung(position, groesse, gewicht) {
   /** @param {[number, number]} band @param {number} wert */
   const daneben = (band, wert) => Math.max(0, band[0] - wert, wert - band[1]);
   const malus = (daneben(k.gewicht, gewicht) + daneben(k.groesse, groesse)) * KOERPERMALUS_JE_KILO;
-  return 1 - Math.min(KOERPERMALUS_DECKEL, malus);
+  return Math.max(0, 1 - malus);
 }
 
 /**

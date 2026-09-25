@@ -875,6 +875,24 @@ lernbare Handwerk fast zwei Drittel. Mit ihr: T 27 %, WR 19 %, SL 9 %, FB 8 %,
 CB 7 % …; von den Schweren über 120 kg landen mehr als neun von zehn in der
 Line, von den Leichten unter 85 kg keiner.
 
+Der 20-%-Deckel selbst ist inzwischen raus, nur für `koerperPassung()` in
+`recruiting.js` — der Körpermalus einer echten Umstellung
+(`KOERPERMALUS_DECKEL` in `positionen.js`) bleibt unverändert, das ist ein
+anderer Fall: dort gibt es einen Spieler, der notfalls auf seinem
+angestammten Platz bleiben kann, hier nicht — der Kandidat hat noch gar keine
+Position, die den Deckel rechtfertigen würde. Gemessen (3000 Kandidaten,
+Ligaschnitt 55): der Abstand zwischen der besten Position und WR bei
+Kandidaten ab 140 kg wuchs von Ø 10,5 auf Ø 11,6 Punkte — spürbar, aber nicht
+dramatisch, weil die 20 % nur bei sehr extremen Körpern überhaupt gegriffen
+hatten. Die Top-1-Verteilung insgesamt bewegt sich kaum (T/WR bleiben bei
+zusammen rund die Hälfte aller Vorschläge) — der Deckel war nicht die Ursache
+dafür, dass Tackle und Receiver den Tryouts dominieren, das ist die
+Trainingsschleife selbst: sechs Wochen füllen Technik und Handwerk fast
+unabhängig vom Körper, und Positionen mit hohem Technik-/Handwerk-Anteil in
+der Formel (T, WR, CB) gewinnen dadurch gegen reine Athletik-Positionen (RB,
+NT), ganz gleich, wie stark der Körpermalus ist. Das ist ein offener Punkt,
+kein erledigter — siehe „Offen" weiter unten.
+
 **Die Statur nach Status** (`STATUR_GRUPPE`, `STATUR_FAKTOR_JE_STATUS` in
 `recruiting.js`, keine Zahl in `constants.js` — ein Modell wie
 `STATUS_JE_KANAL`, kein Regler). Ohne sie zog jeder Kandidat seine Statur aus
@@ -960,6 +978,36 @@ PP bei rund 41 (acht Seeds). Nichts bremst das bisher: keine Kadergrenze, kein
 Interesse, das bei vollem Kader sinkt, keine Bank, die neue Leute abschreckt.
 Die Stellschraube wäre eine davon, nicht die Zulaufzahlen — die sind für einen
 Kader von 30 richtig.
+
+**Offen: manche Positionen tauchen als Top-Vorschlag praktisch nie auf.**
+Gemessen über 3000 Kandidaten (Ligaschnitt 55): QB, C, DT, MIKE und FS liegen
+bei 0 % — unabhängig davon, wie stark der Körpermalus ist (getestet von
+0,4 %/kg gedeckelt bis 1,2 %/kg ungedeckelt, immer dasselbe Bild). Der Grund
+ist nicht der Körper, sondern die Formel: eine Position gewinnt gegen eine
+Nachbarposition mit ähnlichem Körperbild nur, wenn ihre eigene Formel
+(`FORMELN` in `positionen.js`) nach sechs Wochen Training höher bewertet
+als die des Nachbarn — und bei diesen fünf verliert sie das strukturell,
+nicht zufällig:
+
+- **DT gegen NT** — NT gewichtet Kraft mit 45–50 %, DT nur 30–35 %. Ein
+  schwerer Körper (Kraft ist an Gewicht gekoppelt, `KOERPER_KOPPLUNG`) punktet
+  bei NT immer mehr als bei DT, für praktisch jeden Körperbau.
+- **C gegen T/G** — alle drei sind blockende Lineman mit ähnlichem Körper,
+  aber T gewichtet Blocken mit 45 %, G Kraft mit 40 %, C verteilt seinen
+  Anteil breiter (Blocken 40, Kraft 30, Spielverständnis 15, Technik 15) und
+  bekommt dadurch nie den höchsten Wert für denselben Mann.
+- **MIKE gegen SAM/WILL** — ähnliches Bild bei den Linebackern.
+- **QB** — seine Formel hängt zu 40 % an `werfen`, und `werfen` hat mit 0,6
+  die niedrigste `LERNRATE` aller trainierbaren Attribute (Technik 1,5,
+  Fangen/Route Running 1,4). Sechs Wochen schließen die Lücke bei ihm kaum,
+  bei fast jedem anderen Attribut deutlich mehr — ein Kandidat lernt in sechs
+  Wochen praktisch alles schneller als Werfen.
+
+Eine Änderung träfe `FORMELN`/`PROFIL_BEITRAG` — dieselben Zahlen, nach denen
+die **ganze** Liga Spieler zieht und bewertet, nicht nur Tryout-Kandidaten.
+Noch nicht angegangen; QB als seltener Tryout-Fund ist für sich genommen auch
+plausibel (kein Rookie wird an einem Samstagvormittag zum Franchise-Quarterback)
+— DT/C/MIKE dagegen wirken eher wie eine Formel-Lücke als wie eine Absicht.
 
 ---
 

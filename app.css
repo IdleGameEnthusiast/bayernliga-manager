@@ -326,6 +326,7 @@ button.haupt { background: var(--akzent); border-color: var(--akzent); color: #f
 button.haupt:active { background: var(--akzent-hell); }
 button.haupt:disabled { background: var(--rand); border-color: var(--rand); color: var(--text-leise); }
 button.neben { background: var(--bg-erhoben); color: var(--text); flex: 0 0 auto; }
+button.neben:disabled { color: var(--text-leise); cursor: default; opacity: .55; }
 
 /* --- Startbildschirm ----------------------------------------------------- */
 
@@ -998,6 +999,12 @@ tr.coachzeile.offen td:nth-child(2) { font-weight: inherit; }
 .kandidatkopf { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .kandidatname { flex: 1 1 180px; display: flex; flex-direction: column; min-width: 0; }
 .marke.interesse { background: rgba(233, 180, 76, .15); color: var(--gelb); }
+
+/* Wie viele Gespräche heute noch gehen — rechts über der Kandidatenliste statt
+   als beiläufiger Absatz darüber, damit die Zahl die erste Sache ist, die der
+   Manager sieht, bevor er anfängt anzusprechen. */
+.marke.gespraeche { background: rgba(214, 73, 51, .15); color: var(--akzent); font-weight: 700; }
+.marke.gespraeche.leer { background: rgba(255, 255, 255, .08); color: var(--text-leise); }
 .athletik { display: flex; flex-wrap: wrap; gap: 2px 12px; }
 .athletikwert { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .punkte { letter-spacing: 1px; color: var(--gelb); font-size: 11px; }

@@ -126,7 +126,7 @@ function zeichne() {
   // Der Tryout-Bildschirm ohne die sechs Reiter — wie der Spielbericht ist er
   // ein Umweg aus dem Postfach heraus, kein eigener Ort in der Navigation.
   if (ansicht === 'tryout') {
-    wurzel.append(zeigeTryoutScreen(stand, postfachAktionen));
+    wurzel.append(zeigeTryoutScreen(stand, { playtester }, postfachAktionen));
     return;
   }
 

@@ -1396,7 +1396,11 @@ Abweichungen vom Plan, die beim Bau gefallen sind:
   Wochen auf einer Kopie. Ohne Abschlag für einen Körper außerhalb des
   Positionskorridors war der Tackle bei 57 % aller Kandidaten die beste
   Position, weil sich sein Handwerk am leichtesten lernt. Jetzt kostet jeder
-  Kilo und Zentimeter daneben 0,4 % des Trainingsziels, bis 20 %.
+  Kilo und Zentimeter daneben 0,4 % des Trainingsziels — **ungedeckelt**,
+  anders als der Körpermalus einer echten Umstellung in `positionen.js`
+  (der bleibt bei 20 %). Ein Kandidat hat noch keine Position, die den Deckel
+  rechtfertigen würde; ein etablierter Spieler hätte eine, auf die er notfalls
+  zurückfiele. Details und Messwerte: `docs/balancing.md`, Abschnitt 18.
 - **Die Stärke eines Rookies wächst mit.** `staerke` ist, was er heute auf
   seiner Position wert ist; das Ziel steht daneben in `rookieZiel`. Stünde das
   Ziel in `staerke`, zeigte der Roster eine Zahl, die auf dem Feld nicht
@@ -1659,7 +1663,21 @@ Nichts davon blockiert Block 2 oder 3, aber irgendwann muss es fallen:
    „Eigengewächse sind besser als Zugänge" hinaus, ohne dass es jemand sehen
    kann.
 
-10. **Wo liegen die Vereine?** Block 7 rechnet mit Entfernungen — der Spieler
+11. **Formel-Dominanz bei Tryout-Prognosen** — bewusst zurückgestellt. DT, C,
+    MIKE, QB und FS tauchen als Top-Vorschlag am Tryout praktisch nie auf
+    (0 % über 3000 Kandidaten), unabhängig davon, wie stark der Körpermalus
+    ist: DT verliert strukturell gegen NT (Kraft 45–50 % gegen 30–35 %), C
+    gegen T/G (breiter verteiltes Formelgewicht statt eines Schwerpunkts),
+    MIKE gegen SAM/WILL, und QBs `werfen`-Anteil (40 %) trägt die niedrigste
+    `LERNRATE` im Spiel (0,6) — sechs Wochen Training schließen da kaum etwas.
+    Der Fehler liegt in `FORMELN`/`PROFIL_BEITRAG` (`positionen.js`) — denselben
+    Zahlen, nach denen die **ganze** Liga zieht und bewertet, nicht nur
+    Tryout-Kandidaten. Bewusst nicht angefasst, bevor das Trainingskonzept
+    (siehe Rookie-Training als Platzhalter, oben) steht — die Formeln lohnt es
+    erst danach noch einmal anzusehen, damit nicht zweimal daran gedreht wird.
+    Details: `docs/balancing.md`, Abschnitt 18, „Offen: manche Positionen…".
+
+12. **Wo liegen die Vereine?** Block 7 rechnet mit Entfernungen — der Spieler
     wohnt 80 km vom Training, zieht 200 km weg, der Nachbarverein liegt näher.
     Im ersten Schritt reicht **eine Zahl am Spieler: km zum eigenen Verein.**
     Sobald der Markt kommt und ein Spieler, der bei Verein X wegen der Strecke

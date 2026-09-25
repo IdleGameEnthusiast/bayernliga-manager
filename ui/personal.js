@@ -136,11 +136,19 @@ export function zeigePersonal(stand, neuZeichnen, einblick, aktionen) {
 }
 
 /**
+ * Die Spielertabelle allein, ohne Karte und Überschrift — dieselbe Zeile,
+ * dieselbe Sortierung, dasselbe Aufklappen der Werte wie im Personal-Reiter.
+ * Der Tryout-Bildschirm hängt seinen eigenen Kader daran, damit ein Kandidat
+ * dort gegen dieselben Zahlen steht, die der Manager vom Roster her kennt,
+ * statt gegen eine zweite, schmalere Ansicht.
+ *
+ * `aktionen` ist optional: ohne sie bleibt die Zeile anklickbar für die Werte,
+ * nur der Gespräch-Knopf fehlt — genau das, was der Tryout-Bildschirm will.
  * @param {import('../engine/saison.js').SpielStand} stand
  * @param {Einblick} einblick
- * @param {Aktionen} aktionen
+ * @param {Aktionen} [aktionen]
  */
-function spielerKarte(stand, einblick, aktionen) {
+export function spielerTabelle(stand, einblick, aktionen) {
   const kader = stand.kader[stand.meinTeam];
   const tag = stand.tag;
 
@@ -173,11 +181,21 @@ function spielerKarte(stand, einblick, aktionen) {
   };
   male();
 
+  return halter;
+}
+
+/**
+ * @param {import('../engine/saison.js').SpielStand} stand
+ * @param {Einblick} einblick
+ * @param {Aktionen} aktionen
+ */
+function spielerKarte(stand, einblick, aktionen) {
+  const kader = stand.kader[stand.meinTeam];
   return el('div', { class: 'karte' },
     el('div', { class: 'kartenkopf' },
       el('h2', { text: T.personal.spieler }),
       el('span', { class: 'klein leise', text: T.personal.anzahl(kader.length) })),
-    halter);
+    spielerTabelle(stand, einblick, aktionen));
 }
 
 /**

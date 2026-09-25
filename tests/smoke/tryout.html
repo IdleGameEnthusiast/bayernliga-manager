@@ -16,6 +16,9 @@ import { neuesSpiel, weiter, beantworteNachricht } from '../../engine/saison.js'
 import { offeneAntworten, antwortenZu } from '../../engine/postfach.js';
 import { tryoutTage } from '../../engine/kalender.js';
 import { speichere } from '../../engine/save.js';
+import { KADER_GROESSE_EIGEN } from '../../engine/constants.js';
+
+window.kaderGroesseEigen = KADER_GROESSE_EIGEN;
 
 localStorage.clear();
 
@@ -54,7 +57,9 @@ try {
   oeffnenKnopf.click();
   gleich('keine Reiter mehr auf dem Tryout-Bildschirm', alle('.reiter').length, 0);
   enthaelt('der eigene Kader steht zum Vergleich da', txt('.tryout-kader'), 'Eigener Kader');
-  gleich('achtzehn Positionszeilen', alle('.tryout-kader tbody tr').length, 18);
+  gleich('eine Zeile je Spieler, wie im Personal-Reiter',
+    alle('.tryout-kader tbody tr').length, window.kaderGroesseEigen);
+  enthaelt('mit denselben Spalten wie dort', txt('.tryout-kader'), 'Stk');
   const anzahl = alle('.tryoutteil .kandidat').length;
   pruefe('jeder Kandidat steht auf einer Karte', anzahl >= 5, anzahl);
   enthaelt('der Titel zählt sie', txt('.tryoutteil h2'), `${anzahl} Kandidaten`);
@@ -66,7 +71,7 @@ try {
   enthaelt('das Talent steht als Korridor da', txt('.kandidaten'), 'Talent (Einschätzung)');
   enthaelt('mit Sternen dahinter', txt('.kandidaten'), 'Sterne');
   enthaelt('der Stab schlägt Positionen vor', txt('.kandidaten'), 'Der Stab sieht ihn als');
-  enthaelt('fünf Gespräche sind frei', txt('.tryoutteil'), 'Noch 5 Gespräche heute.');
+  enthaelt('fünf Gespräche sind frei', txt('.tryoutteil'), 'Noch 5 Gespräche übrig');
 
   // 3 — Fünf Gespräche, dann ist Schluss
   for (let i = 0; i < 5; i++) {
@@ -77,7 +82,7 @@ try {
     alle('.tryoutteil .marke').filter((m) => m.textContent === 'Gesprochen').length, 5);
   pruefe('der Rest ist gesperrt',
     alle('.tryoutteil button').filter((b) => b.textContent === 'Ansprechen').every((b) => b.disabled));
-  enthaelt('und das steht auch da', txt('.tryoutteil'), 'Mehr geht heute nicht');
+  enthaelt('und das steht auch da', txt('.tryoutteil'), 'Keine Gespräche mehr übrig');
 
   // 4 — Beenden kehrt ins Postfach zurück, drei Tage warten, die Zusagen
   bildschirmKnopf('Tryout beenden').click();
@@ -100,11 +105,16 @@ try {
   enthaelt('die Zusagen sind angekündigt', txt('.postlese h3'), 'vom Tryout');
   leseKnopf('Zu den Zusagen').click();
 
-  // 5 — Die Positionsauswahl auf dem Bildschirm
+  // 5 — Die Positionsauswahl auf dem Bildschirm, jetzt als Empfehlungsstufen
+  // statt als Stufen wie am Tryout — siehe tryout.js, `empfehlungsstufe()`.
   const auswahl = () => alle('.tryoutteil select');
   const neue = auswahl().length;
   pruefe('jeder Neue hat eine Positionsauswahl', neue > 0, neue);
   gleich('mit allen achtzehn Positionen', auswahl()[0].options.length, 18);
+  gleich('in vier Empfehlungsgruppen', auswahl()[0].querySelectorAll('optgroup').length, 4);
+  enthaelt('der Stab empfiehlt statt nur zu benennen', txt('.tryoutteil'), 'Empfehlung des Stabs');
+  pruefe('„noch weit weg" steht hier nicht mehr — das gilt nur am Tryout',
+    !txt('.tryoutteil').includes('noch weit weg'));
   const ziel = auswahl()[0].value === 'SS' ? 'FS' : 'SS';
   auswahl()[0].value = ziel;
   auswahl()[0].dispatchEvent(new Event('change'));

@@ -840,9 +840,11 @@ export const DE = {
     ansprechen: 'Ansprechen',
     angesprochen: 'Gesprochen',
     herkunft: (wo) => `kam über: ${wo}`,
+    // Steht als Marke rechts über der Kandidatenliste — deshalb kurz genug für
+    // ein Abzeichen, nicht für einen Absatz.
     gespraecheFrei: (frei) => (frei === 0
-      ? 'Du hast mit fünf geredet. Mehr geht heute nicht.'
-      : `Noch ${frei} ${frei === 1 ? 'Gespräch' : 'Gespräche'} heute.`),
+      ? 'Keine Gespräche mehr übrig'
+      : `Noch ${frei} ${frei === 1 ? 'Gespräch' : 'Gespräche'} übrig`),
     abgeschlossen: 'Das Tryout ist vorbei. In drei Tagen kommen die Antworten.',
     vorbei: 'Dieses Tryout ist abgeschlossen.',
     // Die fünf Werte, die man an einem Vormittag sieht — kurz, weil fünf Spalten
@@ -860,18 +862,20 @@ export const DE = {
     athletikTitel: (name, stufe) => `${name}: ${stufe}`,
     // Gegen den Ligaschnitt, nach dem Rookie-Training. Die unterste Stufe sagt
     // bewusst nicht „schlecht": es ist ein Anfänger, und er ist es heute.
+    //
+    // Nur beim Tryout — auf dem Platz, bevor der Mann überhaupt zusagt. Sobald
+    // eine Position feststeht, will der Manager keine Stufe mehr lesen, die
+    // schon selbst eine Bandbreite ist, sondern wissen, welche der Stab
+    // empfiehlt; dafür steht `empfehlungsstufen`.
     prognoseStufen: ['noch weit weg', 'ausbaufähig', 'Ligaschnitt', 'über dem Schnitt'],
     prognose: (position, stufe) => `${position} (${stufe})`,
-    // Dieselbe Prognose als Spanne — von der unteren bis zur oberen Grenze des
-    // Korridors. Fallen beide Grenzen auf dieselbe Stufe, ist das eine echte
-    // Aussage („WR (Ligaschnitt)"); sonst zwei durch einen Gedankenstrich.
-    prognoseSpanne: (position, von, bis) => (von === bis
-      ? `${position} (${von})`
-      : `${position} (${von} – ${bis})`),
     interesseStufen: ['kaum', 'zurückhaltend', 'offen', 'interessiert', 'Feuer und Flamme'],
-    // Die Neuen nach den Zusagen.
+    // Die Neuen nach den Zusagen: keine Stufe mehr je Position, sondern eine
+    // Rangfolge — die Top 3, die nächsten drei, der Rest. Dieselbe Prognose,
+    // nur nicht mehr als Wort verkleidete Zahl, sondern als das, was der Stab
+    // dem Manager wirklich raten würde.
     position: 'Position',
-    vorschlag: 'Vorschlag des Stabs',
+    empfehlungsstufen: ['Empfehlung des Stabs', 'Potenzial vorhanden', 'Umschulung wird dauern', 'Nicht empfohlen'],
     nachgerueckt: 'nachgerückt',
     nachgeruecktTitel: 'Kam dazu, damit der Kader nicht unter die Mindestgröße fällt',
     uebernommen: 'Übernommen — sie sind im Kader und im Rookie-Training.',
