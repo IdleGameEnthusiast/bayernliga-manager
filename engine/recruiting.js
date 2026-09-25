@@ -35,13 +35,15 @@
 
 import {
   ATTRIBUTE, ATTRIBUT_STREUUNG, KOERPER_MITTE, KOERPER_SPANNE, KOERPER_KOPPLUNG,
-  RATING_UNTERGRENZE, LIGA_MAX_STAERKE, TALENT_MIN, RUECKTRITT_ALTER, KADER_FORM, POSITIONS,
-  LERNRATE,
+  RATING_UNTERGRENZE, LIGA_MAX_STAERKE, TALENT_MIN, TALENT_MAX, RUECKTRITT_ALTER, KADER_FORM,
+  POSITIONS, LERNRATE,
   TRYOUT_SOCKEL, TRYOUT_SPANNE, TRYOUT_VEREINSFAKTOR_MIN, TRYOUT_LIGA_FAKTOR, WERBUNG_ANTEIL,
   TRYOUT_LIGA_ANTEIL, TRYOUT_ROOKIE_ABSCHLAG, TRYOUT_STAERKE_STREUUNG,
   TRYOUT_HANDWERK_ANTEIL, TRYOUT_TECHNIK, TRYOUT_GESPRAECHE, TRYOUT_BEDENKZEIT, TRYOUT_VORLAUF,
   INTERESSE_HERBST, INTERESSE_FRUEHLING, KADER_MINIMUM,
   ROOKIE_TRAINING_WOCHEN, ROOKIE_TRAINING_JE_WOCHE,
+  TALENT_KORRIDOR_OHNE, TALENT_KORRIDOR_BESTE, PROGNOSE_KORRIDOR_OHNE, PROGNOSE_KORRIDOR_BESTE,
+  SCOUTING_SKALA,
   makeRng, clamp, randInt, randNormal, pickWeighted,
 } from './constants.js';
 import { TEAMS, teamById } from './content.js';
@@ -55,6 +57,7 @@ import {
   KOERPERMALUS_DECKEL,
 } from './positionen.js';
 import { ziehLebenslage, ziehCommitment, ziehWahrheit } from './commitment.js';
+import { gruppenWert, COACHING_GRUPPE_JE_POSITION } from './coach.js';
 
 /** @typedef {'herbst'|'fruehling'} TryoutArt */
 /** @typedef {import('./commitment.js').Status} Status */
@@ -163,6 +166,42 @@ const ALTER_JE_STATUS = {
  */
 const STATUR = /** @type {[string, number][]} */ (
   Object.entries(KADER_FORM).filter(([, n]) => n > 0));
+
+/**
+ * Die grobe Statur-Gruppe einer Position — für die Verschiebung nach Status,
+ * nicht für die Ziehung selbst (die bleibt `KOERPER_KORRIDOR` je Position).
+ * @type {Record<string, 'schwer'|'mittel'|'leicht'>}
+ */
+const STATUR_GRUPPE = {
+  T: 'schwer', G: 'schwer', C: 'schwer', DE: 'schwer', DT: 'schwer', NT: 'schwer',
+  QB: 'mittel', FB: 'mittel', TE: 'mittel', SS: 'mittel', MIKE: 'mittel', SAM: 'mittel', WILL: 'mittel',
+  RB: 'leicht', WR: 'leicht', SL: 'leicht', CB: 'leicht', FS: 'leicht',
+};
+
+/**
+ * Wie sich die drei Staturgruppen mit dem Status verschieben — multiplikativ
+ * auf die Gewichte aus `STATUR`, nicht ersetzend, damit die Rangfolge einer
+ * Gruppe (mehr WR als CB, weil die Kaderform das schon sagt) erhalten bleibt.
+ *
+ * Ein Student bringt selten den Körper eines Linemans mit: er ist überwiegend
+ * schlank oder durchtrainiert, nicht schwer. Der Arbeiter bringt ihn öfter mit
+ * — Jahre am Bau oder am Schreibtisch hinterlassen anderes als ein Studium.
+ * @type {Record<Status, Record<'schwer'|'mittel'|'leicht', number>>}
+ */
+const STATUR_FAKTOR_JE_STATUS = {
+  schueler: { leicht: 1.5, mittel: 0.9, schwer: 0.2 },
+  student: { leicht: 1.5, mittel: 0.9, schwer: 0.2 },
+  azubi: { leicht: 1.15, mittel: 1.0, schwer: 0.65 },
+  arbeiter: { leicht: 0.6, mittel: 0.9, schwer: 1.9 },
+  rentner: { leicht: 1.0, mittel: 1.0, schwer: 1.0 },
+};
+
+/** Der Statur-Pool für diesen Status. @param {Status} status */
+function staturPoolFuer(status) {
+  const faktor = STATUR_FAKTOR_JE_STATUS[status] || STATUR_FAKTOR_JE_STATUS.arbeiter;
+  return /** @type {[string, number][]} */ (
+    STATUR.map(([position, gewicht]) => [position, gewicht * faktor[STATUR_GRUPPE[position]]]));
+}
 
 /**
  * Der Stand der Rekrutierung, notfalls angelegt. Ein Stand von vor Version 19
@@ -309,23 +348,44 @@ function massnahmenFuer(stand, tag) {
 // --- Die Kandidaten ----------------------------------------------------------
 
 /**
- * Was die Liga im Schnitt hat: Stärke und Talent über alle zwölf Kader. Der
- * Maßstab für die Kandidaten, für das Sicherheitsnetz und für die Stufen, in
- * denen der Manager sie sieht.
+ * Was die Liga im Schnitt hat: Stärke und Talent über alle zwölf Kader, dazu
+ * jeder der fünf Athletikwerte für sich. Der Maßstab für die Kandidaten, für
+ * das Sicherheitsnetz und für die Stufen, in denen der Manager sie sieht.
+ *
+ * Die Athletikwerte stehen **einzeln** und nicht als Anteil an `staerke`, weil
+ * die beiden nichts miteinander zu tun haben: `ausdauer` und `robustheit`
+ * kommen in keiner einzigen Positionsformel vor (`positionen.js`, `FORMELN`)
+ * und liegen deshalb bei jedem regulär gezogenen Spieler weit unter seiner
+ * Stärke — `baueAttribute()` zieht sie mit `1 − PROFIL_SPEZIALISIERUNG` herunter,
+ * weil kein Profil nach ihnen fragt. Ein Tryout-Kandidat bekommt sie dagegen
+ * ungekürzt (`roheAttribute()`): er hat ja noch keine Position, die etwas von
+ * ihm verlangen könnte. Verglichen mit `staerke` sah er deshalb immer schlecht
+ * aus, ganz gleich, wie athletisch er wirklich war — verglichen mit dem, was
+ * die Liga bei genau diesem Attribut tatsächlich hat, stimmt es.
  * @param {import('./saison.js').SpielStand} stand
  */
 export function ligaSchnitt(stand) {
   let staerke = 0;
   let talent = 0;
   let n = 0;
+  /** @type {Record<string, number>} */
+  const athletikSumme = Object.fromEntries(ATHLETIK.map((a) => [a, 0]));
   for (const t of TEAMS) {
     for (const s of stand.kader[t.id] || []) {
       staerke += s.staerke;
       talent += s.talent;
       n++;
+      for (const a of ATHLETIK) athletikSumme[a] += s.attribute[a];
     }
   }
-  return n > 0 ? { staerke: staerke / n, talent: talent / n } : { staerke: 50, talent: 5 };
+  if (n === 0) {
+    return { staerke: 50, talent: 5, athletik: Object.fromEntries(ATHLETIK.map((a) => [a, 30])) };
+  }
+  return {
+    staerke: staerke / n,
+    talent: talent / n,
+    athletik: Object.fromEntries(ATHLETIK.map((a) => [a, athletikSumme[a] / n])),
+  };
 }
 
 /** @param {import('./spieler.js').Spieler[]} kader */
@@ -385,7 +445,7 @@ export function ziehKandidat(rng, o) {
   ziel = clamp(ziel, RATING_UNTERGRENZE, LIGA_MAX_STAERKE);
   talent = Math.max(TALENT_MIN, talent);
 
-  const statur = pickWeighted(rng, STATUR);
+  const statur = pickWeighted(rng, staturPoolFuer(status));
   const koerper = ziehKoerper(rng, statur);
   const lebenslage = ziehLebenslage(rng, alter, o.jahr, o.uniKm, status);
   // Neu im Verein, egal was die Ziehung an Vereinsjahren gewürfelt hat.
@@ -583,6 +643,75 @@ export function prognosen(k) {
   }).sort((a, b) => b.wert - a.wert);
 }
 
+// --- Scouting: was der Stab einschätzen kann --------------------------------
+// Ein Kandidat hat noch keine Position, also auch keinen Coach, der ihn schon
+// kennt. Was der Manager über ihn erfährt, ist deshalb keine Zahl, sondern ein
+// Korridor — und wie breit der ist, hängt daran, wie gut der Stab die Gruppe
+// versteht, in der er landen könnte.
+
+/**
+ * Wie gut der Stab eine Position einschätzen kann: dieselbe Betreuung wie bei
+ * Verletzung und Trend-Nachricht (`betreuung()` in `drift.js`), nur mit der
+ * **Technik** statt der Soft Skills — Empathie und Kommunikation sagen nichts
+ * darüber, ob ein Coach einen guten Blocker von einem schlechten unterscheiden
+ * kann, sein technisches Verständnis der Gruppe schon.
+ *
+ * Ohne Positionscoach trägt allein der Koordinator, verdünnt auf die fünf
+ * Gruppen seiner Seite (`gruppenWert()`) — heute deshalb überall niedrig und
+ * zwischen den Vereinen nur wenig verschieden. Das ist kein Fehler: Scouting
+ * ohne Fachmann ist überall ungefähr gleich schlecht, und der Wert engt sich
+ * erst ein, sobald ein Verein einen Positionscoach für die Gruppe holt.
+ * @param {import('./coach.js').Coach[] | undefined} stab @param {string} position
+ */
+export function scoutingWert(stab, position) {
+  const gruppe = COACHING_GRUPPE_JE_POSITION[position];
+  return gruppenWert(stab, gruppe, (c) => c.technik[gruppe]);
+}
+
+/**
+ * Die Halbbreite eines Korridors: `ohne` ohne jede Kenntnis der Gruppe, `beste`
+ * bei der bestmöglichen — linear dazwischen, wie `verlustFaktor()` in
+ * `drift.js` es mit der Betreuung vormacht. Normiert auf `SCOUTING_SKALA`,
+ * nicht auf `MAX_RATING` — siehe die Konstante.
+ * @param {number} scouting @param {number} ohne @param {number} beste
+ */
+function korridorBreite(scouting, ohne, beste) {
+  const anteil = clamp(scouting, 0, SCOUTING_SKALA) / SCOUTING_SKALA;
+  return ohne + (beste - ohne) * anteil;
+}
+
+/**
+ * Was der Stab über einen Kandidaten sagen kann: für jede Position ein
+ * Korridor um die Prognose, dazu ein Korridor um sein Talent — beide um die
+ * echten Werte herum, nie verschoben, nur unterschiedlich breit.
+ *
+ * Das Talent ist keiner Position eigen, aber die Einschätzung schon: gefragt
+ * wird der Stab für die Gruppe, in der der Kandidat am ehesten landet — seine
+ * beste Prognose. Ein Coach, der nur Quarterbacks versteht, schätzt einen
+ * Linebacker nicht treffsicherer ein, nur weil beide Menschen sind.
+ * @param {import('./coach.js').Coach[] | undefined} stab
+ * @param {{ attribute: Record<string, number>, ziel: number, groesse: number, gewicht: number,
+ *   talent: number }} k
+ * @returns {{ positionen: { position: string, wert: number, korridor: [number, number] }[],
+ *   talentKorridor: [number, number] }}
+ */
+export function kandidatEinschaetzung(stab, k) {
+  const liste = prognosen(k);
+  const positionen = liste.map((p) => {
+    const breite = korridorBreite(
+      scoutingWert(stab, p.position), PROGNOSE_KORRIDOR_OHNE, PROGNOSE_KORRIDOR_BESTE);
+    return { ...p, korridor: /** @type {[number, number]} */ ([p.wert - breite, p.wert + breite]) };
+  });
+
+  const talentBreite = korridorBreite(
+    scoutingWert(stab, liste[0].position), TALENT_KORRIDOR_OHNE, TALENT_KORRIDOR_BESTE);
+  const talentKorridor = /** @type {[number, number]} */ ([
+    clamp(Math.round(k.talent - talentBreite), TALENT_MIN, TALENT_MAX),
+    clamp(Math.round(k.talent + talentBreite), TALENT_MIN, TALENT_MAX),
+  ]);
+  return { positionen, talentKorridor };
+}
+
 /**
  * Eine Woche Rookie-Training für einen, der gerade darin steht. Die Stärke
  * wächst mit — sie ist, was er heute auf seiner Position wert ist.
@@ -757,6 +886,11 @@ export function uebernimmNeue(stand, tag) {
 /**
  * Eine Zahl gegen den Ligaschnitt, als Stufe 0..4. Grob mit Absicht: ein
  * Samstagvormittag zeigt, wer schnell ist, nicht wie schnell.
+ *
+ * `schnitt` ist der Ligaschnitt **dieses einen** Attributs
+ * (`ligaSchnitt(stand).athletik[a]`), nicht die Gesamtstärke — siehe die
+ * Begründung dort. Wer die Gesamtstärke hineingibt, sieht bei `ausdauer` und
+ * `robustheit` fast nur Stufe 0, ganz gleich, wie athletisch der Kandidat ist.
  * @param {number} wert @param {number} schnitt
  * @returns {0|1|2|3|4}
  */

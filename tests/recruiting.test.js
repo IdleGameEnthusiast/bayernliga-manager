@@ -9,20 +9,21 @@ import assert from 'node:assert/strict';
 
 import {
   KADER_MINIMUM, TRYOUT_GESPRAECHE, TRYOUT_BEDENKZEIT, TRYOUT_VORLAUF, TRYOUT_SOCKEL,
-  ROOKIE_TRAINING_WOCHEN, ABGANG_GESPRAECH_BONUS, makeRng,
+  ROOKIE_TRAINING_WOCHEN, ABGANG_GESPRAECH_BONUS, MAX_RATING, TALENT_MIN, TALENT_MAX, makeRng,
 } from '../engine/constants.js';
 import { TEAMS } from '../engine/content.js';
 import { tryoutTage, saisonLaenge, datum, SPIELTAG_TAGE, wochenBeginn } from '../engine/kalender.js';
 import {
-  neuesSpiel, weiter, beantworteNachricht, naechsteSaison, meister, abgangsVorschau,
+  neuesSpiel, weiter, beantworteNachricht, naechsteSaison, meister, abgangsVorschau, coachesVon,
 } from '../engine/saison.js';
 import { offeneAntworten, antwortenZu } from '../engine/postfach.js';
+import { COACHING_GRUPPE_REIHE } from '../engine/coach.js';
 import {
   recruitingVon, tryoutAmTag, erinnerungFuer, erinnerungAmTag, vereinsFaktor, zulauf,
   MASSNAHMEN, ATHLETIK, setzeWerbung, werbungOffen, ligaSchnitt, ziehKandidat, ziehInteresse,
   richteTryoutAus, sprichKandidat, schliesseTryout, tryoutGespraecheFrei, prognosen,
   entscheide, setzeRookiePosition, uebernimmNeue, rookieTraining, wertAufPosition,
-  koerperPassung, interesseStufe,
+  koerperPassung, interesseStufe, scoutingWert, kandidatEinschaetzung,
 } from '../engine/recruiting.js';
 
 /**
@@ -190,6 +191,75 @@ test('die Prognose folgt dem Körper: der Schwere in die Line, der Leichte nach 
   assert.equal(leichtInLine, 0, `${leichtInLine} Leichte in der Line`);
   assert.equal(koerperPassung('T', 188, 130), 1, 'im Korridor kein Abschlag');
   assert.ok(koerperPassung('T', 178, 82) < 0.9, 'ein Leichtgewicht als Tackle kostet');
+});
+
+test('die Statur folgt dem Status: Studenten selten in der Line, Arbeiter öfter', () => {
+  const LINE = ['T', 'G', 'C', 'DE', 'DT', 'NT'];
+  /** @param {string} herkunft */
+  const lineAnteil = (herkunft) => {
+    const rng = makeRng('statur|' + herkunft);
+    const belegteNamen = new Set();
+    let line = 0;
+    const n = 800;
+    for (let i = 0; i < n; i++) {
+      const k = ziehKandidat(rng, {
+        id: `${herkunft}${i}`, basis: 45, herkunft, jahr: 2026, uniKm: 0, belegteNamen,
+      });
+      if (LINE.includes(prognosen(k)[0].position)) line++;
+    }
+    return line / n;
+  };
+  // Hochschulinfotag zieht nur Studenten, Fitnessstudio vor allem Arbeiter —
+  // dieselbe Statur-Tabelle (KADER_FORM) ergäbe für beide denselben Anteil,
+  // wäre die Verschiebung nach Status nicht da.
+  const student = lineAnteil('hochschulinfotag');
+  const arbeiter = lineAnteil('fitnessstudio');
+  assert.ok(student < 0.28, `Studenten zu ${(student * 100).toFixed(0)} % in der Line`);
+  assert.ok(arbeiter > 0.4, `Arbeiter nur zu ${(arbeiter * 100).toFixed(0)} % in der Line`);
+  assert.ok(arbeiter > student * 1.8, `Arbeiter (${(arbeiter * 100).toFixed(0)} %) nicht deutlich `
+    + `öfter in der Line als Studenten (${(student * 100).toFixed(0)} %)`);
+});
+
+test('der Ligaschnitt je Athletikwert liegt unter der Gesamtstärke — Ausdauer und Robustheit deutlich', () => {
+  const s = neuesSpiel('heg', 'liga-athletik');
+  const liga = ligaSchnitt(s);
+  for (const a of ATHLETIK) assert.ok(liga.athletik[a] > 0 && liga.athletik[a] < liga.staerke, a);
+  // Kommen in keiner einzigen Positionsformel vor (positionen.js) und werden
+  // deshalb bei jedem regulär gezogenen Spieler stark heruntergezogen.
+  assert.ok(liga.athletik.ausdauer < liga.staerke * 0.75, `Ausdauer ${liga.athletik.ausdauer.toFixed(1)}`);
+  assert.ok(liga.athletik.robustheit < liga.staerke * 0.75, `Robustheit ${liga.athletik.robustheit.toFixed(1)}`);
+});
+
+test('scoutingWert: 0 ohne Koordinator, und der Korridor engt sich mit besserem Scouting ein', () => {
+  const s = neuesSpiel('heg', 'scouting');
+  const stab = coachesVon(s, 'heg');
+  const wertOhneDC = scoutingWert([stab[0]], 'CB'); // nur der OC, Defense ohne Koordinator
+  assert.equal(wertOhneDC, 0, 'ohne Koordinator auf der Seite coacht dort niemand');
+
+  // Denselben Stab einmal auf null, einmal aufs Maximum gesetzt — wie in
+  // drift.test.js mit den Soft Skills.
+  const schwach = structuredClone(stab);
+  const stark = structuredClone(stab);
+  for (const c of [...schwach]) for (const g of COACHING_GRUPPE_REIHE) c.technik[g] = 0;
+  for (const c of [...stark]) for (const g of COACHING_GRUPPE_REIHE) c.technik[g] = MAX_RATING;
+
+  assert.equal(scoutingWert(schwach, 'T'), 0);
+  assert.ok(scoutingWert(stark, 'T') > scoutingWert(stab, 'T'));
+
+  const k = ziehKandidat(makeRng('korridor'), {
+    id: 'k1', basis: 45, herkunft: 'plakate', jahr: 2026, uniKm: 0, belegteNamen: new Set(),
+  });
+  const breiteVon = (einschaetzung) => einschaetzung.talentKorridor[1] - einschaetzung.talentKorridor[0];
+  const eSchwach = kandidatEinschaetzung(schwach, k);
+  const eStark = kandidatEinschaetzung(stark, k);
+  assert.ok(breiteVon(eStark) < breiteVon(eSchwach),
+    `Korridor mit gutem Stab (${breiteVon(eStark)}) nicht enger als ohne (${breiteVon(eSchwach)})`);
+  // Der Korridor sitzt um den echten Wert, nie daneben, und bleibt in der Skala.
+  assert.ok(eSchwach.talentKorridor[0] <= k.talent && k.talent <= eSchwach.talentKorridor[1]);
+  assert.ok(eSchwach.talentKorridor[0] >= TALENT_MIN && eSchwach.talentKorridor[1] <= TALENT_MAX);
+  for (const p of eSchwach.positionen) {
+    assert.ok(p.korridor[0] <= p.wert && p.wert <= p.korridor[1], p.position);
+  }
 });
 
 test('das Interesse: im Herbst breit, im Frühling fast nur bei ein paar Studenten', () => {

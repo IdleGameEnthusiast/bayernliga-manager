@@ -1363,10 +1363,12 @@ Termin mehr, sondern eine Werbemaßnahme.
    Saison**, 30 Tage vor dem Tryout über die Jahresgrenze gerechnet — beim
    Amtsantritt gibt es keine alte Saison, dort kommt sie an Tag 1.
 2. **Am Tryout** stehen `5 + 10 × Vereinsfaktor × Ligafaktor × Werbung`
-   Kandidaten auf dem Platz, roh und **ohne Position**: Körper, Athletik in
-   fünf Stufen gegen den Ligaschnitt, die Lebenslage, das Interesse als Stufe,
-   und wo der Stab sie sich vorstellen kann. Fünf Gespräche, jedes halbiert den
-   Abstand zum Ja.
+   Kandidaten auf dem Platz, roh und **ohne Position**, auf einem eigenen
+   Bildschirm neben dem eigenen Kader zum Vergleich: Körper, Athletik in fünf
+   Stufen gegen den Ligaschnitt **je Attribut**, die Lebenslage, das Interesse
+   als Stufe, dazu Talent und Prognose je Position als Korridor, der sich mit
+   der Scouting-Qualität des Stabs verengt (`scoutingWert()`). Fünf Gespräche,
+   jedes halbiert den Abstand zum Ja.
 3. **Drei Tage später** die Zusagen. Wer kommt, bekommt vom Manager eine
    Position (vorgeschlagen: die beste Prognose) und danach sechs Wochen
    Rookie-Training.
@@ -1405,6 +1407,42 @@ Abweichungen vom Plan, die beim Bau gefallen sind:
 - **Das Tryout kommt zuerst.** Fällt es auf einen Wochenanfang, stehen die
   Rollen-Anfragen in der Post dahinter; die Tageskarte führt zur ersten offenen
   Nachricht.
+
+**Nachtrag, nach dem ersten Spieltest:** vier Korrekturen, alle in
+`recruiting.js`/`constants.js`/`ui/tryout.js`, keine an der Form von
+`SpielStand` — keine neue Migration nötig.
+
+- **Ein eigener Bildschirm statt der halben Lesespalte.** Die Nachricht im
+  Postfach trägt nur noch den Text und einen Knopf „Jetzt am Tryout
+  teilnehmen" / „Zu den Zusagen"; Kandidaten, Gespräche, Positionswahl und der
+  eigene Kader zum Vergleich stehen auf `ui/tryout.js`s `zeigeTryoutScreen()`,
+  ohne die sechs Reiter — wie der Spielbericht ein Umweg aus dem Postfach
+  heraus, kein eigener Ort in der Navigation. Die Werbung bleibt inline: acht
+  Häkchen und eine Zahl brauchen keinen eigenen Bildschirm.
+- **Statur nach Status.** Ein Kandidat zog seine Statur bis dahin aus derselben
+  `KADER_FORM`-gewichteten Liste, ganz gleich, über welchen Kanal er kam — ein
+  Student stand damit so oft mit dem Körper eines Nose Tackle da wie ein
+  Arbeiter. `STATUR_FAKTOR_JE_STATUS` verschiebt jetzt die drei groben
+  Staturgruppen (schwer/mittel/leicht) mit dem Status: Studenten landen zu 22 %
+  in der Line, Arbeiter zu 50 % (siehe `balancing.md`, Abschnitt 18).
+- **Athletik gegen den richtigen Schnitt.** Ein Fehler, gefunden beim
+  Spieltest: die Athletikwerte wurden gegen den Ligaschnitt der
+  **Gesamtstärke** verglichen, nicht gegen den Schnitt desselben Attributs.
+  Weil `ausdauer` und `robustheit` in keiner Positionsformel vorkommen und bei
+  jedem regulär gezogenen Spieler auf rund 60 % seiner Stärke heruntergezogen
+  werden, sah ein Kandidat dort fast immer schlecht aus — die meisten Karten
+  zeigten einen von fünf Punkten, ganz gleich, wie athletisch der Mann wirklich
+  war. `ligaSchnitt()` liefert jetzt den Schnitt **je Attribut**.
+- **Talent und Prognose als Scouting-Korridor.** Das Talent wurde immer schon
+  gezogen (`ziehTalent()`), aber nie gezeigt. Jetzt sieht der Manager es als
+  Korridor um den echten Wert, der sich mit der Qualität des Stabs verengt —
+  dieselbe Betreuung wie bei Verletzung und Trend-Nachricht, nur mit der
+  **Technik** der Zielgruppe statt den Soft Skills. Normiert auf
+  `SCOUTING_SKALA` = 20, nicht auf `MAX_RATING`: mehr erreicht ein Koordinator
+  ohne Positionscoach nach der Verdünnung auf fünf Gruppen nie — normiert auf
+  99 wäre jeder Verein im untersten Fünftel gelegen und der Unterschied in der
+  Rundung auf halbe Sterne verschwunden. Ein echter Positionscoach überschreitet
+  die 20 später von selbst.
 
 **Offen: der Kader wächst.** Rund drei Abgänge gegen acht bis neun Zugänge je
 Saison — nach drei Saisons steht ein starker Verein bei ~47 Mann. Eine

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="de"><head><meta charset="utf-8">
-<title>Tryout: Kandidaten, fünf Gespräche, Zusagen und Positionen</title>
+<title>Tryout: eigener Bildschirm, fünf Gespräche, Zusagen und Positionen</title>
 <link rel="stylesheet" href="../../app.css">
 <link rel="stylesheet" href="melder.css">
 <script src="./melder.js"></script>
@@ -34,27 +34,41 @@ import '../../app.js';
 
 const knopf = () => txt('.tageskarte button.haupt');
 const leseKnopf = (name) => alle('.postlese button').find((b) => b.textContent === name);
+const bildschirmKnopf = (name) => alle('.tryoutscreen button').find((b) => b.textContent === name);
 const reiterKnopf = (name) => alle('.reiter button').find((b) => b.textContent === name);
 
 try {
   pruefe('der Stand steht am Tryout-Tag', tryoutTag);
 
-  // 1 — Das Tryout hält den Kalender an und schlägt die Kandidaten auf
+  // 1 — Die Nachricht hält den Kalender an und verweist auf den Bildschirm
   gleich('die Tageskarte führt zur Nachricht', knopf(), 'Zur Nachricht ›');
   q('.tageskarte button.haupt').click();
-  enthaelt('das Tryout ist aufgeschlagen', txt('.postlese h3'), 'auf dem Platz');
+  enthaelt('das Tryout ist angekündigt', txt('.postlese h3'), 'auf dem Platz');
+  pruefe('kein Reiter mehr — noch im Postfach', alle('.reiter').length, 1);
+  const oeffnenKnopf = leseKnopf('Jetzt am Tryout teilnehmen');
+  pruefe('der Knopf zum Bildschirm steht da', !!oeffnenKnopf, leseKnoepfe());
+  pruefe('eine direkte Antwort steht nicht daneben — das ist Sache des Bildschirms',
+    alle('.postlese .postknoepfe button').length === 0);
+
+  // 2 — Der Bildschirm selbst: ohne die sechs Reiter, mit dem eigenen Kader
+  oeffnenKnopf.click();
+  gleich('keine Reiter mehr auf dem Tryout-Bildschirm', alle('.reiter').length, 0);
+  enthaelt('der eigene Kader steht zum Vergleich da', txt('.tryout-kader'), 'Eigener Kader');
+  gleich('achtzehn Positionszeilen', alle('.tryout-kader tbody tr').length, 18);
   const anzahl = alle('.tryoutteil .kandidat').length;
   pruefe('jeder Kandidat steht auf einer Karte', anzahl >= 5, anzahl);
-  enthaelt('die Betreffzeile zählt sie', txt('.postlese h3'), `${anzahl} Kandidaten`);
+  enthaelt('der Titel zählt sie', txt('.tryoutteil h2'), `${anzahl} Kandidaten`);
   gleich('je fünf Athletikwerte', alle('.tryoutteil .athletikwert').length, anzahl * 5);
   pruefe('als Punkte, nicht als Zahlen',
     alle('.tryoutteil .punkte').every((p) => /^[●○]{5}$/.test(p.textContent)));
   enthaelt('die Lebenslage steht ohne Vereinsjahre da', txt('.kandidaten'), 'Anfahrt');
   pruefe('und nicht „neu im Verein"', !txt('.kandidaten').includes('neu im Verein'));
+  enthaelt('das Talent steht als Korridor da', txt('.kandidaten'), 'Talent (Einschätzung)');
+  enthaelt('mit Sternen dahinter', txt('.kandidaten'), 'Sterne');
   enthaelt('der Stab schlägt Positionen vor', txt('.kandidaten'), 'Der Stab sieht ihn als');
   enthaelt('fünf Gespräche sind frei', txt('.tryoutteil'), 'Noch 5 Gespräche heute.');
 
-  // 2 — Fünf Gespräche, dann ist Schluss
+  // 3 — Fünf Gespräche, dann ist Schluss
   for (let i = 0; i < 5; i++) {
     const frei = alle('.tryoutteil button').find((b) => b.textContent === 'Ansprechen' && !b.disabled);
     frei.click();
@@ -65,20 +79,28 @@ try {
     alle('.tryoutteil button').filter((b) => b.textContent === 'Ansprechen').every((b) => b.disabled));
   enthaelt('und das steht auch da', txt('.tryoutteil'), 'Mehr geht heute nicht');
 
-  // 3 — Beenden, drei Tage warten, die Zusagen
-  leseKnopf('Tryout beenden').click();
-  enthaelt('danach steht, wann die Antworten kommen', txt('.tryoutteil'), 'In drei Tagen');
-  // Der Tryout-Tag ist ein Wochenanfang: hinter dem Tryout warten noch die
-  // Rollen-Anfragen dieser Woche. Sie werden vertagt.
-  for (let i = 0; i < 5 && knopf() === 'Zur Nachricht ›'; i++) {
+  // 4 — Beenden kehrt ins Postfach zurück, drei Tage warten, die Zusagen
+  bildschirmKnopf('Tryout beenden').click();
+  gleich('zurück im Postfach', alle('.reiter').length, 1);
+  enthaelt('danach steht, wann die Antworten kommen', txt('.postlese'), 'In drei Tagen');
+  pruefe('kein Knopf zum Bildschirm mehr — die Station ist erledigt',
+    !leseKnopf('Jetzt am Tryout teilnehmen'));
+  // Der Tryout-Tag ist ein Wochenanfang: dahinter warten noch Rollen-Anfragen
+  // derselben Woche. Sie werden vertagt.
+  for (let i = 0; i < 10 && knopf() === 'Zur Nachricht ›'; i++) {
     q('.tageskarte button.haupt').click();
-    leseKnopf('Später').click();
+    const spaeter = leseKnopf('Später');
+    if (!spaeter) break;
+    spaeter.click();
   }
   gleich('die Uhr läuft wieder', knopf(), 'Bis dahin');
   q('.tageskarte button.haupt').click();
   gleich('sie hält bei den Zusagen', knopf(), 'Zur Nachricht ›');
   q('.tageskarte button.haupt').click();
-  enthaelt('die Zusagen sind aufgeschlagen', txt('.postlese h3'), 'vom Tryout');
+  enthaelt('die Zusagen sind angekündigt', txt('.postlese h3'), 'vom Tryout');
+  leseKnopf('Zu den Zusagen').click();
+
+  // 5 — Die Positionsauswahl auf dem Bildschirm
   const auswahl = () => alle('.tryoutteil select');
   const neue = auswahl().length;
   pruefe('jeder Neue hat eine Positionsauswahl', neue > 0, neue);
@@ -87,11 +109,11 @@ try {
   auswahl()[0].value = ziel;
   auswahl()[0].dispatchEvent(new Event('change'));
   gleich('die Wahl steht nach dem Neuzeichnen noch', auswahl()[0].value, ziel);
-  leseKnopf('Positionen übernehmen').click();
-  enthaelt('danach sind sie übernommen', txt('.tryoutteil'), 'Übernommen');
-  gleich('und keine Auswahl steht mehr da', auswahl().length, 0);
+  bildschirmKnopf('Positionen übernehmen').click();
 
-  // 4 — Im Personalreiter tragen sie die Marke des Rookie-Trainings
+  // 6 — Zurück im Postfach, und im Personalreiter tragen die Neuen ihre Marke
+  gleich('zurück im Postfach', alle('.reiter').length, 1);
+  enthaelt('danach sind sie übernommen', txt('.postlese'), 'Übernommen');
   reiterKnopf('Personal').click();
   gleich('die Neuen stehen mit ihrer Marke im Kader',
     alle('.spielerzeile .marke').filter((m) => m.textContent === 'Rookie').length, neue);
@@ -100,4 +122,8 @@ try {
       && [...z.children][2].textContent === ziel));
 } catch (e) { merkeFehler(e); }
 melde();
+
+function leseKnoepfe() {
+  return alle('.postlese button').map((b) => b.textContent).join(' | ');
+}
 </script></body></html>

@@ -328,9 +328,7 @@ export const DE = {
       von: 'Trainerstab',
       betreff: (d) => `Tryout: ${d.anzahl} ${d.anzahl === 1 ? 'Kandidat' : 'Kandidaten'} auf dem Platz`,
       text: (d) => [
-        `Heute ist Tryout, und ${d.anzahl === 1 ? 'einer ist' : `${d.anzahl} sind`} gekommen. `
-          + 'Was man an einem Vormittag sehen kann, steht unten — Körper, ein bisschen '
-          + 'Athletik, wo wir sie uns vorstellen könnten, und wie ernst es ihnen ist.',
+        `Heute ist Tryout, und ${d.anzahl === 1 ? 'einer ist' : `${d.anzahl} sind`} gekommen.`,
         `Mit ${d.gespraeche} von ihnen kannst du heute reden. Ein Gespräch macht aus einem `
           + 'Vielleicht öfter ein Ja.',
         'In drei Tagen wissen wir, wer kommt.',
@@ -818,15 +816,27 @@ export const DE = {
     andrang: (n) => `Erwarteter Andrang: etwa ${n} Leute`,
     beschlossen: 'Beschlossen.',
     keineWerbung: 'Ohne Werbung kommt nur, wer davon gehört hat.',
-    // Die Tabelle der Kandidaten.
-    name: 'Name',
-    alter: 'Alter',
-    koerper: 'Körper',
-    athletik: 'Athletik',
-    lebenslage: 'Lebenslage',
+    // Der Knopf aus der Nachricht auf den eigenen Bildschirm.
+    jetztTeilnehmen: 'Jetzt am Tryout teilnehmen',
+    zuDenZusagen: 'Zu den Zusagen',
+    zurueckKnopf: 'Zurück zum Posteingang',
+    beendenKnopf: 'Tryout beenden',
+    uebernehmenKnopf: 'Positionen übernehmen',
+    nichtsMehr: 'Hier gibt es gerade nichts zu tun.',
+    kandidatenTitel: (n) => `${n} ${n === 1 ? 'Kandidat' : 'Kandidaten'} auf dem Platz`,
+    neueTitel: (n) => (n === 1 ? 'Ein Neuer vom Tryout' : `${n} Neue vom Tryout`),
+    // Der eigene Kader daneben, zum Vergleich.
+    eigenerKader: 'Eigener Kader',
+    eigenerKaderHinweis: 'Zum Vergleich: was der Verein schon hat.',
+    spalte: { position: 'Pos', anzahl: 'Anzahl', schnitt: 'Ø Stärke', bester: 'Bester' },
     interesse: 'Interesse',
     positionen: 'Der Stab sieht ihn als',
-    gespraech: 'Gespräch',
+    // Talent, als Korridor statt als Zahl — wie breit er ist, hängt am Stab.
+    talent: 'Talent (Einschätzung)',
+    talentZahl: (halbe) => String(halbe / 2).replace('.', ','),
+    talentKorridor: (von, bis) => (von === bis
+      ? `${T.tryout.talentZahl(von)} Sterne`
+      : `${T.tryout.talentZahl(von)}–${T.tryout.talentZahl(bis)} Sterne`),
     ansprechen: 'Ansprechen',
     angesprochen: 'Gesprochen',
     herkunft: (wo) => `kam über: ${wo}`,
@@ -852,6 +862,12 @@ export const DE = {
     // bewusst nicht „schlecht": es ist ein Anfänger, und er ist es heute.
     prognoseStufen: ['noch weit weg', 'ausbaufähig', 'Ligaschnitt', 'über dem Schnitt'],
     prognose: (position, stufe) => `${position} (${stufe})`,
+    // Dieselbe Prognose als Spanne — von der unteren bis zur oberen Grenze des
+    // Korridors. Fallen beide Grenzen auf dieselbe Stufe, ist das eine echte
+    // Aussage („WR (Ligaschnitt)"); sonst zwei durch einen Gedankenstrich.
+    prognoseSpanne: (position, von, bis) => (von === bis
+      ? `${position} (${von})`
+      : `${position} (${von} – ${bis})`),
     interesseStufen: ['kaum', 'zurückhaltend', 'offen', 'interessiert', 'Feuer und Flamme'],
     // Die Neuen nach den Zusagen.
     position: 'Position',

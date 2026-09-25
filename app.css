@@ -954,10 +954,8 @@ tr.coachzeile.offen td:nth-child(2) { font-weight: inherit; }
 
 .marke.postmarke { background: rgba(255, 255, 255, .08); color: var(--text-leise); }
 
-/* Die Tryout-Nachrichten tragen unter dem Text eine Liste oder eine Tabelle.
-   Die Lesespalte darf dafür schmaler werden als ihr Inhalt — sonst schöbe eine
-   Kandidatentabelle das ganze Postfach aus dem Bild, statt in sich zu
-   scrollen. */
+/* Die Werbung im Postfach trägt unter dem Text eine Liste von Häkchen. Die
+   Lesespalte darf dafür schmaler werden als ihr Inhalt. */
 .postlese { min-width: 0; }
 .tryoutteil { margin: 4px 0 12px; }
 .tryoutteil p { margin: 6px 0; }
@@ -988,11 +986,15 @@ tr.coachzeile.offen td:nth-child(2) { font-weight: inherit; }
 .athletikwert { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .punkte { letter-spacing: 1px; color: var(--gelb); font-size: 11px; }
 .kandidat select { max-width: 100%; min-height: 36px; }
-/* Eine Tryout-Nachricht darf länger sein als die Lesespalte sonst: fünfzehn
-   Karten in 460 Pixeln wären ein Schlüsselloch. */
-@media (min-width: 860px) {
-  .postlese:has(.tryoutteil) { max-height: none; }
-}
+
+/* Der Tryout-Bildschirm: der eigene Kader oben zum Vergleich, darunter die
+   Kandidaten oder die Zusagen, unten eine feste Fußleiste zurück ins
+   Postfach — wie beim Spielbericht. Ein eigener Bildschirm, weil fünfzehn
+   Kandidaten mit Athletik, Lebenslage und Prognose mehr Platz brauchen, als
+   die halbe Lesespalte des Postfachs hergibt. */
+.tryout-kader table { width: 100%; }
+.tryout-luecke td { color: var(--text-leise); }
+.tryout-luecke td:first-child { color: var(--text); font-weight: 600; }
 
 @media (min-width: 860px) {
   .postfach { grid-template-columns: 170px minmax(220px, 300px) 1fr; }

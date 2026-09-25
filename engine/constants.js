@@ -1059,6 +1059,39 @@ export const TRYOUT_STAERKE_STREUUNG = 5;
 export const TRYOUT_HANDWERK_ANTEIL = 0.5;
 export const TRYOUT_TECHNIK = /** @type {[number, number]} */ ([1, 6]);
 
+/**
+ * Wie breit die Einschätzung des Stabs daneben liegen darf — Talent in halben
+ * Sternen, die Prognose nach dem Rookie-Training in Stärkepunkten. Ohne einen
+ * Coach, der die Zielgruppe kennt, `_OHNE`; mit dem bestmöglichen, `_BESTE`.
+ * Dazwischen linear, an derselben Betreuung, die auch die Trend-Nachricht und
+ * den KI-Ausgleich skaliert — siehe `scoutingWert()` in `recruiting.js`.
+ *
+ * Ohne Positionscoaches (heute: niemand) bleibt der Korridor nahe am Maximum,
+ * und zwar für jeden Verein ähnlich breit — das ist keine Lücke, sondern der
+ * Punkt: Scouting ohne Fachmann ist eine Schätzung, keine Messung. Er engt
+ * sich erst ein, wenn es Positionscoaches gibt, und dann von selbst.
+ */
+export const TALENT_KORRIDOR_OHNE = 2;   // halbe Sterne — Spanne 2,0 Sterne
+export const TALENT_KORRIDOR_BESTE = 0.5; // halbe Sterne — Spanne 0,5 Sterne
+export const PROGNOSE_KORRIDOR_OHNE = 8;
+export const PROGNOSE_KORRIDOR_BESTE = 2;
+
+/**
+ * Die höchste Betreuung, die ein Koordinator **ohne** Positionscoach je
+ * erreicht — `verduennterWert(MAX_RATING, 5)` in `coach.js`, gerundet: selbst
+ * mit einem Koordinator, dessen Technik in jeder Gruppe seiner Seite bei 99
+ * steht, bleibt nach der Verdünnung auf fünf Gruppen nur rund 20 übrig.
+ *
+ * `scoutingWert()` in `recruiting.js` wird gegen diese Zahl normiert und nicht
+ * gegen `MAX_RATING` — sonst läge jeder Verein heute, ganz gleich wie gut sein
+ * Koordinator ist, im untersten Fünftel der Skala, und der Unterschied zweier
+ * Vereine ginge in der Rundung auf halbe Sterne unter. Bekommt ein Verein
+ * eines Tages einen echten Positionscoach, überschreitet sein Scouting diese
+ * Zahl von selbst — der Korridor ist dann so eng, wie `TALENT_KORRIDOR_BESTE`
+ * es erlaubt, und keine neue Konstante muss dafür angefasst werden.
+ */
+export const SCOUTING_SKALA = 20;
+
 /** Mit wie vielen der Manager am Tryout selbst reden kann. Eigenes Kontingent, nicht das der Woche. */
 export const TRYOUT_GESPRAECHE = 5;
 /** Wie viele Tage die Kandidaten nach dem Tryout überlegen, bevor sie zu- oder absagen. */

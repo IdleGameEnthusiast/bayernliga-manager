@@ -29,6 +29,7 @@ import {
 } from './engine/save.js';
 import { zeigeStart } from './ui/start.js';
 import { zeigePostfach, waehleNachricht, vergissAnsicht } from './ui/postfach.js';
+import { zeigeTryoutScreen } from './ui/tryout.js';
 import { zeigeTabelle } from './ui/tabelle.js';
 import { zeigeKader } from './ui/kader.js';
 import { zeigePersonal } from './ui/personal.js';
@@ -38,7 +39,7 @@ import { zeigeSpielbericht } from './ui/spielbericht.js';
 import { zeigeFrage } from './ui/frage.js';
 import { zeigeGespraech } from './ui/gespraech.js';
 
-/** @typedef {'start'|'postfach'|'kader'|'personal'|'taktik'|'tabelle'|'spielplan'|'bericht'} Ansicht */
+/** @typedef {'start'|'postfach'|'kader'|'personal'|'taktik'|'tabelle'|'spielplan'|'bericht'|'tryout'} Ansicht */
 
 /** @type {import('./engine/saison.js').SpielStand | null} */
 let stand = null;
@@ -119,6 +120,13 @@ function zeichne() {
       offenePartie = null;
       wechsle(berichtZurueck);
     }));
+    return;
+  }
+
+  // Der Tryout-Bildschirm ohne die sechs Reiter — wie der Spielbericht ist er
+  // ein Umweg aus dem Postfach heraus, kein eigener Ort in der Navigation.
+  if (ansicht === 'tryout') {
+    wurzel.append(zeigeTryoutScreen(stand, postfachAktionen));
     return;
   }
 
@@ -330,6 +338,10 @@ const postfachAktionen = {
   setzeWerbung: (massnahme, an) => schreibe((s) => setzeWerbung(s, massnahme, an)),
   sprichKandidat: (id) => schreibe((s) => sprichKandidat(s, id)),
   setzeRookiePosition: (id, position) => schreibe((s) => setzeRookiePosition(s, id, position)),
+  // Der eigene Bildschirm des Tryouts: die Nachricht verlinkt hierher, statt
+  // fünfzehn Kandidaten in die halbe Lesespalte des Postfachs zu zwängen.
+  tryoutOeffnen: () => wechsle('tryout'),
+  zurueck: () => wechsle('postfach'),
 };
 
 /**

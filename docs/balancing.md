@@ -875,6 +875,72 @@ lernbare Handwerk fast zwei Drittel. Mit ihr: T 27 %, WR 19 %, SL 9 %, FB 8 %,
 CB 7 % …; von den Schweren über 120 kg landen mehr als neun von zehn in der
 Line, von den Leichten unter 85 kg keiner.
 
+**Die Statur nach Status** (`STATUR_GRUPPE`, `STATUR_FAKTOR_JE_STATUS` in
+`recruiting.js`, keine Zahl in `constants.js` — ein Modell wie
+`STATUS_JE_KANAL`, kein Regler). Ohne sie zog jeder Kandidat seine Statur aus
+derselben `KADER_FORM`-gewichteten Liste, ganz gleich, ob er über den
+Hochschulinfotag oder das Fitnessstudio kam — ein Student stand damit so oft
+mit dem Körper eines Nose Tackle da wie ein Arbeiter. Jetzt verschiebt der
+Status die drei groben Staturgruppen (schwer: die Line; mittel: QB, FB, TE,
+Linebacker, Safety; leicht: RB, WR, SL, CB) multiplikativ: Schüler und
+Studenten ×1,5 leicht / ×0,9 mittel / ×0,2 schwer, Azubis ×1,15 / ×1,0 / ×0,65,
+Arbeiter ×0,6 / ×0,9 / ×1,9. Gemessen (3000 Kandidaten je Kanal): der
+Hochschulinfotag landet zu **22 %** in der Line, das Fitnessstudio zu **50 %**
+— der Rest der Differenz zur Null ist der Körper selbst, der zu einem Fünftel
+neben seinem Korridor liegt (`KOERPER_ANTEIL_DANEBEN`), unabhängig vom Status.
+
+**Athletik gegen den richtigen Schnitt** — ein Fehler, kein Regler, aber hier
+notiert, weil er beim Kalibrieren auffiel: `athletikStufe()` verglich die
+Athletikwerte eines Kandidaten gegen `ligaSchnitt(stand).staerke`, die
+durchschnittliche **Gesamtstärke** der Liga. `ausdauer` und `robustheit`
+kommen aber in keiner einzigen Positionsformel vor (`FORMELN` in
+`positionen.js`) — jeder regulär gezogene Spieler bekommt sie über
+`PROFIL_SPEZIALISIERUNG` auf rund 60 % seiner Stärke heruntergezogen, ein
+Tryout-Kandidat dagegen ungekürzt, weil er noch keine Position hat, die etwas
+von ihm verlangen könnte. Verglichen mit der Gesamtstärke sah er bei diesen
+beiden Werten deshalb fast immer schlecht aus — die meisten Kandidaten zeigten
+einen gefüllten Punkt von fünf, ganz gleich, wie athletisch sie wirklich
+waren. `ligaSchnitt()` liefert jetzt zusätzlich `athletik`, den Schnitt **je
+Attribut** über die ganze Liga, und `athletikStufe()` vergleicht damit statt
+mit der Gesamtstärke.
+
+**Scouting: Talent- und Prognose-Korridor** (`scoutingWert()`,
+`kandidatEinschaetzung()` in `recruiting.js`). Ein Kandidat hat noch keine
+Position und damit keinen Coach, der ihn schon kennt — der Manager sieht
+deshalb kein Talent und keine Prognose als Zahl, sondern einen Korridor um den
+echten Wert, der sich mit der Qualität des Stabs verengt.
+
+| Konstante | Wert | Wirkung | Richtung |
+| --- | --- | --- | --- |
+| `TALENT_KORRIDOR_OHNE` / `_BESTE` | 2 / 0,5 halbe Sterne | Halbbreite des Talent-Korridors, ohne bzw. mit dem bestmöglichen Scouting der Zielgruppe | linear dazwischen, an `scoutingWert()` |
+| `PROGNOSE_KORRIDOR_OHNE` / `_BESTE` | 8 / 2 Stärkepunkte | dieselbe Idee für die Prognose je Position | ein erster Versuch mit 15/4 zeigte fast immer „noch weit weg – über dem Schnitt", die volle Spanne — uninformativ |
+| `SCOUTING_SKALA` | 20 | worauf `scoutingWert()` normiert wird | siehe unten |
+
+`scoutingWert(stab, position)` ist dieselbe Betreuung wie bei Verletzung und
+Trend-Nachricht (`betreuung()` in `drift.js`), nur mit der **Technik** statt
+den Soft Skills — ob ein Coach einen guten Blocker von einem schlechten
+unterscheiden kann, sagt sein technisches Verständnis der Gruppe, nicht seine
+Empathie. Normiert wird nicht auf `MAX_RATING` (99), sondern auf
+`SCOUTING_SKALA` (20): selbst ein Koordinator mit Technik 99 in jeder Gruppe
+seiner Seite bleibt nach der Verdünnung auf fünf Gruppen (`verduennterWert()`)
+bei rund 19,6, weil es noch keinen einzigen Positionscoach gibt, der die
+Zielgruppe ganz für sich hätte (`ziehStab()` zieht nur OC und DC). Normiert auf
+99 hätte jeder Verein heute im untersten Fünftel der Skala gelegen, und der
+Unterschied zweier Vereine wäre in der Rundung auf halbe Sterne untergegangen
+— gemessen (0 gegen 99 Technik in jeder Gruppe, synthetisch): mit `/99`
+blieben beide Korridore bei derselben gerundeten Breite, mit `/20` trennen sie
+sich sichtbar. Bekommt ein Verein eines Tages einen echten Positionscoach,
+überschreitet sein Scouting die 20 von selbst, und der Korridor engt sich bis
+`_BESTE` ein — keine neue Konstante nötig.
+
+Zwischen den eigenen zwölf Vereinen bleibt der Unterschied heute klein (0,4 bis
+6,7 auf der 20er-Skala, je nach Position und Koordinator), weil überall
+dieselbe Verdünnung greift. Größer ist der Unterschied **innerhalb** eines
+Vereins, zwischen Positionen: ein Koordinator kennt seine eigene Gruppe besser
+als eine fremde (`aehnlichkeit()`), und ein Kandidat, der am ehesten auf seine
+Kernposition passt, wird treffsicherer eingeschätzt als einer, der irgendwo
+ganz anders landen könnte.
+
 **Das Sicherheitsnetz** — `KADER_MINIMUM` = 30 (die Kadergröße beim
 Amtsantritt). Fällt der Kader nach den Zusagen darunter, rücken zuerst
 Kandidaten nach, die knapp abgesagt haben, dann frisch gezogene aus der

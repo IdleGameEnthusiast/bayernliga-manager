@@ -44,6 +44,18 @@ function einSchritt() {
   if (!knopf) return 'nichts zu tun';
   if (knopf.textContent.trim() === 'Zur Nachricht ›') {
     knopf.click();
+    // Ein Tryout führt auf den eigenen Bildschirm; erst der Knopf dort
+    // beendet die Station und kehrt ins Postfach zurück.
+    const oeffnen = alle('.postlese button')
+      .find((b) => b.textContent === 'Jetzt am Tryout teilnehmen' || b.textContent === 'Zu den Zusagen');
+    if (oeffnen) {
+      oeffnen.click();
+      const fertig = alle('.tryoutscreen button')
+        .find((b) => b.textContent === 'Tryout beenden' || b.textContent === 'Positionen übernehmen');
+      if (!fertig) return 'tryout ohne abschluss';
+      fertig.click();
+      return 'tryout bearbeitet';
+    }
     const antwort = q('.postlese .postknoepfe button');
     if (!antwort) return 'antwort fehlt';
     antwort.click();
@@ -80,6 +92,13 @@ try {
   // Zehn Gruppenspiele hat jeder; Halbfinale und Finale nur, wer hinkommt.
   const kickoffs = wege.filter((w) => w === 'Kickoff').length;
   pruefe('ein Kickoff je eigenem Spiel', kickoffs >= 10 && kickoffs <= 12, `${kickoffs}`);
+  // Herbst- und Frühjahrs-Tryout liegen beide in dieser einen Saison, und die
+  // Kandidaten-Station verlangt immer den Bildschirm — macht mindestens zwei.
+  // Die Zusagen-Station tut das nur, wenn wenigstens einer zugesagt hat oder
+  // das Sicherheitsnetz greift; sagt niemand zu, kommt eine bloße Absage ohne
+  // Antwortpflicht, und dieser Lauf zählt sie nicht mit.
+  const tryouts = wege.filter((w) => w === 'tryout bearbeitet').length;
+  pruefe('beide Tryouts sind durchgelaufen', tryouts >= 2, `${tryouts}`);
 
   // Der Kalender steht auf Tag 1 des Folgejahres — Sa 17.10.2026.
   gleich('die neue Saison steht auf ihrem ersten Tag', txt('.kopf-datum'), 'Sa 17. Okt 2026');

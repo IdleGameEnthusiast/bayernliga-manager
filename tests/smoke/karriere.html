@@ -27,18 +27,31 @@ const zeileMit = (text) => alle('.postzeile').find((z) => z.textContent.includes
  * Durch die Rollen-Kampagne und die Tryouts hindurch bis zu einem Datum.
  *
  * Seit der Kampagne ist die Offseason nicht mehr leer: an jedem Wochenanfang
- * fragt jemand nach seiner Rolle, und jede Anfrage hält den Kalender an. Dazu
- * kommen die Stationen der Tryouts. Wer nur durch den Kalender will, tippt
- * auf die Antwort, die nichts entscheidet — „Später", „Tryout beenden",
- * „Positionen übernehmen", „So machen wir es".
+ * fragt jemand nach seiner Rolle, und jede Anfrage hält den Kalender an. Ein
+ * Tryout hält gleich zweimal an — die Nachricht führt auf den eigenen
+ * Bildschirm, und erst der Knopf dort beendet die Station und kehrt ins
+ * Postfach zurück. Wer nur durch den Kalender will, tippt überall auf die
+ * Antwort, die nichts entscheidet.
  */
-const DURCHWINKEN = ['Später', 'So machen wir es', 'Tryout beenden', 'Positionen übernehmen'];
+const DURCHWINKEN = ['Später', 'So machen wir es'];
+const TRYOUT_OEFFNEN = ['Jetzt am Tryout teilnehmen', 'Zu den Zusagen'];
+const TRYOUT_FERTIG = ['Tryout beenden', 'Positionen übernehmen'];
 function weiterBis(datum) {
   for (let i = 0; i < 120 && txt('.kopf-datum') !== datum; i++) {
     const k = q('.tageskarte button.haupt');
     if (!k) break;
     if (k.textContent.trim() !== 'Zur Nachricht ›') { k.click(); continue; }
     k.click();
+    const oeffnen = TRYOUT_OEFFNEN.map(leseKnopf).find((b) => b);
+    if (oeffnen) {
+      oeffnen.click();
+      const fertig = TRYOUT_FERTIG
+        .map((name) => alle('.tryoutscreen button').find((b) => b.textContent === name))
+        .find((b) => b);
+      if (!fertig) break;
+      fertig.click();
+      continue;
+    }
     const antwort = DURCHWINKEN.map(leseKnopf).find((b) => b);
     if (!antwort) break;
     antwort.click();

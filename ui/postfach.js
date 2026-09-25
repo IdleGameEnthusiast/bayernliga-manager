@@ -86,6 +86,7 @@ let gewaehlteId = null;
  * @property {(massnahme: string, an: boolean) => void} setzeWerbung
  * @property {(kandidatId: string) => void} sprichKandidat
  * @property {(spielerId: string, position: string) => void} setzeRookiePosition
+ * @property {() => void} tryoutOeffnen  Zum eigenen Tryout-Bildschirm wechseln
  */
 
 /**
@@ -507,7 +508,10 @@ function knoepfe(n, stand, aktionen) {
   const vorlage = vorlageVon(n.art);
   const labels = (vorlage && vorlage.antworten) || {};
 
-  if (istOffen(n)) {
+  // Diese beiden werden nicht hier beantwortet, sondern auf dem Tryout-
+  // Bildschirm, den `tryoutTeil()` mit einem eigenen Knopf verlinkt — sonst
+  // stünde die Antwort an zwei Stellen zur Wahl.
+  if (istOffen(n) && n.art !== 'tryout' && n.art !== 'tryoutZusagen') {
     for (const schluessel of antwortenZu(n.art)) {
       reihe.push(el('button', {
         class: reihe.length === 0 ? 'haupt klein' : 'neben klein',

@@ -169,12 +169,15 @@ Spielbericht mit Box Score, Halbfinale und Finale als Bracket — das seine vier
 Plätze schon während der Gruppenrunde benennt und sagt, wer sie gerade hält —,
 Saisonwechsel mit Alterung und Rücktritten — wer gehen will, sagt es nach dem
 Finale selbst, mit Grund, und lässt sich mit einem Gespräch manchmal halten —,
-**Rekrutierung über zwei Tryouts** im November und April: vorher die Werbung
-ankreuzen (der Hochschulinfotag bringt Studenten, das Fitnessstudio
-Berufstätige), am Tag selbst rohe Kandidaten mit Körper, Athletik in Stufen,
-Lebenslage und der Einschätzung des Stabs, mit fünf von ihnen reden, drei Tage
-später die Zusagen, jedem eine Position geben und sechs Wochen Rookie-Training
-— Export und Import. Ganz unten im
+**Rekrutierung über zwei Tryouts** im November und April, auf einem eigenen
+Bildschirm neben dem eigenen Kader zum Vergleich: vorher im Postfach die
+Werbung ankreuzen (der Hochschulinfotag bringt Studenten, das Fitnessstudio
+Berufstätige — und beide bringen Körper, die zu ihrem Alltag passen, nicht
+zufällig den Verteidiger einer Line), am Tag selbst rohe Kandidaten mit
+Körper, Athletik in Stufen gegen den Ligaschnitt, Lebenslage, Talent und
+Prognose als Korridor, der sich mit der Scouting-Qualität des Stabs verengt,
+mit fünf von ihnen reden, drei Tage später die Zusagen, jedem eine Position
+geben und sechs Wochen Rookie-Training — Export und Import. Ganz unten im
 Postfach steht ein Feld **Redeem Code**: `playtester` zeigt die Zahlen, die
 das Spiel sonst versteckt — Commitment, Rücktrittsalter, den Druck der
 Lebenslage und die zweite Wahrheit hinter dem Plan.
