@@ -26,6 +26,18 @@
  * der Malus dafür, dass niemand die Gruppe betreut, und er gilt, bis es
  * Positionscoaches gibt.
  *
+ * **Der KI-Ausgleich** ist derselbe Gedanke umgekehrt: ein KI-Verein hat
+ * weder Rolle noch Gespräch als Gegengewicht zu Verletzung und Serie, und
+ * ohne Ersatz sänke sein Schnitt jede Saison weiter. Statt Gespräche zu
+ * simulieren — teuer und für niemanden sichtbar, sobald es mehr als eine Liga
+ * gibt —, bekommt er einmal je Saison einen festen Betrag, mit derselben
+ * Betreuung skaliert, die auch die Verluste dämpft. Ein Verein ohne
+ * Positionscoach und mit einem schwachen Koordinator bleibt dabei, was er
+ * ohne den Ausgleich auch wäre; ein gut besetzter Verein gleicht aus oder
+ * legt zu. Genau daraus soll später die Streuung kommen, die ein Verein hat,
+ * der gute oder schlechte Coaches rekrutiert — kein zweiter Mechanismus für
+ * dieselbe Aussage.
+ *
  * Diese Datei kennt kein DOM, keine Texte und keinen `SpielStand` — sie rechnet
  * auf Spielern, Kadern und Stäben. Was wann passiert, verdrahtet `saison.js`.
  *
@@ -36,7 +48,7 @@ import {
   BETREUUNG_FAKTOR_OHNE, BETREUUNG_FAKTOR_BESTE,
   VERLETZUNG_JE_WOCHE, VERLETZUNG_FAKTOR_FAMILIE, VERLETZUNG_FAKTOR_ARBEITER,
   ERFOLG_SERIE_SCHWELLE, ERFOLG_SERIE_ABZUG,
-  VEREINSJAHR_BONUS, COMMITMENT_VEREINSJAHRE_MAX, TREND_VERSUCHE,
+  VEREINSJAHR_BONUS, COMMITMENT_VEREINSJAHRE_MAX, TREND_VERSUCHE, KI_AUSGLEICH_JE_SAISON,
   MAX_RATING, clamp,
 } from './constants.js';
 import { stufe } from './commitment.js';
@@ -85,6 +97,41 @@ export function verlustFaktor(stab, sp) {
 export function verliere(sp, stab, betrag) {
   if (typeof sp.commitment !== 'number' || betrag <= 0) return 0;
   const delta = -betrag * verlustFaktor(stab, sp);
+  sp.commitment = clamp(sp.commitment + delta, 0, 99);
+  return delta;
+}
+
+// --- Der Ausgleich für KI-Vereine -------------------------------------------
+
+/**
+ * Was ein KI-Verein je Saison gewinnt, um Verletzung und Erfolgsserie im
+ * Mittel auszugleichen — nur für Vereine, die niemand spielt.
+ *
+ * Der eigene Verein hat Gespräche und Rolle als Gegengewicht; ein KI-Verein
+ * hat keins von beidem und würde ohne Ersatz jede Saison ein Stück verlieren,
+ * ohne Boden. Gebraucht wird dafür kein Ersatz für Gespräche selbst —
+ * fünfundvierzig simulierte Unterhaltungen je Verein, mal siebzig Vereine für
+ * fünf Ligen, wären viel Zustand für etwas, das niemand sieht —, sondern nur
+ * ihre Wirkung im Mittel: ein fester Betrag, an dieselbe Betreuung gekoppelt,
+ * die auch die Verluste dämpft.
+ *
+ * Genau diese Kopplung ist der Punkt und nicht nur ein Ausgleich: ein Verein
+ * mit einem starken Koordinator gleicht seine Verluste aus oder legt sogar
+ * zu, ein Verein ohne jede Betreuung bleibt dabei, was er ohne diesen
+ * Ausgleich auch wäre. Die Streuung zwischen Vereinen entsteht so aus
+ * derselben Zahl, die später auch entscheidet, wie gut ein Verein rekrutiert
+ * — kein zweiter Mechanismus für dieselbe Aussage.
+ *
+ * Einmal je Saison statt wöchentlich: Verletzung und Serie treffen nur die
+ * gespielten Wochen, ein wöchentlicher Ausgleich das ganze Jahr — das
+ * verschöbe die Kalibrierung mit jeder Änderung an der Offseason-Länge.
+ * @param {Spieler} sp @param {Coach[] | undefined} stab
+ * @returns {number} was sich bewegt hat
+ */
+export function kiAusgleich(sp, stab) {
+  if (typeof sp.commitment !== 'number') return 0;
+  const anteil = betreuung(stab, gruppeVon(sp)) / MAX_RATING;
+  const delta = KI_AUSGLEICH_JE_SAISON * anteil;
   sp.commitment = clamp(sp.commitment + delta, 0, 99);
   return delta;
 }

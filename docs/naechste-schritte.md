@@ -787,8 +787,16 @@ Zwei Stellen, an denen es sonst schiefgeht:
   Kader und die anderen nicht; die „dauerhafte Strafe" aus Block 5 würde
   schärfer. Deshalb: **Abgänge und Rekrutierung im selben Schritt.** Die KI
   antwortet auf jeden Abgang weiter mit dem Rookie-Ersatz und spielt das
-  Metaspiel nicht — sie bekommt einen pauschalen Betreuungsfaktor, damit ihre
-  Kader im Mittel gleich bleiben. Das Feld und die Drift laufen aber für
+  Metaspiel nicht. ~~Sie bekommt einen pauschalen Betreuungsfaktor, damit ihre
+  Kader im Mittel gleich bleiben.~~ **Vorgezogen und gebaut**, zusammen mit der
+  Drift selbst statt erst hier: `kiAusgleich()` in `drift.js`, einmal je
+  Saison, an dieselbe Betreuung gekoppelt, die auch die Verluste dämpft
+  (`KI_AUSGLEICH_JE_SAISON`, siehe [`balancing.md`](balancing.md) Abschnitt
+  17). Aus derselben Kopplung folgt beiläufig, was hier noch offen war: ein
+  KI-Verein mit gutem Stab hält seine Leute besser als einer ohne — die
+  Streuung, die man später von unterschiedlich guter Rekrutierung erwarten
+  würde, entsteht schon jetzt aus der vorhandenen Coach-Qualität, ohne dass es
+  dafür einen zweiten Mechanismus braucht. Das Feld und die Drift laufen für
   **alle** Vereine, sonst gibt es nichts, was man abwerben könnte.
 - **Geografie.** „Wegzug 200 km" und „der Nachbarverein zahlt mehr" rechnen
   nur, wenn Vereine einen Ort haben. Offene Entscheidung 10.
@@ -1629,5 +1637,6 @@ Das ist der Stand, auf den sich alles Obige stützt.
 | Trend-Nachricht | nur beim Stufenwechsel, in beide Richtungen, vom Coach, der die Gruppe coacht — heute der Koordinator, verdünnt auf fünf Gruppen. Vier Würfe mit der Betreuung als Chance (gleich nach dem Spiel, dann wochenweise); trifft keiner, bleibt es ungesagt. Ohne Coach sagt es niemand |
 | Drift durch Coach | kein eigener Posten, sondern ein Faktor 1,4 … 0,6 auf jeden Verlust, gemessen an `MAX_RATING`. Ohne Positionscoaches ≈ 1,36 — der Malus bleibt, bis es welche gibt |
 | Erfolg | nur die Niederlagenserie (3 in Folge, einmal, ganzer Kader). Verpasste Playoffs verworfen: der Normalfall für acht von zwölf |
-| KI und Abgänge | Abgänge und Rekrutierung im selben Schritt; die KI ersetzt weiter durch Rookies und bekommt einen pauschalen Betreuungsfaktor. Feld und Drift laufen für alle Vereine |
+| KI und Abgänge | Abgänge und Rekrutierung im selben Schritt; die KI ersetzt weiter durch Rookies. Feld und Drift laufen für alle Vereine |
+| KI-Ausgleich | vorgezogen und gebaut (`kiAusgleich()`, `KI_AUSGLEICH_JE_SAISON` = 25): einmal je Saison, an dieselbe Betreuung gekoppelt, die auch Verluste dämpft — kein Extra-Mechanismus für „schlechte Coaches, schlechte Kader" |
 | Rekrutierungskanäle | Verteilungen über Lebenslagen (Hochschulinfotag, Jugend, Aushang); Ehemalige mit hohem Commitment sind der Pool für Coaches und Orga |

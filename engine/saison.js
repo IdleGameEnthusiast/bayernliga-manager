@@ -41,7 +41,7 @@ import { berechneTabelle } from './tabelle.js';
 import { teamStaerken } from './team.js';
 import { ziehStab, ocVon, dcVon, seiteVon, lerneTag, lerneSpiel } from './coach.js';
 import {
-  gruppeVon, verlustFaktor, verletzungsDrift, serienDrift, vereinsjahr,
+  gruppeVon, verlustFaktor, verletzungsDrift, serienDrift, vereinsjahr, kiAusgleich,
   trendVersuch, stufeBekannt,
 } from './drift.js';
 import { ziehBindung } from './commitment.js';
@@ -1538,6 +1538,10 @@ function lebensjahrKader(stand, teamId) {
     // einmal, weil es eine Kopie der Zahl zurückgibt, keinen Verweis.
     bindungVon(stand, s);
     vereinsjahr(s, neuesJahr);
+    // Nur die KI: der eigene Verein hat Gespräche und Rolle als Gegengewicht
+    // zu Verletzung und Serie, ein KI-Verein hat keins von beidem. Ohne
+    // diesen Ersatz sänke der Ligaschnitt jede Saison weiter, ohne Boden.
+    if (teamId !== stand.meinTeam) kiAusgleich(s, coachesVon(stand, teamId));
     const ereignis = lebensjahr(rng, bindungVon(stand, s), s.alter + 1, neuesJahr);
     if (ereignis && ereignis.art === 'abgang') abgaenge.set(s.id, ereignis.grund);
   }

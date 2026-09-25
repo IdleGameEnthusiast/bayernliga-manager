@@ -787,11 +787,36 @@ Acht von zwölf Vereinen verpassen die Playoffs **jedes** Jahr, und der eigene
 startet als schwächster — der Abzug maß keinen Misserfolg, er besteuerte den
 Normalfall. Die Serie trifft schlechte Phasen, nicht schlechte Vereine.
 
-**Offen:** der KI-Schnitt fällt noch immer um gut einen Punkt je Saison. Die
-KI hat keinen Gewinn außer dem Vereinsjahr — keine Rolle, kein Gespräch. Das
-bremst mit Abgängen und Rookies von selbst ab, gehört aber beobachtet, sobald
-es die Rekrutierung (Block 7, Schritt 3) gibt: ein pauschaler
-Betreuungsfaktor für die KI steht dort ohnehin im Plan.
+**Der KI-Ausgleich** (`KI_AUSGLEICH_JE_SAISON` = 25, `kiAusgleich()` in
+`drift.js`, verdrahtet in `lebensjahrKader()`) schließt genau diese Lücke. Ein
+KI-Verein hat weder Rolle noch Gespräch als Gegengewicht zu Verletzung und
+Serie — ohne Ersatz sank sein Schnitt jede Saison weiter, ohne Boden. Statt
+Gespräche für siebzig Vereine (fünf Ligen) zu simulieren, gibt es einmal je
+Saison einen festen Betrag, **mit derselben Betreuung skaliert, die auch die
+Verluste dämpft**: `Betrag × Betreuung / MAX_RATING`. Ein Verein ohne jede
+Betreuung bekommt nichts und bleibt, was er ohne den Ausgleich auch wäre; ein
+Verein mit einem starken Koordinator gleicht aus oder legt zu. Dieselbe Zahl
+soll später auch sagen, wie gut ein Verein rekrutiert — kein zweiter
+Mechanismus für dieselbe Aussage.
+
+Kalibriert gegen die gemessene KI-Betreuung (Schnitt 6,0 von 99, siehe oben):
+25 trifft den unveränderten Ausgangsschnitt fast exakt.
+
+| KI-Schnitt | ohne Ausgleich | mit `= 25` |
+| --- | --- | --- |
+| Saison 1 / 2 / 3 | 55,7 / 54,6 / 53,6 | 57,2 / 57,2 / 57,0 |
+
+**Die Streuung entsteht dabei von selbst** (vier Seeds, 44 KI-Vereine, drei
+Saisons, Commitment-Schnitt je Verein gegen seine mittlere Betreuung):
+unterstes Drittel Betreuung 53,9, oberstes 60,0 — mit erheblichem Rauschen
+dazwischen aus Verletzungen und Lebenslage, aber der Trend hält. Ein Verein,
+der später schlechte Coaches rekrutiert, wird das spüren, ohne dass dafür ein
+zweiter Mechanismus nötig wäre.
+
+Einmal je Saison statt wöchentlich, mit Absicht: Verletzung und Serie treffen
+nur die gespielten Wochen, ein wöchentlicher Ausgleich das ganze Jahr — das
+verschöbe die Kalibrierung mit jeder Änderung an der Offseason-Länge, ohne
+dass die Zahl selbst falsch würde.
 
 ---
 

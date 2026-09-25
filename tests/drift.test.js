@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 import {
   gruppeVon, betreuung, verlustFaktor, verliere, warVerletzt, verletzungsLast,
-  verletzungsDrift, niederlagenInFolge, serienDrift, vereinsjahr,
+  verletzungsDrift, niederlagenInFolge, serienDrift, vereinsjahr, kiAusgleich,
   stufeBekannt, trendVersuch,
 } from '../engine/drift.js';
 import { verduennterWert, gruppenWert } from '../engine/coach.js';
@@ -13,7 +13,7 @@ import {
   MAX_RATING, BETREUUNG_FAKTOR_OHNE, BETREUUNG_FAKTOR_BESTE,
   VERLETZUNG_JE_WOCHE, VERLETZUNG_FAKTOR_FAMILIE, VERLETZUNG_FAKTOR_ARBEITER,
   ERFOLG_SERIE_SCHWELLE, ERFOLG_SERIE_ABZUG,
-  VEREINSJAHR_BONUS, COMMITMENT_VEREINSJAHRE_MAX, TREND_VERSUCHE,
+  VEREINSJAHR_BONUS, COMMITMENT_VEREINSJAHRE_MAX, TREND_VERSUCHE, KI_AUSGLEICH_JE_SAISON,
   ROLLE_FENSTER, ROLLE_OHNE_JE_SPIEL,
 } from '../engine/constants.js';
 import {
@@ -192,6 +192,30 @@ test('jedes Jahr im Verein hebt ein wenig, bis zum Deckel', () => {
     'danach kommt nichts mehr dazu');
 });
 
+// --- Der Ausgleich für KI-Vereine -------------------------------------------
+
+test('der KI-Ausgleich skaliert mit der Betreuung, ungedämpft — er ist ein Gewinn', () => {
+  const sp = mann({ commitment: 50 });
+  assert.equal(kiAusgleich(sp, []), 0, 'ohne Coach kein Ausgleich');
+  assert.equal(sp.commitment, 50);
+
+  const stab = [koordinator('OC', 60)];
+  const b = betreuung(stab, gruppeVon(sp));
+  const erwartet = KI_AUSGLEICH_JE_SAISON * (b / MAX_RATING);
+  const delta = kiAusgleich(mann({ commitment: 50 }), stab);
+  assert.ok(Math.abs(delta - erwartet) < 1e-9);
+
+  const staerker = [koordinator('OC', 90)];
+  assert.ok(kiAusgleich(mann({ commitment: 50 }), staerker) > delta,
+    'ein besserer Koordinator gibt mehr — dieselbe Kopplung, die auch Verluste dämpft');
+});
+
+test('der Ausgleich bucht nie über 99 hinaus', () => {
+  const sp = mann({ commitment: 98 });
+  kiAusgleich(sp, [koordinator('OC', 90)]);
+  assert.equal(sp.commitment, 99);
+});
+
 // --- Die Trend-Nachricht ---------------------------------------------------
 
 test('ohne gemeldete Stufe gilt die heutige als bekannt — ohne Nachricht', () => {
@@ -287,4 +311,29 @@ test('die Drift trifft auch die KI-Vereine', () => {
   }
   const nachher = fremd.map((id) => s.kader[id].reduce((a, sp) => a + (sp.commitment ?? 0), 0));
   assert.ok(nachher.some((w, i) => w !== vorher[i]), 'ohne Rollen bewegt sich dort trotzdem etwas');
+});
+
+test('mehr Betreuung bedeutet über mehrere Saisons einen höheren Schnitt', () => {
+  // Zwei Vereine, künstlich auf schlechte bzw. sehr gute Coaches gesetzt,
+  // sonst identisch — der Unterschied am Ende ist allein der Ausgleich.
+  const schlecht = neuesSpiel('heg', 'streuung');
+  const gut = neuesSpiel('heg', 'streuung');
+  const anderer = Object.keys(schlecht.kader).find((id) => id !== schlecht.meinTeam);
+  for (const c of schlecht.coaches[anderer]) for (const k in c.soft) c.soft[k] = 0;
+  for (const c of gut.coaches[anderer]) for (const k in c.soft) c.soft[k] = MAX_RATING;
+
+  const schnitt = (s) => s.kader[anderer].reduce((a, sp) => a + (sp.commitment ?? 0), 0)
+    / s.kader[anderer].length;
+
+  for (let saison = 0; saison < 3; saison++) {
+    const jahr = schlecht.jahr;
+    for (let i = 0; i < 2000 && schlecht.jahr === jahr; i++) { raeume(schlecht); weiter(schlecht); }
+  }
+  for (let saison = 0; saison < 3; saison++) {
+    const jahr = gut.jahr;
+    for (let i = 0; i < 2000 && gut.jahr === jahr; i++) { raeume(gut); weiter(gut); }
+  }
+  assert.ok(schnitt(gut) > schnitt(schlecht),
+    `gut betreut (${schnitt(gut).toFixed(1)}) sollte über schlecht betreut `
+      + `(${schnitt(schlecht).toFixed(1)}) liegen`);
 });

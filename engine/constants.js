@@ -971,6 +971,15 @@ export const ERFOLG_SERIE_ABZUG = 2.0;
 export const VEREINSJAHR_BONUS = 0.4;
 
 /**
+ * Was ein KI-Verein je Saison gewinnt, mal der Betreuung seiner Gruppe als
+ * Anteil an `MAX_RATING` — der Ersatz dafür, dass dort niemand Gespräche führt
+ * oder Rollen setzt. Kalibriert gegen die gemessene KI-Betreuung (im Schnitt
+ * rund 6 von 99, siehe balancing.md Abschnitt 17), damit der Ligaschnitt über
+ * drei Saisons ungefähr hält, statt ohne Boden zu fallen.
+ */
+export const KI_AUSGLEICH_JE_SAISON = 25;
+
+/**
  * Wie oft der Coach die Chance bekommt, einen Stufenwechsel zu bemerken, bevor
  * er für immer ungesagt bleibt — je Wochenanfang eine. Die Chance je Versuch
  * ist die Betreuung selbst, als Anteil an `MAX_RATING`. Ohne Positionscoach
