@@ -100,11 +100,8 @@ body {
 .reiter::-webkit-scrollbar { display: none; }
 
 .reiter button {
-  /* Wächst mit, damit die Leiste auf dem Telefon randlos ist — aber gedeckelt,
-     sonst würde ein einzelner Reiter auf einem breiten Fenster zu einem Balken
-     ohne erkennbare Schaltfläche. */
+  /* Wächst mit, damit die Leiste auf dem Telefon randlos ist. */
   flex: 1 0 auto;
-  max-width: 220px;
   min-height: var(--tap);
   padding: 0 18px;
   background: var(--bg-erhoben);
@@ -714,7 +711,12 @@ td.werteknopf { width: 1%; padding-left: 0; padding-right: 8px; text-align: righ
 /* Die Unterreiter im Personal: dieselbe Leiste, eine Spur kleiner. Ein
    gesperrter Reiter bleibt sichtbar — der Platz für Coaches und Orga ist
    entschieden, ihr Inhalt noch nicht. */
-.reiter.unter button { min-height: 38px; padding: 0 14px; font-size: 13px; }
+/* Nur hier noch ein Deckel: drei Unterreiter würden auf einem breiten Fenster
+   sonst zu Balken ohne erkennbare Schaltfläche. Die sechs Hauptreiter oben
+   brauchen ihn nicht — bei sechs Knöpfen bleibt jeder ein Knopf, egal wie
+   breit das Fenster wird, und die Leiste füllt den Rand bis zum Spielplan
+   rechts. Kommt ein siebter Hauptreiter hinzu, gehört die Frage neu gestellt. */
+.reiter.unter button { min-height: 38px; padding: 0 14px; font-size: 13px; max-width: 220px; }
 .reiter.unter button:disabled { opacity: .45; cursor: default; }
 
 /* --- Rückfrage ------------------------------------------------------------
