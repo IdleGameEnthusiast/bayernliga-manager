@@ -36,10 +36,20 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* Kein fester Deckel mehr: die Breite folgt dem Fenster. Die Grids darunter
+   (Bracket, Werte, Systeme, Aufstellungsraster, Stabkarten) tragen schon
+   `auto-fill`/`auto-fit` mit `minmax()` — sie füllen zusätzlichen Platz mit
+   mehr Spalten, nicht mit gestreckten Elementen. Nur ganz oben, auf einem
+   Bildschirm breiter als ein Monitor, bricht eine Seitenspalte den Rest ab:
+   sonst würde die Tabelle irgendwann breiter als lesbar. */
 .app {
-  max-width: 1100px;
+  max-width: min(100%, 1800px);
   margin: 0 auto;
-  padding: calc(var(--sicher-oben) + 12px) 12px calc(var(--sicher-unten) + 96px);
+  padding: calc(var(--sicher-oben) + 12px) 16px calc(var(--sicher-unten) + 96px);
+}
+
+@media (min-width: 1400px) {
+  .app { padding-left: 24px; padding-right: 24px; }
 }
 
 /* --- Kopfzeile ---------------------------------------------------------- */
@@ -90,7 +100,11 @@ body {
 .reiter::-webkit-scrollbar { display: none; }
 
 .reiter button {
+  /* Wächst mit, damit die Leiste auf dem Telefon randlos ist — aber gedeckelt,
+     sonst würde ein einzelner Reiter auf einem breiten Fenster zu einem Balken
+     ohne erkennbare Schaltfläche. */
   flex: 1 0 auto;
+  max-width: 220px;
   min-height: var(--tap);
   padding: 0 18px;
   background: var(--bg-erhoben);
