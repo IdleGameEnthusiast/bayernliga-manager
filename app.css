@@ -1020,9 +1020,12 @@ tr.coachzeile.offen td:nth-child(2) { font-weight: inherit; }
     overflow: visible;
   }
   .postspalte { border-bottom: none; border-right: 1px solid var(--rand); }
-  /* Beide Spalten scrollen in sich und enden auf derselben Höhe — sonst hörte
-     die Trennlinie mitten in der Karte auf. */
-  .postspalte, .postlese { max-height: 460px; overflow-y: auto; }
+  /* Die Liste scrollt in sich, damit sie neben der Lesespalte nicht endlos
+     wächst. Die Lesespalte selbst scrollt nicht mehr für sich — eine
+     Nachricht sollte sich ganz entfalten, nicht durch ein zweites Fenster in
+     der Karte gelesen werden. Die Seite bekommt dafür ihre eine Scrollbar
+     zurück, sobald die Nachricht länger ist als 460px. */
+  .postspalte { max-height: 460px; overflow-y: auto; }
 }
 
 /* --- Redeem Code und Playtester ------------------------------------------
